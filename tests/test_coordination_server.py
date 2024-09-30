@@ -3,12 +3,18 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from mpc_demo_infra.coordination_server.main import app
-from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher
+from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher, DataProvider
 from fastapi.testclient import TestClient
 
 # Use a unique filename for each test run
 TEST_DB_FILE = f"test_{os.getpid()}.db"
 SQLALCHEMY_DATABASE_URL = f"sqlite:///./{TEST_DB_FILE}"
+
+IDENTITY_1 = "test_identity_1"
+IDENTITY_2 = "test_identity_2"
+
+VOUCHER_CODE_1 = "test_voucher_code_1"
+VOUCHER_CODE_2 = "test_voucher_code_2"
 
 # Create engine and sessionmaker
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -53,7 +59,7 @@ def client(override_get_db):
 @pytest.fixture(scope="function")
 def create_voucher(db_session):
     """Create a Voucher instance and add it to the test database."""
-    def _create_voucher(code="TEST_VOUCHER"):
+    def _create_voucher(code: str):
         voucher = Voucher(code=code)
         db_session.add(voucher)
         db_session.commit()
@@ -63,16 +69,16 @@ def create_voucher(db_session):
 
 def test_register_with_valid_voucher(client, db_session, create_voucher):
     """Test registration using a valid Voucher."""
-    voucher = create_voucher()
+    voucher = create_voucher(VOUCHER_CODE_1)
 
     # Verify that the Voucher exists in the database after creation
     db_voucher = db_session.query(Voucher).filter_by(code=voucher.code).first()
     assert db_voucher is not None, "Voucher not found in database after creation"
 
-    response = client.post("/register", json={"voucher_code": voucher.code})
-
-    print(f"Response status: {response.status_code}")
-    print(f"Response content: {response.content}")
+    response = client.post("/register", json={
+        "voucher_code": voucher.code,
+        "identity": IDENTITY_1
+    })
 
     assert response.status_code == 200, f"Response: {response.json()}"
     assert "provider_id" in response.json()
@@ -80,3 +86,53 @@ def test_register_with_valid_voucher(client, db_session, create_voucher):
     # Verify that the Voucher is marked as used
     db_voucher = db_session.query(Voucher).filter_by(code=voucher.code).first()
     assert db_voucher.data_provider is not None, "Voucher not marked as used after registration"
+
+
+def test_register_with_invalid_voucher(client, db_session):
+    """Test registration using an invalid Voucher."""
+    another_identity = "test_identity_1"
+    response = client.post("/register", json={
+        "voucher_code": "INVALID_VOUCHER",
+        "identity": another_identity
+    })
+    assert response.status_code == 400 and "Invalid voucher code" in response.json()["detail"], f"Response: {response.json()}"
+
+
+def test_register_with_existing_identity(client, db_session, create_voucher):
+    """Test registration with an existing identity."""
+
+    # Create vouchers
+    voucher1 = create_voucher(VOUCHER_CODE_1)
+    voucher2 = create_voucher(VOUCHER_CODE_2)
+
+    response = client.post("/register", json={
+        "voucher_code": voucher1.code,
+        "identity": IDENTITY_1
+    })
+    assert response.status_code == 200, f"Response: {response.json()}"
+
+    # Attempt to register with an existing identity
+    response = client.post("/register", json={
+        "voucher_code": voucher2.code,
+        "identity": IDENTITY_1
+    })
+
+    assert response.status_code == 400 and "Identity already exists" in response.json()["detail"], f"Response: {response.json()}"
+
+
+def test_full_registration_and_verification_flow(client, db_session, create_voucher):
+    voucher = create_voucher(VOUCHER_CODE_1)
+
+    # Register
+    register_response = client.post("/register", json={
+        "voucher_code": voucher.code,
+        "identity": IDENTITY_1
+    })
+    assert register_response.status_code == 200, f"Register Response: {register_response.json()}"
+
+    # Verify
+    verify_response = client.post("/verify_registration", json={
+        "identity": IDENTITY_1
+    })
+    assert verify_response.status_code == 204, f"Verify Response: {verify_response.text}"
+

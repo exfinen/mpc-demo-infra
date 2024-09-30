@@ -1,26 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from .schemas import NegotiateShareDataResponse, RegisterDataProviderRequest, RegisterDataProviderResponse
+
+from .schemas import (
+    NegotiateShareDataResponse, RegisterDataProviderRequest, RegisterDataProviderResponse,
+    VerifyRegistrationRequest, VerifyRegistrationResponse,
+)
 from .database import DataProvider, Voucher, get_db
-import uuid
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=RegisterDataProviderResponse)
 def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)):
-    print(f"Register endpoint called with voucher code: {request.voucher_code}")
 
+    # Check if voucher is valid
     voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == request.voucher_code).first()
-    print(f"Found voucher: {voucher}")
-
     if not voucher:
         raise HTTPException(status_code=400, detail="Invalid voucher code")
     if voucher.data_provider:
         raise HTTPException(status_code=400, detail="Voucher already used")
 
+    # Check if identity has existed, raise error
+    if db.query(DataProvider).filter(DataProvider.identity == request.identity).first():
+        raise HTTPException(status_code=400, detail="Identity already exists")
+
     # Create a new data provider and associate it with the voucher
-    new_provider = DataProvider(voucher=voucher)
+    new_provider = DataProvider(voucher=voucher, identity=request.identity)
     db.add(new_provider)
     db.commit()
     db.refresh(new_provider)
@@ -28,13 +33,10 @@ def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)
     return {"provider_id": new_provider.id}
 
 
-@router.post("/negotiate_share_data", response_model=NegotiateShareDataResponse)
-def negotiate_share_data(db: Session = Depends(get_db)):
-    client_id = str(uuid.uuid4())
-    port = 8000 + (len(db.query(Client).all()) % 1000)
-    client = Client(client_id=client_id, port=port)
-    db.add(client)
-    db.commit()
-    db.refresh(client)
-    return {"port": client.port, "client_id": client.client_id}
+@router.post("/verify_registration", status_code=status.HTTP_204_NO_CONTENT)
+def verify_registration(request: VerifyRegistrationRequest, db: Session = Depends(get_db)):
+    # Check if identity has not registered, raise error
+    if not db.query(DataProvider).filter(DataProvider.identity == request.identity).first():
+        raise HTTPException(status_code=400, detail="Identity not registered")
 
+    # TODO: more checks

@@ -31,6 +31,9 @@ class Voucher(Base):
     code = Column(String, unique=True, index=True, nullable=False)
     data_provider = relationship("DataProvider", back_populates="voucher", uselist=False)
 
+    def __repr__(self):
+        return f"Voucher(id={self.id}, code={self.code})"
+
 
 class DataProvider(Base):
     """
@@ -41,9 +44,12 @@ class DataProvider(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     has_provided_data = Column(Boolean, default=False)
+    identity = Column(String, nullable=False, unique=True)
     voucher = relationship("Voucher", back_populates="data_provider", uselist=False)
     voucher_id = Column(Integer, ForeignKey("vouchers.id"), nullable=False, unique=True)
 
+    def __repr__(self):
+        return f"DataProvider(id={self.id}, identity={self.identity}, has_provided_data={self.has_provided_data})"
 
 
 def create_tables():

@@ -29,7 +29,14 @@ class SuccessResponse(BaseModel):
     status: str
 
 class RegisterDataProviderRequest(BaseModel):
+    identity: str
     voucher_code: str
 
 class RegisterDataProviderResponse(BaseModel):
     provider_id: int
+
+class VerifyRegistrationRequest(BaseModel):
+    identity: str
+
+class VerifyRegistrationResponse(BaseModel):
+    pass

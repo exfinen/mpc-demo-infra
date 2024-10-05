@@ -1,5 +1,13 @@
 from pydantic import BaseModel
 from typing import Optional
+from enum import Enum
+
+
+class MPCStatus(Enum):
+    INITIAL = "INITIAL"
+    WAITING_FOR_ALL_PARTIES = "WAITING_FOR_ALL_PARTIES"
+    MPC_IN_PROGRESS = "MPC_IN_PROGRESS"
+
 
 class VerifyIdentityRequest(BaseModel):
     identity: str
@@ -7,13 +15,21 @@ class VerifyIdentityRequest(BaseModel):
 class VerifyIdentityResponse(BaseModel):
     status: str
 
+class GetClientIdRequest(BaseModel):
+    identity: str
+
+class GetClientIdResponse(BaseModel):
+    client_id: int
+
 class NegotiateShareDataRequest(BaseModel):
-    # Define any required fields if needed
-    pass
+    party_id: int
 
 class NegotiateShareDataResponse(BaseModel):
+    status: str
     port: int
-    client_id: str
+
+class CheckShareDataStatusResponse(BaseModel):
+    status: str
 
 class NegotiateQueryComputationRequest(BaseModel):
     computation_index: int
@@ -22,10 +38,10 @@ class NegotiateQueryComputationResponse(BaseModel):
     port: int
     client_id: str
 
-class SuccessRequest(BaseModel):
-    client_id: str
+class SetShareDataCompleteRequest(BaseModel):
+    party_id: int
 
-class SuccessResponse(BaseModel):
+class SetShareDataCompleteResponse(BaseModel):
     status: str
 
 class RegisterDataProviderRequest(BaseModel):

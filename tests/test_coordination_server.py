@@ -1,10 +1,16 @@
 import os
+
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from mpc_demo_infra.coordination_server.main import app
-from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher, DataProvider
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
+
+from mpc_demo_infra.coordination_server.main import app
+from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher
+from mpc_demo_infra.coordination_server.routes import (
+    NUM_PARTIES, MPC_PORT, MPCStatus,
+    indicated_joining_mpc, indicated_mpc_complete, is_data_sharing_in_progress
+)
 
 # Use a unique filename for each test run
 TEST_DB_FILE = f"test_{os.getpid()}.db"
@@ -136,3 +142,180 @@ def test_full_registration_and_verification_flow(client, db_session, create_vouc
     })
     assert verify_response.status_code == 204, f"Verify Response: {verify_response.text}"
 
+def test_get_client_id_success(client, db_session, create_voucher):
+    # Create a voucher and register a data provider
+    voucher = create_voucher(VOUCHER_CODE_1)
+    register_response = client.post("/register", json={
+        "voucher_code": voucher.code,
+        "identity": IDENTITY_1
+    })
+    assert register_response.status_code == 200
+
+    # Get client ID
+    response = client.post("/get_client_id", json={"identity": IDENTITY_1})
+    assert response.status_code == 200
+    assert "client_id" in response.json()
+    assert isinstance(response.json()["client_id"], int)
+
+def test_get_client_id_nonexistent_identity(client, db_session):
+    # Attempt to get client ID for non-existent identity
+    response = client.post("/get_client_id", json={"identity": "nonexistent_identity"})
+    assert response.status_code == 400
+    assert "Data provider not found" in response.json()["detail"]
+
+def test_get_client_id_multiple_providers(client, db_session, create_voucher):
+    # Create vouchers and register multiple data providers
+    voucher1 = create_voucher(VOUCHER_CODE_1)
+    voucher2 = create_voucher(VOUCHER_CODE_2)
+
+    client.post("/register", json={"voucher_code": voucher1.code, "identity": IDENTITY_1})
+    client.post("/register", json={"voucher_code": voucher2.code, "identity": IDENTITY_2})
+
+    # Get client IDs for both providers
+    response1 = client.post("/get_client_id", json={"identity": IDENTITY_1})
+    response2 = client.post("/get_client_id", json={"identity": IDENTITY_2})
+
+    assert response1.status_code == 200
+    assert response2.status_code == 200
+    assert response1.json()["client_id"] != response2.json()["client_id"]
+
+
+@pytest.fixture(autouse=True)
+def reset_global_state():
+    # Reset global state before each test
+    indicated_joining_mpc.clear()
+    indicated_mpc_complete.clear()
+    is_data_sharing_in_progress.clear()
+
+
+def test_check_share_data_status(client):
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 200
+    assert response.json() == {"status": MPCStatus.INITIAL.value}
+
+
+def test_negotiate_share_data_first_party(client):
+    response = client.post("/negotiate_share_data", json={"party_id": 1})
+    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "port": MPC_PORT}
+    assert len(indicated_joining_mpc) == 1
+
+
+def test_negotiate_share_data_last_party(client):
+    # Simulate two parties already joined
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+
+    response = client.post("/negotiate_share_data", json={"party_id": 3})
+    assert response.status_code == 200
+    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": MPC_PORT}
+    assert len(indicated_joining_mpc) == NUM_PARTIES
+    assert is_data_sharing_in_progress.is_set()
+
+
+def test_negotiate_share_data_already_in_progress(client):
+    is_data_sharing_in_progress.set()
+    response = client.post("/negotiate_share_data", json={"party_id": 1})
+    assert response.status_code == 400
+    assert "Data sharing already in progress" in response.json()["detail"]
+
+
+def test_negotiate_share_data_party_already_joined(client):
+    indicated_joining_mpc[1] = 0
+    response = client.post("/negotiate_share_data", json={"party_id": 1})
+    assert response.status_code == 400
+    assert "Party already waiting" in response.json()["detail"]
+
+
+def test_set_share_data_complete_success(client):
+    # Simulate MPC in progress
+    is_data_sharing_in_progress.set()
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+    indicated_joining_mpc[3] = 0
+
+    response = client.post("/set_share_data_complete", json={"party_id": 1})
+    assert response.status_code == 204
+    assert 1 in indicated_mpc_complete
+
+
+def test_set_share_data_complete_all_parties(client):
+    # Simulate MPC in progress and two parties completed
+    is_data_sharing_in_progress.set()
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+    indicated_joining_mpc[3] = 0
+    indicated_mpc_complete[1] = 0
+    indicated_mpc_complete[2] = 0
+
+    response = client.post("/set_share_data_complete", json={"party_id": 3})
+    assert response.status_code == 204
+    assert len(indicated_joining_mpc) == 0
+    assert len(indicated_mpc_complete) == 0
+    assert not is_data_sharing_in_progress.is_set()
+
+
+def test_set_share_data_complete_mpc_not_in_progress(client):
+    response = client.post("/set_share_data_complete", json={"party_id": 1})
+    assert response.status_code == 400
+    assert "Cannot set share data complete: MPC is not in progress" in response.json()["detail"]
+
+
+def test_get_current_state_initial(client):
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 200
+    assert response.json()["status"] == MPCStatus.INITIAL.value
+
+
+def test_get_current_state_waiting_for_all_parties(client):
+    indicated_joining_mpc[1] = 0
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 200
+    assert response.json()["status"] == MPCStatus.WAITING_FOR_ALL_PARTIES.value
+
+
+def test_get_current_state_mpc_in_progress(client):
+    is_data_sharing_in_progress.set()
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+    indicated_joining_mpc[3] = 0
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 200
+    assert response.json()["status"] == MPCStatus.MPC_IN_PROGRESS.value
+
+
+def test_get_current_state_invalid_all_joined_not_in_progress(client):
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+    indicated_joining_mpc[3] = 0
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 400
+    assert "Invalid state: all parties have joined but MPC is not in progress" in response.json()["detail"]
+
+
+def test_get_current_state_invalid_in_progress_not_all_joined(client):
+    is_data_sharing_in_progress.set()
+    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[2] = 0
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 400
+    assert "Invalid state: MPC is in progress but not all parties have joined" in response.json()["detail"]
+
+
+def test_get_current_state_invalid_completed_not_in_progress(client):
+    indicated_mpc_complete[1] = 0
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 400
+    assert "Invalid state: parties have completed MPC but data sharing is not in progress" in response.json()["detail"]
+
+
+def test_cleanup_stale_sessions(client):
+    is_data_sharing_in_progress.set()
+    indicated_joining_mpc[1] = 0
+    indicated_mpc_complete[2] = 0
+
+    response = client.post("/cleanup_sessions")
+    assert response.status_code == 204
+
+    response = client.get("/check_share_data_status")
+    assert response.status_code == 200
+    assert response.json()["status"] == MPCStatus.INITIAL.value

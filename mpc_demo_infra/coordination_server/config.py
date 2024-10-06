@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # API Keys for additional authentication (optional)
     api_keys: List[str] = ["your_api_key_1", "your_api_key_2"]
 
+    mpc_port: int = 8010
+    num_parties: int = 3
+
     # Party IPs
     party_ips: List[str] = ["localhost:6666", "localhost:6667", "localhost:6668"]
     class Config:

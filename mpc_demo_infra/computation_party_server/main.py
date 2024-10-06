@@ -15,11 +15,11 @@ logging.basicConfig(
     ]
 )
 
-logger = logging.getLogger("coordination_server")
+logger = logging.getLogger("computation_party_server")
 
 app = FastAPI(
-    title="Coordination Server",
-    description="API for MPC Coordination",
+    title="Computation Party Server",
+    description="API for MPC Computation Party",
     version="1.0.0",
 )
 
@@ -48,15 +48,15 @@ app.include_router(router)
 # Event handlers
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Coordination Server is starting up...")
+    logger.info("Computation Party Server is starting up...")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("Coordination Server is shutting down...")
+    logger.info("Computation Party Server is shutting down...")
 
 # Custom exception handlers can be added here
 
 def run():
     import uvicorn
-    uvicorn.run("mpc_demo_infra.coordination_server.main:app", host="0.0.0.0", port=5566, reload=True)
+    uvicorn.run("mpc_demo_infra.computation_party_server.main:app", host="0.0.0.0", port=5566, reload=True)
 

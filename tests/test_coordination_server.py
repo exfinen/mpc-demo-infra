@@ -8,9 +8,10 @@ from sqlalchemy.orm import sessionmaker
 from mpc_demo_infra.coordination_server.main import app
 from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher
 from mpc_demo_infra.coordination_server.routes import (
-    NUM_PARTIES, MPC_PORT, MPCStatus,
+    MPCStatus,
     indicated_joining_mpc, indicated_mpc_complete, is_data_sharing_in_progress
 )
+from mpc_demo_infra.coordination_server.config import settings
 
 # Use a unique filename for each test run
 TEST_DB_FILE = f"test_{os.getpid()}.db"
@@ -140,9 +141,11 @@ def test_full_registration_and_verification_flow(client, db_session, create_vouc
     verify_response = client.post("/verify_registration", json={
         "identity": IDENTITY_1
     })
-    assert verify_response.status_code == 204, f"Verify Response: {verify_response.text}"
+    assert verify_response.status_code == 200, f"Verify Response: {verify_response.json()}"
+    assert "client_id" in verify_response.json()
+    assert isinstance(verify_response.json()["client_id"], int)
 
-def test_get_client_id_success(client, db_session, create_voucher):
+def test_verify_registration_success(client, db_session, create_voucher):
     # Create a voucher and register a data provider
     voucher = create_voucher(VOUCHER_CODE_1)
     register_response = client.post("/register", json={
@@ -151,19 +154,19 @@ def test_get_client_id_success(client, db_session, create_voucher):
     })
     assert register_response.status_code == 200
 
-    # Get client ID
-    response = client.post("/get_client_id", json={"identity": IDENTITY_1})
+    # Verify registration
+    response = client.post("/verify_registration", json={"identity": IDENTITY_1})
     assert response.status_code == 200
     assert "client_id" in response.json()
     assert isinstance(response.json()["client_id"], int)
 
-def test_get_client_id_nonexistent_identity(client, db_session):
-    # Attempt to get client ID for non-existent identity
-    response = client.post("/get_client_id", json={"identity": "nonexistent_identity"})
+def test_verify_registration_nonexistent_identity(client, db_session):
+    # Attempt to verify registration for non-existent identity
+    response = client.post("/verify_registration", json={"identity": "nonexistent_identity"})
     assert response.status_code == 400
-    assert "Data provider not found" in response.json()["detail"]
+    assert "Identity not registered" in response.json()["detail"]
 
-def test_get_client_id_multiple_providers(client, db_session, create_voucher):
+def test_verify_registration_multiple_providers(client, db_session, create_voucher):
     # Create vouchers and register multiple data providers
     voucher1 = create_voucher(VOUCHER_CODE_1)
     voucher2 = create_voucher(VOUCHER_CODE_2)
@@ -171,9 +174,9 @@ def test_get_client_id_multiple_providers(client, db_session, create_voucher):
     client.post("/register", json={"voucher_code": voucher1.code, "identity": IDENTITY_1})
     client.post("/register", json={"voucher_code": voucher2.code, "identity": IDENTITY_2})
 
-    # Get client IDs for both providers
-    response1 = client.post("/get_client_id", json={"identity": IDENTITY_1})
-    response2 = client.post("/get_client_id", json={"identity": IDENTITY_2})
+    # Verify registration for both providers
+    response1 = client.post("/verify_registration", json={"identity": IDENTITY_1})
+    response2 = client.post("/verify_registration", json={"identity": IDENTITY_2})
 
     assert response1.status_code == 200
     assert response2.status_code == 200
@@ -196,7 +199,7 @@ def test_check_share_data_status(client):
 
 def test_negotiate_share_data_first_party(client):
     response = client.post("/negotiate_share_data", json={"party_id": 1})
-    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "port": MPC_PORT}
+    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "port": settings.mpc_port}
     assert len(indicated_joining_mpc) == 1
 
 
@@ -207,8 +210,8 @@ def test_negotiate_share_data_last_party(client):
 
     response = client.post("/negotiate_share_data", json={"party_id": 3})
     assert response.status_code == 200
-    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": MPC_PORT}
-    assert len(indicated_joining_mpc) == NUM_PARTIES
+    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": settings.mpc_port}
+    assert len(indicated_joining_mpc) == settings.num_parties
     assert is_data_sharing_in_progress.is_set()
 
 

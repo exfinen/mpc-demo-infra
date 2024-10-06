@@ -15,6 +15,7 @@ from .schemas import (
     SetShareDataCompleteRequest, SetShareDataCompleteResponse,
 )
 from .database import DataProvider, Voucher, get_db
+from .config import settings
 
 router = APIRouter()
 
@@ -42,36 +43,26 @@ def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)
     return {"provider_id": new_provider.id}
 
 
-@router.post("/verify_registration", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/verify_registration", response_model=VerifyRegistrationResponse)
 def verify_registration(request: VerifyRegistrationRequest, db: Session = Depends(get_db)):
     logger.info(f"Verifying registration for identity: {request.identity}")
     # Check if identity has not registered, raise error
-    if not db.query(DataProvider).filter(DataProvider.identity == request.identity).first():
+    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == request.identity).first()
+    if not data_provider:
         raise HTTPException(status_code=400, detail="Identity not registered")
 
     # TODO: more checks
     logger.info(f"Registration verified for identity: {request.identity}")
+    return {"client_id": data_provider.id}
 
-NUM_PARTIES = 3
+
 # SESSION_TIMEOUT = 300  # 5 minutes timeout
-MPC_PORT = 8000
 
 # Global lock and session tracking
 global_lock = Lock()
 indicated_joining_mpc: dict[int, int] = {}
 indicated_mpc_complete: dict[int, int] = {}
 is_data_sharing_in_progress = Event()
-
-
-@router.post("/get_client_id", response_model=GetClientIdResponse)
-def get_client_id(request: GetClientIdRequest, db: Session = Depends(get_db)):
-    identity = request.identity
-    logger.info(f"Getting client ID for identity: {request.identity}")
-    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == request.identity).first()
-    if not data_provider:
-        raise HTTPException(status_code=400, detail="Data provider not found")
-    logger.info(f"Retrieved client ID {data_provider.id} for identity: {identity}")
-    return {"client_id": data_provider.id}
 
 
 @router.post("/negotiate_share_data", response_model=NegotiateShareDataResponse)
@@ -96,13 +87,13 @@ def negotiate_share_data(request: NegotiateShareDataRequest):
             raise HTTPException(status_code=400, detail="Party already waiting")
         indicated_joining_mpc[party_id] = time.time()
         logger.info(f"Party {party_id} joined MPC. Total parties: {len(indicated_joining_mpc)}")
-        if len(indicated_joining_mpc) == NUM_PARTIES:
+        if len(indicated_joining_mpc) == settings.num_parties:
             is_data_sharing_in_progress.set()
             logger.info("All parties joined. MPC is now in progress.")
-            return NegotiateShareDataResponse(status=MPCStatus.MPC_IN_PROGRESS.value, port=MPC_PORT)
+            return NegotiateShareDataResponse(status=MPCStatus.MPC_IN_PROGRESS.value, port=settings.mpc_port)
         else:
             logger.info(f"Waiting for more parties. Current count: {len(indicated_joining_mpc)}")
-            return NegotiateShareDataResponse(status=MPCStatus.WAITING_FOR_ALL_PARTIES.value, port=MPC_PORT)
+            return NegotiateShareDataResponse(status=MPCStatus.WAITING_FOR_ALL_PARTIES.value, port=settings.mpc_port)
 
 
 @router.post("/set_share_data_complete", status_code=status.HTTP_204_NO_CONTENT)
@@ -119,7 +110,7 @@ def set_share_data_complete(request: SetShareDataCompleteRequest):
             raise HTTPException(status_code=400, detail="Party not waiting")
         indicated_mpc_complete[party_id] = time.time()
         logger.info(f"Party {party_id} completed MPC. Total completed: {len(indicated_mpc_complete)}")
-        if len(indicated_mpc_complete) == NUM_PARTIES:
+        if len(indicated_mpc_complete) == settings.num_parties:
             logger.info("All parties completed MPC. Cleaning up states.")
             cleanup_states()
 
@@ -147,7 +138,7 @@ def get_current_state() -> MPCStatus:
     logger.debug(f"Current state: Parties joined: {num_parties_indicated_joining}, Parties completed: {num_parties_indicated_complete}")
 
     if is_data_sharing_in_progress.is_set():
-        if num_parties_indicated_joining != NUM_PARTIES:
+        if num_parties_indicated_joining != settings.num_parties:
             raise HTTPException(status_code=400, detail="Invalid state: MPC is in progress but not all parties have joined")
         return MPCStatus.MPC_IN_PROGRESS
     else:
@@ -155,7 +146,7 @@ def get_current_state() -> MPCStatus:
             raise HTTPException(status_code=400, detail="Invalid state: parties have completed MPC but data sharing is not in progress")
         if num_parties_indicated_joining == 0:
             return MPCStatus.INITIAL
-        elif num_parties_indicated_joining < NUM_PARTIES:
+        elif num_parties_indicated_joining < settings.num_parties:
             return MPCStatus.WAITING_FOR_ALL_PARTIES
         else:
             raise HTTPException(status_code=400, detail="Invalid state: all parties have joined but MPC is not in progress")

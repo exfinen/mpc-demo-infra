@@ -55,4 +55,4 @@ class VerifyRegistrationRequest(BaseModel):
     identity: str
 
 class VerifyRegistrationResponse(BaseModel):
-    pass
+    client_id: int

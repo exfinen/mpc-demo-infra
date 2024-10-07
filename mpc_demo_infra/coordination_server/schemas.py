@@ -25,8 +25,8 @@ class NegotiateShareDataRequest(BaseModel):
     party_id: int
 
 class NegotiateShareDataResponse(BaseModel):
-    status: str
     port: int
+    status: str
 
 class CheckShareDataStatusResponse(BaseModel):
     status: str

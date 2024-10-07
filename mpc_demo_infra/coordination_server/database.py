@@ -1,10 +1,11 @@
 # mpc_demo_infra/coordination_server/database_models.py
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, JSON
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
 from .config import settings
+from sqlalchemy.sql import func
 
 engine = create_engine(
     settings.database_url,

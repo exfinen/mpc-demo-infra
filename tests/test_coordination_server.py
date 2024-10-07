@@ -9,7 +9,9 @@ from mpc_demo_infra.coordination_server.main import app
 from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher
 from mpc_demo_infra.coordination_server.routes import (
     MPCStatus,
-    indicated_joining_mpc, indicated_mpc_complete, is_data_sharing_in_progress
+    Session,
+    indicated_joining_mpc,
+    indicated_mpc_complete,
 )
 from mpc_demo_infra.coordination_server.config import settings
 
@@ -188,7 +190,6 @@ def reset_global_state():
     # Reset global state before each test
     indicated_joining_mpc.clear()
     indicated_mpc_complete.clear()
-    is_data_sharing_in_progress.clear()
 
 
 def test_check_share_data_status(client):
@@ -205,25 +206,17 @@ def test_negotiate_share_data_first_party(client):
 
 def test_negotiate_share_data_last_party(client):
     # Simulate two parties already joined
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
+    indicated_joining_mpc[1] = Session(time=0)
+    indicated_joining_mpc[2] = Session(time=0)
 
     response = client.post("/negotiate_share_data", json={"party_id": 3})
     assert response.status_code == 200
     assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": settings.mpc_port}
     assert len(indicated_joining_mpc) == settings.num_parties
-    assert is_data_sharing_in_progress.is_set()
-
-
-def test_negotiate_share_data_already_in_progress(client):
-    is_data_sharing_in_progress.set()
-    response = client.post("/negotiate_share_data", json={"party_id": 1})
-    assert response.status_code == 400
-    assert "Data sharing already in progress" in response.json()["detail"]
 
 
 def test_negotiate_share_data_party_already_joined(client):
-    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[1] = Session(time=0)
     response = client.post("/negotiate_share_data", json={"party_id": 1})
     assert response.status_code == 400
     assert "Party already waiting" in response.json()["detail"]
@@ -231,10 +224,9 @@ def test_negotiate_share_data_party_already_joined(client):
 
 def test_set_share_data_complete_success(client):
     # Simulate MPC in progress
-    is_data_sharing_in_progress.set()
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
-    indicated_joining_mpc[3] = 0
+    indicated_joining_mpc[1] = Session(time=0)
+    indicated_joining_mpc[2] = Session(time=0)
+    indicated_joining_mpc[3] = Session(time=0)
 
     response = client.post("/set_share_data_complete", json={"party_id": 1})
     assert response.status_code == 204
@@ -243,18 +235,16 @@ def test_set_share_data_complete_success(client):
 
 def test_set_share_data_complete_all_parties(client):
     # Simulate MPC in progress and two parties completed
-    is_data_sharing_in_progress.set()
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
-    indicated_joining_mpc[3] = 0
-    indicated_mpc_complete[1] = 0
-    indicated_mpc_complete[2] = 0
+    indicated_joining_mpc[1] = Session(time=0)
+    indicated_joining_mpc[2] = Session(time=0)
+    indicated_joining_mpc[3] = Session(time=0)
+    indicated_mpc_complete[1] = Session(time=0)
+    indicated_mpc_complete[2] = Session(time=0)
 
     response = client.post("/set_share_data_complete", json={"party_id": 3})
     assert response.status_code == 204
     assert len(indicated_joining_mpc) == 0
     assert len(indicated_mpc_complete) == 0
-    assert not is_data_sharing_in_progress.is_set()
 
 
 def test_set_share_data_complete_mpc_not_in_progress(client):
@@ -270,51 +260,24 @@ def test_get_current_state_initial(client):
 
 
 def test_get_current_state_waiting_for_all_parties(client):
-    indicated_joining_mpc[1] = 0
+    indicated_joining_mpc[1] = Session(time=0)
     response = client.get("/check_share_data_status")
     assert response.status_code == 200
     assert response.json()["status"] == MPCStatus.WAITING_FOR_ALL_PARTIES.value
 
 
 def test_get_current_state_mpc_in_progress(client):
-    is_data_sharing_in_progress.set()
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
-    indicated_joining_mpc[3] = 0
+    indicated_joining_mpc[1] = Session(time=0)
+    indicated_joining_mpc[2] = Session(time=0)
+    indicated_joining_mpc[3] = Session(time=0)
     response = client.get("/check_share_data_status")
     assert response.status_code == 200
     assert response.json()["status"] == MPCStatus.MPC_IN_PROGRESS.value
 
 
-def test_get_current_state_invalid_all_joined_not_in_progress(client):
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
-    indicated_joining_mpc[3] = 0
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 400
-    assert "Invalid state: all parties have joined but MPC is not in progress" in response.json()["detail"]
-
-
-def test_get_current_state_invalid_in_progress_not_all_joined(client):
-    is_data_sharing_in_progress.set()
-    indicated_joining_mpc[1] = 0
-    indicated_joining_mpc[2] = 0
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 400
-    assert "Invalid state: MPC is in progress but not all parties have joined" in response.json()["detail"]
-
-
-def test_get_current_state_invalid_completed_not_in_progress(client):
-    indicated_mpc_complete[1] = 0
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 400
-    assert "Invalid state: parties have completed MPC but data sharing is not in progress" in response.json()["detail"]
-
-
 def test_cleanup_stale_sessions(client):
-    is_data_sharing_in_progress.set()
-    indicated_joining_mpc[1] = 0
-    indicated_mpc_complete[2] = 0
+    indicated_joining_mpc[1] = Session(time=0)
+    indicated_mpc_complete[2] = Session(time=0)
 
     response = client.post("/cleanup_sessions")
     assert response.status_code == 204

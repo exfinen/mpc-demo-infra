@@ -57,13 +57,13 @@ def test_share_data_success(mock_post, mock_db):
     # Check the second call (negotiate share data)
     mock_post.assert_any_call(
         f"{settings.coordination_server_url}/negotiate_share_data",
-        json={"party_id": settings.party_id}
+        json={"party_id": settings.party_id, "identity": identity}
     )
 
     # Check the third call (set share data complete)
     mock_post.assert_any_call(
         f"{settings.coordination_server_url}/set_share_data_complete",
-        json={"party_id": settings.party_id}
+        json={"party_id": settings.party_id, "identity": identity}
     )
 
 
@@ -147,7 +147,7 @@ def test_share_data_negotiate_share_data_fails(mock_post, mock_db):
     # Check the second call (negotiate_share_data)
     mock_post.assert_any_call(
         f"{settings.coordination_server_url}/negotiate_share_data",
-        json={"party_id": settings.party_id}
+        json={"party_id": settings.party_id, "identity": identity}
     )
 
 
@@ -192,13 +192,13 @@ def test_share_data_set_share_data_complete_fails(mock_post, mock_db):
     # Check the second call (negotiate_share_data)
     mock_post.assert_any_call(
         f"{settings.coordination_server_url}/negotiate_share_data",
-        json={"party_id": settings.party_id}
+        json={"party_id": settings.party_id, "identity": identity}
     )
 
     # Check the third call (set_share_data_complete)
     mock_post.assert_any_call(
         f"{settings.coordination_server_url}/set_share_data_complete",
-        json={"party_id": settings.party_id}
+        json={"party_id": settings.party_id, "identity": identity}
     )
 
 

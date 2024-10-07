@@ -20,6 +20,9 @@ from .config import settings
 
 router = APIRouter()
 
+#
+# Public APIs
+#
 
 @router.post("/register", response_model=RegisterDataProviderResponse)
 def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)):
@@ -56,6 +59,10 @@ def verify_registration(request: VerifyRegistrationRequest, db: Session = Depend
     logger.info(f"Registration verified for identity: {request.identity}")
     return {"client_id": data_provider.id}
 
+
+#
+# Party Server APIs: callable by parties
+#
 
 @dataclass(frozen=True)
 class Session:
@@ -126,14 +133,6 @@ def set_share_data_complete(request: SetShareDataCompleteRequest):
             cleanup_states()
 
 
-@router.post("/cleanup_sessions", status_code=status.HTTP_204_NO_CONTENT)
-def cleanup_sessions():
-    logger.info("Cleaning up stale sessions")
-    with global_lock:
-        cleanup_states()
-    logger.info("Stale sessions cleaned up")
-
-
 @router.get("/check_share_data_status", response_model=CheckShareDataStatusResponse)
 def check_share_data_status():
     logger.info("Checking share data status")
@@ -141,6 +140,19 @@ def check_share_data_status():
         state = get_current_state()
     logger.info(f"Current share data status: {state}")
     return {"status": state.value}
+
+
+#
+# Admin APIs: callable by admin
+#
+
+@router.post("/cleanup_sessions", status_code=status.HTTP_204_NO_CONTENT)
+def cleanup_sessions():
+    logger.info("Cleaning up stale sessions")
+    with global_lock:
+        cleanup_states()
+    logger.info("Stale sessions cleaned up")
+
 
 
 def get_current_state() -> MPCStatus:

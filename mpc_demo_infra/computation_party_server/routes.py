@@ -47,7 +47,6 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
         # Store TLSN proof in temporary file.
         temp_file.write(request.tlsn_proof.encode('utf-8'))
 
-        print(f"temp_file.name: {temp_file.name}")
         # Run TLSN proof verifier
         try:
             subprocess.run(
@@ -68,7 +67,7 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
 
     # 3. Call /negotiate_share_data on coordination server and get mpc port
     negotiate_url = f"{coordination_server_url}/negotiate_share_data"
-    negotiate_data = {"party_id": settings.party_id}
+    negotiate_data = {"party_id": settings.party_id, "identity": request.identity}
     try:
         response = requests.post(negotiate_url, json=negotiate_data)
         response.raise_for_status()
@@ -83,7 +82,7 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
 
     # 5. Call /set_share_data_complete on coordination server
     set_complete_url = f"{coordination_server_url}/set_share_data_complete"
-    set_complete_data = {"party_id": settings.party_id}
+    set_complete_data = {"party_id": settings.party_id, "identity": request.identity}
     try:
         response = requests.post(set_complete_url, json=set_complete_data)
         response.raise_for_status()

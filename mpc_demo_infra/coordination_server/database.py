@@ -53,6 +53,15 @@ class DataProvider(Base):
         return f"DataProvider(id={self.id}, identity={self.identity}, has_provided_data={self.has_provided_data})"
 
 
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    indicated_parties = Column(JSON, default=list)
+    completed_parties = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 def create_tables():
     """Create database tables"""
     Base.metadata.create_all(bind=engine)

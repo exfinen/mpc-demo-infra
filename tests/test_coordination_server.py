@@ -199,56 +199,77 @@ def test_check_share_data_status(client):
 
 
 def test_negotiate_share_data_first_party(client):
-    response = client.post("/negotiate_share_data", json={"party_id": 1})
+    response = client.post("/negotiate_share_data", json={"party_id": 1, "identity": IDENTITY_1})
     assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "port": settings.mpc_port}
     assert len(indicated_joining_mpc) == 1
 
 
 def test_negotiate_share_data_last_party(client):
     # Simulate two parties already joined
-    indicated_joining_mpc[1] = Session(time=0)
-    indicated_joining_mpc[2] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
 
-    response = client.post("/negotiate_share_data", json={"party_id": 3})
+    response = client.post("/negotiate_share_data", json={"party_id": 3, "identity": IDENTITY_1})
     assert response.status_code == 200
     assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": settings.mpc_port}
     assert len(indicated_joining_mpc) == settings.num_parties
 
 
 def test_negotiate_share_data_party_already_joined(client):
-    indicated_joining_mpc[1] = Session(time=0)
-    response = client.post("/negotiate_share_data", json={"party_id": 1})
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    response = client.post("/negotiate_share_data", json={"party_id": 1, "identity": IDENTITY_1})
     assert response.status_code == 400
     assert "Party already waiting" in response.json()["detail"]
 
+def test_negotiate_share_data_different_identities(client):
+    # Simulate one party already joined with IDENTITY_1
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+
+    # Try to join with a different identity
+    response = client.post("/negotiate_share_data", json={"party_id": 2, "identity": IDENTITY_2})
+    assert response.status_code == 400
+    assert "Party is running for different identity" in response.json()["detail"]
 
 def test_set_share_data_complete_success(client):
     # Simulate MPC in progress
-    indicated_joining_mpc[1] = Session(time=0)
-    indicated_joining_mpc[2] = Session(time=0)
-    indicated_joining_mpc[3] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
 
-    response = client.post("/set_share_data_complete", json={"party_id": 1})
+    response = client.post("/set_share_data_complete", json={"party_id": 1, "identity": IDENTITY_1})
     assert response.status_code == 204
     assert 1 in indicated_mpc_complete
 
 
 def test_set_share_data_complete_all_parties(client):
     # Simulate MPC in progress and two parties completed
-    indicated_joining_mpc[1] = Session(time=0)
-    indicated_joining_mpc[2] = Session(time=0)
-    indicated_joining_mpc[3] = Session(time=0)
-    indicated_mpc_complete[1] = Session(time=0)
-    indicated_mpc_complete[2] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
+    indicated_mpc_complete[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_mpc_complete[2] = Session(identity=IDENTITY_1, time=0)
 
-    response = client.post("/set_share_data_complete", json={"party_id": 3})
+    response = client.post("/set_share_data_complete", json={"party_id": 3, "identity": IDENTITY_1})
     assert response.status_code == 204
     assert len(indicated_joining_mpc) == 0
     assert len(indicated_mpc_complete) == 0
 
 
+def test_set_share_data_complete_different_identities(client):
+    # Simulate MPC in progress with IDENTITY_1
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
+    indicated_mpc_complete[1] = Session(identity=IDENTITY_1, time=0)
+
+    # Try to set complete with a different identity
+    response = client.post("/set_share_data_complete", json={"party_id": 2, "identity": IDENTITY_2})
+    assert response.status_code == 400
+    assert "Party is running for different identity" in response.json()["detail"]
+
+
 def test_set_share_data_complete_mpc_not_in_progress(client):
-    response = client.post("/set_share_data_complete", json={"party_id": 1})
+    response = client.post("/set_share_data_complete", json={"party_id": 1, "identity": IDENTITY_1})
     assert response.status_code == 400
     assert "Cannot set share data complete: MPC is not in progress" in response.json()["detail"]
 
@@ -260,24 +281,24 @@ def test_get_current_state_initial(client):
 
 
 def test_get_current_state_waiting_for_all_parties(client):
-    indicated_joining_mpc[1] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
     response = client.get("/check_share_data_status")
     assert response.status_code == 200
     assert response.json()["status"] == MPCStatus.WAITING_FOR_ALL_PARTIES.value
 
 
 def test_get_current_state_mpc_in_progress(client):
-    indicated_joining_mpc[1] = Session(time=0)
-    indicated_joining_mpc[2] = Session(time=0)
-    indicated_joining_mpc[3] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
+    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
     response = client.get("/check_share_data_status")
     assert response.status_code == 200
     assert response.json()["status"] == MPCStatus.MPC_IN_PROGRESS.value
 
 
 def test_cleanup_stale_sessions(client):
-    indicated_joining_mpc[1] = Session(time=0)
-    indicated_mpc_complete[2] = Session(time=0)
+    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
+    indicated_mpc_complete[2] = Session(identity=IDENTITY_1, time=0)
 
     response = client.post("/cleanup_sessions")
     assert response.status_code == 204

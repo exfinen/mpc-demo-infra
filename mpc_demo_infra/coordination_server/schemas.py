@@ -23,6 +23,7 @@ class GetClientIdResponse(BaseModel):
 
 class NegotiateShareDataRequest(BaseModel):
     party_id: int
+    identity: str
 
 class NegotiateShareDataResponse(BaseModel):
     port: int
@@ -40,9 +41,7 @@ class NegotiateQueryComputationResponse(BaseModel):
 
 class SetShareDataCompleteRequest(BaseModel):
     party_id: int
-
-class SetShareDataCompleteResponse(BaseModel):
-    status: str
+    identity: str
 
 class RegisterDataProviderRequest(BaseModel):
     identity: str

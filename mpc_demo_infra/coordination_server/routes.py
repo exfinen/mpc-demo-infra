@@ -12,8 +12,8 @@ from .schemas import (
     NegotiateShareDataRequest, NegotiateShareDataResponse,
     RegisterDataProviderRequest, RegisterDataProviderResponse,
     VerifyRegistrationRequest, VerifyRegistrationResponse,
-    GetClientIdRequest, GetClientIdResponse, MPCStatus, CheckShareDataStatusResponse,
-    SetShareDataCompleteRequest, SetShareDataCompleteResponse,
+    MPCStatus, CheckShareDataStatusResponse,
+    SetShareDataCompleteRequest,
 )
 from .database import DataProvider, Voucher, get_db
 from .config import settings
@@ -59,6 +59,7 @@ def verify_registration(request: VerifyRegistrationRequest, db: Session = Depend
 
 @dataclass(frozen=True)
 class Session:
+    identity: str
     time: int
 
 # Global lock and session tracking
@@ -70,7 +71,8 @@ indicated_mpc_complete: dict[int, Session] = {}
 @router.post("/negotiate_share_data", response_model=NegotiateShareDataResponse)
 def negotiate_share_data(request: NegotiateShareDataRequest, db: Session = Depends(get_db)):
     party_id = request.party_id
-    logger.info(f"Negotiating share data for {party_id=}")
+    identity = request.identity
+    logger.info(f"Negotiating share data for {party_id=} from {identity=}")
 
     with global_lock:
         state = get_current_state()
@@ -80,7 +82,12 @@ def negotiate_share_data(request: NegotiateShareDataRequest, db: Session = Depen
         if party_id in indicated_joining_mpc:
             logger.error(f"Party {party_id} already waiting for MPC")
             raise HTTPException(status_code=400, detail="Party already waiting")
-        indicated_joining_mpc[party_id] = Session(time=time.time())
+        # Check if every party is running for the same identity
+        if any(indicated_joining_mpc[id].identity != identity for id in indicated_joining_mpc):
+            logger.error(f"Party {party_id} is running for different identity")
+            raise HTTPException(status_code=400, detail="Party is running for different identity")
+        # Add the party to the indicated joining MPC for the given identity
+        indicated_joining_mpc[party_id] = Session(identity=identity, time=time.time())
         logger.info(f"Party {party_id} joined MPC. Total parties: {len(indicated_joining_mpc)}")
         current_state = get_current_state()
         if current_state == MPCStatus.MPC_IN_PROGRESS:
@@ -98,6 +105,7 @@ def negotiate_share_data(request: NegotiateShareDataRequest, db: Session = Depen
 @router.post("/set_share_data_complete", status_code=status.HTTP_204_NO_CONTENT)
 def set_share_data_complete(request: SetShareDataCompleteRequest):
     party_id = request.party_id
+    identity = request.identity
     logger.info(f"Setting share data complete for {party_id=}")
     with global_lock:
         state = get_current_state()
@@ -107,7 +115,11 @@ def set_share_data_complete(request: SetShareDataCompleteRequest):
         if party_id not in indicated_joining_mpc:
             logger.error(f"Party {party_id} not waiting in MPC")
             raise HTTPException(status_code=400, detail="Party not waiting")
-        indicated_mpc_complete[party_id] = Session(time=time.time())
+        # Check if every party is running for the same identity
+        if any(indicated_mpc_complete[id].identity != identity for id in indicated_mpc_complete):
+            logger.error(f"Party {party_id} is running for different identity")
+            raise HTTPException(status_code=400, detail="Party is running for different identity")
+        indicated_mpc_complete[party_id] = Session(identity=identity, time=time.time())
         logger.info(f"Party {party_id} completed MPC. Total completed: {len(indicated_mpc_complete)}")
         if len(indicated_mpc_complete) == settings.num_parties:
             logger.info("All parties completed MPC. Cleaning up states.")

@@ -103,8 +103,10 @@ def negotiate_share_data(request: NegotiateShareDataRequest, db: Session = Depen
             logger.info(f"Waiting for more parties. Current count: {len(indicated_joining_mpc)}, required: {settings.num_parties}")
         else:
             raise HTTPException(status_code=400, detail=f"Invalid state: {current_state}")
+        # Every party should have different ports, just for convenience
+        ports = [settings.mpc_port_base + party_id for party_id in range(settings.num_parties)]
         return NegotiateShareDataResponse(
-            port=settings.mpc_port,
+            ports=ports,
             status=current_state.value,
         )
 

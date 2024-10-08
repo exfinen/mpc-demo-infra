@@ -200,7 +200,9 @@ def test_check_share_data_status(client):
 
 def test_negotiate_share_data_first_party(client):
     response = client.post("/negotiate_share_data", json={"party_id": 1, "identity": IDENTITY_1})
-    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "port": settings.mpc_port}
+    assert response.status_code == 200
+    expected_ports = [settings.mpc_port_base + i for i in range(settings.num_parties)]
+    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "ports": expected_ports}
     assert len(indicated_joining_mpc) == 1
 
 
@@ -211,7 +213,8 @@ def test_negotiate_share_data_last_party(client):
 
     response = client.post("/negotiate_share_data", json={"party_id": 3, "identity": IDENTITY_1})
     assert response.status_code == 200
-    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "port": settings.mpc_port}
+    expected_ports = [settings.mpc_port_base + i for i in range(settings.num_parties)]
+    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "ports": expected_ports}
     assert len(indicated_joining_mpc) == settings.num_parties
 
 

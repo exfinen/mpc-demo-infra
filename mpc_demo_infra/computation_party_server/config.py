@@ -1,7 +1,7 @@
 from pydantic import BaseSettings
-from typing import List
 
 class Settings(BaseSettings):
+    num_parties: int = 3
     party_id: int = 0
 
     # Database settings
@@ -11,11 +11,12 @@ class Settings(BaseSettings):
     coordination_server_url: str = "http://localhost:8000"
 
     tlsn_project_root: str = "/Users/mhchia/projects/work/pse/tlsn"
-    tlsn_verifier_path: str = f"{tlsn_project_root}/tlsn/examples/simple"
 
     tlsn_proofs_dir: str = f"tlsn_proofs"
-    port: int = 8000
-    mpc_port: int = 8010
+
+    server_port: int = 8000
+    party_ips: list[str] = ["localhost", "localhost", "localhost"]
+    mpspdz_project_root: str = "/Users/mhchia/projects/work/pse/MP-SPDZ"
 
     class Config:
         env_file = ".env"

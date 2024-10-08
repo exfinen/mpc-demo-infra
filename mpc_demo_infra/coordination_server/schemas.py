@@ -26,7 +26,7 @@ class NegotiateShareDataRequest(BaseModel):
     identity: str
 
 class NegotiateShareDataResponse(BaseModel):
-    port: int
+    ports: list[int]
     status: str
 
 class CheckShareDataStatusResponse(BaseModel):

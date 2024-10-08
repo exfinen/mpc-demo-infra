@@ -1,3 +1,4 @@
+import subprocess
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -19,23 +20,27 @@ def mock_db():
     return MagicMock()
 
 @patch('mpc_demo_infra.computation_party_server.routes.requests.post')
-def test_share_data_success(mock_post, mock_db):
+@patch('mpc_demo_infra.computation_party_server.routes.run_program')
+def test_share_data_success(mock_run, mock_post, mock_db):
     identity = "id@zkstats.io"
     client_id = 1
-    mpc_port = 8000
+    mpc_port_base = 55688
 
     # Mock responses for successful identity verification and negotiation
     mock_identity_response = MagicMock()
     mock_identity_response.json.return_value = {"client_id": client_id}
 
     mock_negotiate_response = MagicMock()
-    mock_negotiate_response.json.return_value = {"port": mpc_port}
+    mock_negotiate_response.json.return_value = {"ports": [mpc_port_base + i for i in range(settings.num_parties)]}
 
     mock_set_complete_response = MagicMock()
     mock_set_complete_response.status_code = 204
     mock_post.side_effect = [
         mock_identity_response, mock_negotiate_response, mock_set_complete_response,
     ]
+
+    # Mock run_program
+    mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
 
     request_data = ShareDataRequest(
         identity=identity,
@@ -45,7 +50,8 @@ def test_share_data_success(mock_post, mock_db):
 
     assert response.status_code == 200
     assert response.json() == {"success": True, "message": "Data shared successfully"}
-    # Check that two POST requests were made
+
+    # Check that three POST requests were made
     assert mock_post.call_count == 3
 
     # Check the first call (identity verification)
@@ -65,6 +71,9 @@ def test_share_data_success(mock_post, mock_db):
         f"{settings.coordination_server_url}/set_share_data_complete",
         json={"party_id": settings.party_id, "identity": identity}
     )
+
+    # Check that run_program was called
+    mock_run.assert_called_once()
 
 
 @patch('mpc_demo_infra.computation_party_server.routes.requests.post')
@@ -150,19 +159,19 @@ def test_share_data_negotiate_share_data_fails(mock_post, mock_db):
         json={"party_id": settings.party_id, "identity": identity}
     )
 
-
 @patch('mpc_demo_infra.computation_party_server.routes.requests.post')
-def test_share_data_set_share_data_complete_fails(mock_post, mock_db):
+@patch('mpc_demo_infra.computation_party_server.routes.run_program')
+def test_share_data_set_share_data_complete_fails(mock_run, mock_post, mock_db):
     identity = "id@zkstats.io"
     client_id = 1
-    mpc_port = 8000
+    mpc_port_base = 55688
 
     # Mock responses for successful identity verification and negotiation
     mock_identity_response = MagicMock()
     mock_identity_response.json.return_value = {"client_id": client_id}
 
     mock_negotiate_response = MagicMock()
-    mock_negotiate_response.json.return_value = {"port": mpc_port}
+    mock_negotiate_response.json.return_value = {"ports": [mpc_port_base + i for i in range(settings.num_parties)]}
 
     # Mock response for set_share_data_complete that fails
     mock_set_complete_response = MagicMock()
@@ -170,6 +179,9 @@ def test_share_data_set_share_data_complete_fails(mock_post, mock_db):
 
     # Set up the mock to return different responses for different calls
     mock_post.side_effect = [mock_identity_response, mock_negotiate_response, mock_set_complete_response]
+
+    # Mock run_program
+    mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
 
     request_data = ShareDataRequest(
         identity=identity,
@@ -201,22 +213,5 @@ def test_share_data_set_share_data_complete_fails(mock_post, mock_db):
         json={"party_id": settings.party_id, "identity": identity}
     )
 
-
-
-
-
-
-
-# def test_query_computation(mock_db):
-#     request_data = QueryComputationRequest(computation_index=1)
-#     response = client.post("/query_computation", json=request_data.dict())
-
-#     assert response.status_code == 200
-#     assert response.json() == {
-#         "success": True,
-#         "message": "Computation queried successfully",
-#         "computation_index": 1,
-#         "computation_result": ""
-#     }
-
-# Add more tests for edge cases and error handling
+    # Check that run_program was called
+    mock_run.assert_called_once()

@@ -24,7 +24,7 @@ app = FastAPI(
 )
 
 # Create database tables
-# Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 # CORS Middleware (adjust origins as needed)
 app.add_middleware(
@@ -58,5 +58,10 @@ async def shutdown_event():
 
 def run():
     import uvicorn
-    uvicorn.run("mpc_demo_infra.computation_party_server.main:app", host="0.0.0.0", port=5566, reload=True)
+    uvicorn.run(
+        "mpc_demo_infra.computation_party_server.main:app",
+        host="0.0.0.0",
+        port=settings.port,
+        reload=True
+    )
 

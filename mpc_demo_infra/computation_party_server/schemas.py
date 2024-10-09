@@ -16,3 +16,14 @@ class QueryComputationResponse(BaseModel):
     success: bool
     message: Optional[str] = None
     computation_result: str
+
+
+class RequestSharingDataMPCRequest(BaseModel):
+    client_id: int
+    mpc_ports: list[int]
+    tlsn_proof: str
+
+
+class RequestSharingDataMPCResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None

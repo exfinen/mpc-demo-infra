@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # Database settings
     database_url: str = "sqlite:///./coordination.db"
 
+    tlsn_project_root: str = "/Users/mhchia/projects/work/pse/tlsn"
+
+    tlsn_proofs_dir: str = f"tlsn_proofs"
+
     # API Keys for additional authentication (optional)
     api_keys: List[str] = ["your_api_key_1", "your_api_key_2"]
 

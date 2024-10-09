@@ -13,8 +13,10 @@ class RequestSharingDataRequest(BaseModel):
     identity: str
     tlsn_proof: str
 
+
 class RequestSharingDataResponse(BaseModel):
-    status: str
+    mpc_ports: list[int]
+
 
 class VerifyIdentityRequest(BaseModel):
     identity: str

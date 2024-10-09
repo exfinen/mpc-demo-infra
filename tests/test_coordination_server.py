@@ -76,6 +76,17 @@ def create_voucher(db_session):
         return voucher
     return _create_voucher
 
+
+async def test_start_task(client):
+    response = client.post("/start-task")
+    assert response.status_code == 200
+    assert response.json() == {"message": "Threaded task started"}
+    print("!@# receive response")
+    import asyncio
+    await asyncio.sleep(4)
+    print("!@# after sleep")
+
+
 def test_register_with_valid_voucher(client, db_session, create_voucher):
     """Test registration using a valid Voucher."""
     voucher = create_voucher(VOUCHER_CODE_1)

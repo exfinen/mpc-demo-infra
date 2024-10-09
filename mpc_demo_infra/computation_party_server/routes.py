@@ -1,3 +1,4 @@
+import json
 import re
 import tempfile
 import logging
@@ -16,6 +17,8 @@ from .schemas import (
     ShareDataResponse,
     QueryComputationRequest,
     QueryComputationResponse,
+    RequestSharingDataMPCRequest,
+    RequestSharingDataMPCResponse,
 )
 from .database import get_db
 from .config import settings
@@ -45,7 +48,6 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
     except requests.RequestException as e:
         logger.error(f"Failed to verify identity: {str(e)}")
         raise HTTPException(status_code=400, detail="Failed to verify identity with coordination server")
-
     client_id = response.json()["client_id"]
 
     # 2. Verify TLSN proof
@@ -111,6 +113,60 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
     logger.info(f"Identity verified for party {client_id}")
 
     return ShareDataResponse(success=True, message="Data shared successfully")
+
+
+@router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
+def run_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session = Depends(get_db)):
+    logger.info(f"Requesting sharing data MPC for {request.client_id=}")
+    client_id = request.client_id
+    tlsn_proof = request.tlsn_proof
+    # Verify TLSN proof
+    with tempfile.NamedTemporaryFile() as temp_file:
+        # Store TLSN proof in temporary file.
+        temp_file.write(request.tlsn_proof.encode('utf-8'))
+
+        # Run TLSN proof verifier
+        try:
+            subprocess.run(
+                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_file.name}",
+                check=True,
+                shell=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to verify TLSN proof: {str(e)}")
+            raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+
+        # Proof is valid, copy to tlsn_proofs_dir and delete the temp file.
+        tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)
+        tlsn_proofs_dir.mkdir(parents=True, exist_ok=True)
+        tlsn_proof_path = tlsn_proofs_dir / f"proof_{client_id}.json"
+        tlsn_proof_path.write_text(request.tlsn_proof)
+
+    # Prepare for IP file
+    mpc_addresses = [
+        f"{ip}:{port}" for ip, port in zip(settings.party_ips, request.mpc_ports)
+    ]
+    with tempfile.NamedTemporaryFile(delete=False) as ip_file:
+        ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
+        ip_file.flush()
+
+    # Compile and run share_data_<client_id>.mpc
+    circuit_name = prepare_data_sharing_program(request.client_id)
+    compile_program(circuit_name)
+    run_program(circuit_name, ip_file.name)
+    # TODO: get data commitment from tlsn_proof and check with the program
+    return RequestSharingDataMPCResponse(success=True, message="Sharing data MPC requested successfully")
+
+
+def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:
+    proof_data = json.loads(tlsn_proof)
+    private_openings = proof_data["substrings"]["private_openings"]
+    assert len(private_openings) == 1, f"Expected 1 private opening, got {len(private_openings)}"
+    _, openings = list(private_openings.items())[0]
+    commitment = openings[1]
+    data_commitment_hash = bytes(commitment["hash"]).hex()
+    return data_commitment_hash
 
 
 @router.post("/query_computation", response_model=QueryComputationResponse)

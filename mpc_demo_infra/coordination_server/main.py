@@ -62,5 +62,5 @@ def run():
         "mpc_demo_infra.coordination_server.main:app",
         host="0.0.0.0",
         port=settings.port,
-        reload=True
+        # reload=True
     )

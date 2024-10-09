@@ -62,6 +62,6 @@ def run():
         "mpc_demo_infra.computation_party_server.main:app",
         host="0.0.0.0",
         port=settings.port,
-        reload=True
+        # reload=True
     )
 

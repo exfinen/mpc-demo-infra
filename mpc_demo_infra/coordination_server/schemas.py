@@ -9,6 +9,13 @@ class MPCStatus(Enum):
     MPC_IN_PROGRESS = "MPC_IN_PROGRESS"
 
 
+class RequestSharingDataRequest(BaseModel):
+    identity: str
+    tlsn_proof: str
+
+class RequestSharingDataResponse(BaseModel):
+    status: str
+
 class VerifyIdentityRequest(BaseModel):
     identity: str
 

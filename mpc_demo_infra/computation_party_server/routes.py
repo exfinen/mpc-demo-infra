@@ -35,8 +35,8 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
     logger.info("%s is sharing data", request.identity)
     coordination_server_url = settings.coordination_server_url
 
-    # 1. Call verify_identity on coordination server
-    verify_url = f"{coordination_server_url}/verify_identity"
+    # 1. Call verify_registration on coordination server
+    verify_url = f"{coordination_server_url}/verify_registration"
     verify_data = {"identity": request.identity}
 
     try:
@@ -109,8 +109,7 @@ def share_data(request: ShareDataRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Failed to set share data complete with coordination server")
 
     logger.info(f"Identity verified for party {client_id}")
-    # Call verify_registration on coordination server
-    # TODO: implement
+
     return ShareDataResponse(success=True, message="Data shared successfully")
 
 

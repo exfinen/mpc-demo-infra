@@ -21,6 +21,7 @@ pytest = "^8.2.0"
 httpx = "^0.27.2"
 pytest-asyncio = "^0.24.0"
 asgi-lifespan = "^2.1.0"
+aiohttp = "^3.10.9"
 
 [build-system]
 requires = ["poetry-core"]
@@ -31,3 +32,6 @@ coordination-server-create-tables = "mpc_demo_infra.coordination_server.database
 coordination-server-run = "mpc_demo_infra.coordination_server.main:run"
 computation-party-server-create-tables = "mpc_demo_infra.computation_party_server.database:create_tables"
 computation-party-server-run = "mpc_demo_infra.computation_party_server.main:run"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

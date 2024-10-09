@@ -56,7 +56,7 @@ def test_share_data_success(mock_run, mock_post, mock_db):
 
     # Check the first call (identity verification)
     mock_post.assert_any_call(
-        f"{settings.coordination_server_url}/verify_identity",
+        f"{settings.coordination_server_url}/verify_registration",
         json={"identity": identity}
     )
 
@@ -149,7 +149,7 @@ def test_share_data_negotiate_share_data_fails(mock_post, mock_db):
 
     # Check the first call (identity verification)
     mock_post.assert_any_call(
-        f"{settings.coordination_server_url}/verify_identity",
+        f"{settings.coordination_server_url}/verify_registration",
         json={"identity": identity}
     )
 
@@ -197,7 +197,7 @@ def test_share_data_set_share_data_complete_fails(mock_run, mock_post, mock_db):
 
     # Check the first call (identity verification)
     mock_post.assert_any_call(
-        f"{settings.coordination_server_url}/verify_identity",
+        f"{settings.coordination_server_url}/verify_registration",
         json={"identity": identity}
     )
 

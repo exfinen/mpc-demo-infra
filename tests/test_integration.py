@@ -91,58 +91,6 @@ async def servers():
     await asyncio.sleep(1)
 
 
-# @pytest.mark.asyncio
-# async def test_basic_integration_old(servers):
-#     print("Starting basic integration test")
-
-#     # Setup: Create necessary clients or API calls
-#     print("Setup: Creating necessary clients or API calls")
-
-#     # Test step 1: Verify coordination server is running
-#     print("Test step 1: Verifying coordination server is running")
-#     # Add voucher to coordination server
-#     # access db through db url
-
-#     voucher = "1234567890"
-#     identity = "test_identity"
-#     with SessionLocal() as db:
-#         voucher = Voucher(code=voucher)
-#         db.add(voucher)
-#         db.commit()
-#         db.refresh(voucher)
-
-#     # Register the user
-#     response = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-#         "voucher_code": voucher.code,
-#         "identity": identity
-#     })
-#     assert response.status_code == 200
-#     client_id = response.json()["provider_id"]
-#     print(f"!@# Client ID: {client_id}")
-
-#     # Request the data
-#     # for party_id in range(settings.num_parties):
-#     # asynchronously request /share_data for all parties
-#     async def request_share_data(party_id):
-#         party_port = COMPUTATION_PORTS[party_id]
-#         async with aiohttp.ClientSession() as session:
-#             async with session.post(f"http://localhost:{party_port}/share_data", json={
-#                 "identity": identity,
-#                 "tlsn_proof": TLSN_PROOF
-#             }) as response:
-#                 assert response.status == 200
-#                 data = await response.json()
-#                 print(f"!@# Data: {data}")
-#         # TODO: Get mpc port and run client interface client
-
-
-#     await asyncio.gather(*[request_share_data(party_id) for party_id in range(settings.num_parties)])
-
-
-#     print("Test finished")
-
-
-
 @pytest.mark.asyncio
 async def test_basic_integration(servers):
     voucher = "1234567890"
@@ -172,6 +120,8 @@ async def test_basic_integration(servers):
             data = await response.json()
             print(f"!@# Data: {data}")
             mpc_ports = data["mpc_ports"]
+    assert len(mpc_ports) == settings.num_parties
+    await asyncio.sleep(10)
     # TODO: Run client interface client and connect to mpc_ports
 
     print("Test finished")

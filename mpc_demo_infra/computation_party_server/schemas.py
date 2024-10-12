@@ -1,13 +1,13 @@
 from pydantic import BaseModel
 from typing import Optional
 
-class ShareDataRequest(BaseModel):
-    identity: str
+class RequestSharingDataMPCRequest(BaseModel):
+    client_id: int
+    mpc_ports: list[int]
     tlsn_proof: str
 
-class ShareDataResponse(BaseModel):
-    success: bool
-    message: Optional[str] = None
+class RequestSharingDataMPCResponse(BaseModel):
+    data_commitment: str
 
 class QueryComputationRequest(BaseModel):
     computation_index: int
@@ -25,5 +25,4 @@ class RequestSharingDataMPCRequest(BaseModel):
 
 
 class RequestSharingDataMPCResponse(BaseModel):
-    success: bool
-    message: Optional[str] = None
+    data_commitment: str

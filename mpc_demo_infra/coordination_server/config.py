@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     num_parties: int = 3
     port: int = 5566
 
+    protocol: str = "http"
     # Allowed IPs for access control
     allowed_ips: List[str] = ["192.168.1.100", "192.168.1.101"]
 

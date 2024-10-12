@@ -19,7 +19,6 @@ CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coordination-server-run"]
 CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "computation-party-server-run"]
 
 async def start_coordination_server(cmd: list[str], port: int, mpc_ports: list[int]):
-    print(f"!@# Starting server on port {port}")
     party_ips = [f"localhost:{port}" for port in mpc_ports]
     process = await asyncio.create_subprocess_exec(
         *cmd,

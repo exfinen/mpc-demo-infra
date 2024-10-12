@@ -1,0 +1,11 @@
+from Compiler.compilerLib import Compiler
+from Compiler.types import sint, sfix
+from Compiler.GC.types import sbitvec, sbits
+from Compiler.library import print_ln
+from Compiler.circuit import sha3_256
+
+
+c = sfix({client_id})
+print_ln("output: %s", c.reveal())
+# data commitment hash
+print_ln("Reg[8] = 0xfd9067ca55ff4258e2fd73d64cb41e1314dbd2456502d59591761388b9bf0e24")

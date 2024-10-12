@@ -35,3 +35,5 @@ computation-party-server-run = "mpc_demo_infra.computation_party_server.main:run
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+log_cli = true
+log_cli_level = "DEBUG"

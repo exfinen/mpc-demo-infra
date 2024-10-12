@@ -74,36 +74,38 @@ sharing_data_lock = asyncio.Lock()
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
     identity = request.identity
     tlsn_proof = request.tlsn_proof
+
+    logger.info(f"Verifying registration for identity: {identity}")
+    # Check if identity has not registered, raise error
+    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == identity).first()
+    if not data_provider:
+        raise HTTPException(status_code=400, detail="Identity not registered")
+    logger.info(f"Registration verified for identity: {identity}")
+    client_id = data_provider.id
+
+    # Verify TLSN proof.
+    with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
+        # Store TLSN proof in temporary file.
+        temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
+
+        # Run TLSN proof verifier
+        try:
+            process = await asyncio.create_subprocess_shell(
+                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_tlsn_proof_file.name}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            # stdout, stderr = await process.communicate()
+        except Exception as e:
+            logger.error(f"Failed to verify TLSN proof: {str(e)}")
+            raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+
+
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {identity=}")
     await sharing_data_lock.acquire()
 
     try:
-        logger.info(f"Verifying registration for identity: {identity}")
-        # Check if identity has not registered, raise error
-        data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == identity).first()
-        if not data_provider:
-            raise HTTPException(status_code=400, detail="Identity not registered")
-        logger.info(f"Registration verified for identity: {identity}")
-        client_id = data_provider.id
-
-        # Verify TLSN proof.
-        with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
-            # Store TLSN proof in temporary file.
-            temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
-
-            # Run TLSN proof verifier
-            try:
-                process = await asyncio.create_subprocess_shell(
-                    f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_tlsn_proof_file.name}",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                # stdout, stderr = await process.communicate()
-            except Exception as e:
-                logger.error(f"Failed to verify TLSN proof: {str(e)}")
-                raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
-
         # Request computation parties servers to run MPC
         mpc_ports = [settings.mpc_port_base + party_id for party_id in range(settings.num_parties)]
         l = asyncio.Event()
@@ -145,6 +147,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.fatal(f"Data commitment hash mismatch for {identity=}. Something is wrong with TLSN proof.")
                     raise HTTPException(status_code=400, detail="Data commitment hash mismatch")
                 logger.debug(f"Data commitment hash from TLSN proof and MPC matches for {identity=}")
+                print(f"!@# data_commitment_hash={data_commitment_hash}")
 
                 # Proof is valid, copy to tlsn_proofs_dir, and delete the temp file.
                 tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)

@@ -81,18 +81,18 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     compile_program(circuit_name)
     try:
         logger.debug(f"Running program {circuit_name}")
-        run_program(circuit_name, ip_file.name)
+        output, mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file.name)
     except Exception as e:
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
+    logger.debug(f"Output: {output}")
+    logger.debug(f"Commitment: {mpc_data_commitment_hash}")
 
     logger.debug(f"Verifying data commitment hash")
     # 3. Verify data commitment hash from TLSN proof and MPC matches or not. If not, rollback shares.
     tlsn_data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
     logger.debug(f"TLSN data commitment hash: {tlsn_data_commitment_hash}")
-    # TODO: get data commitment hash really from MPC
-    mpc_data_commitment_hash = tlsn_data_commitment_hash
     logger.debug(f"MPC data commitment hash: {mpc_data_commitment_hash}")
     if mpc_data_commitment_hash != tlsn_data_commitment_hash:
         logger.error(f"Data commitment hash mismatch between TLSN proof and MPC. Rolling back shares to {backup_shares_path}")
@@ -125,8 +125,11 @@ def get_backup_shares_dir(party_id: int):
     return dir
 
 
-def backup_shares(party_id: int):
-    # Persistence/Transactions-P2.data
+def backup_shares(party_id: int) -> Path | None:
+    # Persistence/Transactions-P{party_id}.data
+    source_path = SHARES_DIR / f"Transactions-P{party_id}.data"
+    if not source_path.exists():
+        return None
     dir = get_backup_shares_dir(party_id)
     # Get current timestamp
     current_time = datetime.now()
@@ -134,7 +137,6 @@ def backup_shares(party_id: int):
     # Format the timestamp
     timestamp = current_time.strftime("%Y-%m-%d-%H-%M-%S")
     # Current shares path
-    source_path = SHARES_DIR / f"Transactions-P{party_id}.data"
     # Use the timestamp in your file name
     dest_path = dir / f"Transactions-P{party_id}.data.{timestamp}"
     # Copy the file to the new location
@@ -142,9 +144,15 @@ def backup_shares(party_id: int):
     return dest_path
 
 
-def rollback_shares(party_id: int, backup_path: Path):
+def rollback_shares(party_id: int, backup_path: Path | None):
     dest_path = SHARES_DIR / f"Transactions-P{party_id}.data"
-    shutil.copy(backup_path, dest_path)
+    if backup_path is None:
+        # If there is no backup, just unlink the current shares
+        dest_path.unlink()
+        return
+    else:
+        # else, copy the backup shares back
+        shutil.copy(backup_path, dest_path)
 
 
 def prepare_data_sharing_program(client_id: int):
@@ -174,21 +182,35 @@ def run_program(circuit_name: str, ip_file_path: str):
     cmd_run_mpc = f"{CMD_RUN_MPC} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {ip_file_path}"
 
     # Run the MPC program
-    res = subprocess.run(
+    process = subprocess.run(
         f"cd {settings.mpspdz_project_root} && {cmd_run_mpc}",
         check=True,
         shell=True,
         capture_output=True,
         text=True
     )
-    output_lines = res.stdout.split('\n')
+    return process
 
+
+def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
+    process = run_program(circuit_name, ip_file_path)
+    output_lines = process.stdout.split('\n')
+
+    outputs = []
+    OUTPUT_PREFIX = "output: "
     commitments = []
     for line in output_lines:
+        if line.startswith(OUTPUT_PREFIX):
+            outputs.append(float(line[len(OUTPUT_PREFIX):].strip()))
         # Case for 'Reg[0] = 0x28059a08d116926177e4dfd87e72da4cd44966b61acc3f21870156b868b81e6a #'
-        if line.startswith('Reg['):
+        elif line.startswith('Reg['):
             # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161 #
             after_equal = line.split('=')[1].strip()
             # ed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             reg_value = after_equal.split(' ')[0][2:]
             commitments.append(reg_value)
+    if len(commitments) != 1:
+        raise ValueError(f"Expected 1 commitment, got {len(commitments)}")
+    if len(outputs) != 1:
+        raise ValueError(f"Expected 1 output, got {len(outputs)}")
+    return outputs[0], commitments[0]

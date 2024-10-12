@@ -1,18 +1,14 @@
 import os
-
 import pytest
+import asyncio
+from unittest.mock import patch, AsyncMock
 from sqlalchemy import create_engine
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
+from pathlib import Path
 
 from mpc_demo_infra.coordination_server.main import app
-from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher
-from mpc_demo_infra.coordination_server.routes import (
-    MPCStatus,
-    Session,
-    indicated_joining_mpc,
-    indicated_mpc_complete,
-)
+from mpc_demo_infra.coordination_server.database import Base, get_db, Voucher, DataProvider
 from mpc_demo_infra.coordination_server.config import settings
 
 # Use a unique filename for each test run
@@ -24,6 +20,8 @@ IDENTITY_2 = "test_identity_2"
 
 VOUCHER_CODE_1 = "test_voucher_code_1"
 VOUCHER_CODE_2 = "test_voucher_code_2"
+
+MOCK_TLSN_PROOF = '{"substrings": {"private_openings": {"0": [0, {"hash": [0, 1, 2, 3]}]}}}'
 
 # Create engine and sessionmaker
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -76,17 +74,6 @@ def create_voucher(db_session):
         return voucher
     return _create_voucher
 
-
-async def test_start_task(client):
-    response = client.post("/start-task")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Threaded task started"}
-    print("!@# receive response")
-    import asyncio
-    await asyncio.sleep(4)
-    print("!@# after sleep")
-
-
 def test_register_with_valid_voucher(client, db_session, create_voucher):
     """Test registration using a valid Voucher."""
     voucher = create_voucher(VOUCHER_CODE_1)
@@ -107,7 +94,6 @@ def test_register_with_valid_voucher(client, db_session, create_voucher):
     db_voucher = db_session.query(Voucher).filter_by(code=voucher.code).first()
     assert db_voucher.data_provider is not None, "Voucher not marked as used after registration"
 
-
 def test_register_with_invalid_voucher(client, db_session):
     """Test registration using an invalid Voucher."""
     another_identity = "test_identity_1"
@@ -117,11 +103,8 @@ def test_register_with_invalid_voucher(client, db_session):
     })
     assert response.status_code == 400 and "Invalid voucher code" in response.json()["detail"], f"Response: {response.json()}"
 
-
 def test_register_with_existing_identity(client, db_session, create_voucher):
     """Test registration with an existing identity."""
-
-    # Create vouchers
     voucher1 = create_voucher(VOUCHER_CODE_1)
     voucher2 = create_voucher(VOUCHER_CODE_2)
 
@@ -139,184 +122,180 @@ def test_register_with_existing_identity(client, db_session, create_voucher):
 
     assert response.status_code == 400 and "Identity already exists" in response.json()["detail"], f"Response: {response.json()}"
 
-
-def test_full_registration_and_verification_flow(client, db_session, create_voucher):
+@pytest.mark.asyncio
+async def test_share_data_with_registered_identity(tmp_path, client, db_session, create_voucher):
+    """Test sharing data with a registered identity."""
+    # First, register the identity
     voucher = create_voucher(VOUCHER_CODE_1)
-
-    # Register
-    register_response = client.post("/register", json={
+    client.post("/register", json={
         "voucher_code": voucher.code,
         "identity": IDENTITY_1
     })
-    assert register_response.status_code == 200, f"Register Response: {register_response.json()}"
 
-    # Verify
-    verify_response = client.post("/verify_registration", json={
-        "identity": IDENTITY_1
+    data_provider: DataProvider | None = db_session.query(DataProvider).filter(DataProvider.identity == IDENTITY_1).first()
+    assert data_provider is not None, "Data provider not found in database after registration"
+    client_id = data_provider.id
+
+    # Mock tlsn_proofs_dir and thus we know if share_data succeeds, tlsn_proof is saved at the path.
+    expected_tlsn_dir = tmp_path / "tlsn_proofs"
+    settings.tlsn_proofs_dir = str(expected_tlsn_dir)
+    expected_tlsn_dir.mkdir(parents=True, exist_ok=True)
+    expected_tlsn_proof = expected_tlsn_dir / f"proof_{client_id}.json"
+
+    # Mock the TLSN proof verification process
+    with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_subprocess:
+        mock_subprocess.return_value.communicate.return_value = (b'', b'')
+        mock_subprocess.return_value.returncode = 0
+
+        # Mock the aiohttp ClientSession
+        with patch('aiohttp.ClientSession') as mock_session:
+            mock_post = AsyncMock()
+            mock_session.return_value.__aenter__.return_value.post = mock_post
+
+            # Create mock responses with different data commitments
+            same_commitment = "commitment1"
+            mock_responses = [
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": same_commitment})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": same_commitment})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": same_commitment}))
+            ]
+            mock_post.side_effect = mock_responses
+            # Mock get_data_commitment_hash_from_tlsn_proof to return the same commitment
+            with patch('mpc_demo_infra.coordination_server.routes.get_data_commitment_hash_from_tlsn_proof', return_value=same_commitment):
+                response = client.post("/share_data", json={
+                    "identity": IDENTITY_1,
+                    "tlsn_proof": MOCK_TLSN_PROOF
+                })
+
+    assert response.status_code == 200, f"Response: {response.json()}"
+    assert "mpc_ports" in response.json()
+    assert expected_tlsn_proof.exists(), "Expected TLSN proof file not found"
+
+def test_share_data_with_unregistered_identity(client, db_session):
+    """Test sharing data with an unregistered identity."""
+    response = client.post("/share_data", json={
+        "identity": "unregistered_identity",
+        "tlsn_proof": MOCK_TLSN_PROOF
     })
-    assert verify_response.status_code == 200, f"Verify Response: {verify_response.json()}"
-    assert "client_id" in verify_response.json()
-    assert isinstance(verify_response.json()["client_id"], int)
 
-def test_verify_registration_success(client, db_session, create_voucher):
-    # Create a voucher and register a data provider
+    assert response.status_code == 400 and "Identity not registered" in response.json()["detail"], f"Response: {response.json()}"
+
+@pytest.mark.asyncio
+async def test_share_data_with_invalid_tlsn_proof(client, db_session, create_voucher):
+    """Test sharing data with an invalid TLSN proof."""
+    # First, register the identity
     voucher = create_voucher(VOUCHER_CODE_1)
-    register_response = client.post("/register", json={
+    client.post("/register", json={
         "voucher_code": voucher.code,
         "identity": IDENTITY_1
     })
-    assert register_response.status_code == 200
 
-    # Verify registration
-    response = client.post("/verify_registration", json={"identity": IDENTITY_1})
-    assert response.status_code == 200
-    assert "client_id" in response.json()
-    assert isinstance(response.json()["client_id"], int)
+    # Mock the TLSN proof verification process to fail
+    with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_subprocess:
+        mock_subprocess.return_value.communicate.return_value = (b'', b'Verification failed')
+        mock_subprocess.return_value.returncode = 1
 
-def test_verify_registration_nonexistent_identity(client, db_session):
-    # Attempt to verify registration for non-existent identity
-    response = client.post("/verify_registration", json={"identity": "nonexistent_identity"})
-    assert response.status_code == 400
-    assert "Identity not registered" in response.json()["detail"]
+        # Now attempt to share data with invalid proof
+        response = client.post("/share_data", json={
+            "identity": IDENTITY_1,
+            "tlsn_proof": "invalid_proof"
+        })
 
-def test_verify_registration_multiple_providers(client, db_session, create_voucher):
-    # Create vouchers and register multiple data providers
-    voucher1 = create_voucher(VOUCHER_CODE_1)
-    voucher2 = create_voucher(VOUCHER_CODE_2)
+    assert response.status_code == 400 and "TLSN proof verification failed" in response.json()["detail"], f"Response: {response.json()}"
 
-    client.post("/register", json={"voucher_code": voucher1.code, "identity": IDENTITY_1})
-    client.post("/register", json={"voucher_code": voucher2.code, "identity": IDENTITY_2})
+@pytest.mark.asyncio
+async def test_share_data_with_mismatched_data_commitments_from_parties(tmp_path, client, db_session, create_voucher):
+    """Test sharing data with mismatched data commitments from different parties."""
+    # First, register the identity
+    voucher = create_voucher(VOUCHER_CODE_1)
+    client.post("/register", json={
+        "voucher_code": voucher.code,
+        "identity": IDENTITY_1
+    })
 
-    # Verify registration for both providers
-    response1 = client.post("/verify_registration", json={"identity": IDENTITY_1})
-    response2 = client.post("/verify_registration", json={"identity": IDENTITY_2})
+    data_provider: DataProvider | None = db_session.query(DataProvider).filter(DataProvider.identity == IDENTITY_1).first()
+    assert data_provider is not None, "Data provider not found in database after registration"
+    client_id = data_provider.id
 
-    assert response1.status_code == 200
-    assert response2.status_code == 200
-    assert response1.json()["client_id"] != response2.json()["client_id"]
+    # Mock tlsn_proofs_dir and thus we know if share_data succeeds, tlsn_proof is saved at the path.
+    expected_tlsn_dir = tmp_path / "tlsn_proofs"
+    settings.tlsn_proofs_dir = str(expected_tlsn_dir)
+    expected_tlsn_dir.mkdir(parents=True, exist_ok=True)
+    expected_tlsn_proof = expected_tlsn_dir / f"proof_{client_id}.json"
 
+    # Mock the TLSN proof verification process
+    with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_subprocess:
+        mock_subprocess.return_value.communicate.return_value = (b'', b'')
+        mock_subprocess.return_value.returncode = 0
 
-@pytest.fixture(autouse=True)
-def reset_global_state():
-    # Reset global state before each test
-    indicated_joining_mpc.clear()
-    indicated_mpc_complete.clear()
+        # Mock the aiohttp ClientSession to return different data commitments
+        with patch('aiohttp.ClientSession') as mock_session:
+            mock_post = AsyncMock()
+            mock_session.return_value.__aenter__.return_value.post = mock_post
 
+            # Create mock responses with different data commitments
+            mock_responses = [
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": "commitment1"})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": "commitment2"})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": "commitment1"}))
+            ]
+            mock_post.side_effect = mock_responses
 
-def test_check_share_data_status(client):
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 200
-    assert response.json() == {"status": MPCStatus.INITIAL.value}
+            # Now attempt to share data
+            response = client.post("/share_data", json={
+                "identity": IDENTITY_1,
+                "tlsn_proof": MOCK_TLSN_PROOF
+            })
 
+    assert response.status_code == 200, f"Expected status code 200, but got {response.status_code}"
+    assert not expected_tlsn_proof.exists(), "Expected TLSN proof file not found"
 
-def test_negotiate_share_data_first_party(client):
-    response = client.post("/negotiate_share_data", json={"party_id": 1, "identity": IDENTITY_1})
-    assert response.status_code == 200
-    expected_ports = [settings.mpc_port_base + i for i in range(settings.num_parties)]
-    assert response.json() == {"status": MPCStatus.WAITING_FOR_ALL_PARTIES.value, "ports": expected_ports}
-    assert len(indicated_joining_mpc) == 1
+@pytest.mark.asyncio
+async def test_share_data_with_mismatched_data_commitments_tlsn_and_mpc(tmp_path, client, db_session, create_voucher):
+    """Test sharing data with a registered identity."""
+    # First, register the identity
+    voucher = create_voucher(VOUCHER_CODE_1)
+    client.post("/register", json={
+        "voucher_code": voucher.code,
+        "identity": IDENTITY_1
+    })
 
+    data_provider: DataProvider | None = db_session.query(DataProvider).filter(DataProvider.identity == IDENTITY_1).first()
+    assert data_provider is not None, "Data provider not found in database after registration"
+    client_id = data_provider.id
 
-def test_negotiate_share_data_last_party(client):
-    # Simulate two parties already joined
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
+    # Mock tlsn_proofs_dir and thus we know if share_data succeeds, tlsn_proof is saved at the path.
+    expected_tlsn_dir = tmp_path / "tlsn_proofs"
+    settings.tlsn_proofs_dir = str(expected_tlsn_dir)
+    expected_tlsn_dir.mkdir(parents=True, exist_ok=True)
+    expected_tlsn_proof = expected_tlsn_dir / f"proof_{client_id}.json"
 
-    response = client.post("/negotiate_share_data", json={"party_id": 3, "identity": IDENTITY_1})
-    assert response.status_code == 200
-    expected_ports = [settings.mpc_port_base + i for i in range(settings.num_parties)]
-    assert response.json() == {"status": MPCStatus.MPC_IN_PROGRESS.value, "ports": expected_ports}
-    assert len(indicated_joining_mpc) == settings.num_parties
+    # Mock the TLSN proof verification process
+    with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_subprocess:
+        mock_subprocess.return_value.communicate.return_value = (b'', b'')
+        mock_subprocess.return_value.returncode = 0
 
+        # Mock the aiohttp ClientSession
+        with patch('aiohttp.ClientSession') as mock_session:
+            mock_post = AsyncMock()
+            mock_session.return_value.__aenter__.return_value.post = mock_post
 
-def test_negotiate_share_data_party_already_joined(client):
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    response = client.post("/negotiate_share_data", json={"party_id": 1, "identity": IDENTITY_1})
-    assert response.status_code == 400
-    assert "Party already waiting" in response.json()["detail"]
+            # Create mock responses with different data commitments
+            commitment_1 = "commitment1"
+            commitment_2 = "commitment2"
+            mock_responses = [
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": commitment_1})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": commitment_1})),
+                AsyncMock(status=200, json=AsyncMock(return_value={"data_commitment": commitment_1}))
+            ]
+            mock_post.side_effect = mock_responses
+            # Mock get_data_commitment_hash_from_tlsn_proof to return the same commitment
+            with patch('mpc_demo_infra.coordination_server.routes.get_data_commitment_hash_from_tlsn_proof', return_value=commitment_2):
+                response = client.post("/share_data", json={
+                    "identity": IDENTITY_1,
+                    "tlsn_proof": MOCK_TLSN_PROOF
+                })
 
-def test_negotiate_share_data_different_identities(client):
-    # Simulate one party already joined with IDENTITY_1
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-
-    # Try to join with a different identity
-    response = client.post("/negotiate_share_data", json={"party_id": 2, "identity": IDENTITY_2})
-    assert response.status_code == 400
-    assert "Party is running for different identity" in response.json()["detail"]
-
-def test_set_share_data_complete_success(client):
-    # Simulate MPC in progress
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
-
-    response = client.post("/set_share_data_complete", json={"party_id": 1, "identity": IDENTITY_1})
-    assert response.status_code == 204
-    assert 1 in indicated_mpc_complete
-
-
-def test_set_share_data_complete_all_parties(client):
-    # Simulate MPC in progress and two parties completed
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
-    indicated_mpc_complete[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_mpc_complete[2] = Session(identity=IDENTITY_1, time=0)
-
-    response = client.post("/set_share_data_complete", json={"party_id": 3, "identity": IDENTITY_1})
-    assert response.status_code == 204
-    assert len(indicated_joining_mpc) == 0
-    assert len(indicated_mpc_complete) == 0
-
-
-def test_set_share_data_complete_different_identities(client):
-    # Simulate MPC in progress with IDENTITY_1
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
-    indicated_mpc_complete[1] = Session(identity=IDENTITY_1, time=0)
-
-    # Try to set complete with a different identity
-    response = client.post("/set_share_data_complete", json={"party_id": 2, "identity": IDENTITY_2})
-    assert response.status_code == 400
-    assert "Party is running for different identity" in response.json()["detail"]
-
-
-def test_set_share_data_complete_mpc_not_in_progress(client):
-    response = client.post("/set_share_data_complete", json={"party_id": 1, "identity": IDENTITY_1})
-    assert response.status_code == 400
-    assert "Cannot set share data complete: MPC is not in progress" in response.json()["detail"]
-
-
-def test_get_current_state_initial(client):
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 200
-    assert response.json()["status"] == MPCStatus.INITIAL.value
-
-
-def test_get_current_state_waiting_for_all_parties(client):
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 200
-    assert response.json()["status"] == MPCStatus.WAITING_FOR_ALL_PARTIES.value
-
-
-def test_get_current_state_mpc_in_progress(client):
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[2] = Session(identity=IDENTITY_1, time=0)
-    indicated_joining_mpc[3] = Session(identity=IDENTITY_1, time=0)
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 200
-    assert response.json()["status"] == MPCStatus.MPC_IN_PROGRESS.value
-
-
-def test_cleanup_stale_sessions(client):
-    indicated_joining_mpc[1] = Session(identity=IDENTITY_1, time=0)
-    indicated_mpc_complete[2] = Session(identity=IDENTITY_1, time=0)
-
-    response = client.post("/cleanup_sessions")
-    assert response.status_code == 204
-
-    response = client.get("/check_share_data_status")
-    assert response.status_code == 200
-    assert response.json()["status"] == MPCStatus.INITIAL.value
+    assert response.status_code == 200, f"Response: {response.json()}"
+    assert "mpc_ports" in response.json()
+    assert not expected_tlsn_proof.exists(), "Expected TLSN proof file not found"

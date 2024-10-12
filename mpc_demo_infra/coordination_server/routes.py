@@ -53,19 +53,6 @@ def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)
     return {"provider_id": new_provider.id}
 
 
-@router.post("/verify_registration", response_model=VerifyRegistrationResponse)
-def verify_registration(request: VerifyRegistrationRequest, db: Session = Depends(get_db)):
-    logger.info(f"Verifying registration for identity: {request.identity}")
-    # Check if identity has not registered, raise error
-    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == request.identity).first()
-    if not data_provider:
-        raise HTTPException(status_code=400, detail="Identity not registered")
-
-    # TODO: more checks
-    logger.info(f"Registration verified for identity: {request.identity}")
-    return {"client_id": data_provider.id}
-
-
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
@@ -89,17 +76,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
 
         # Run TLSN proof verifier
-        try:
-            process = await asyncio.create_subprocess_shell(
-                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_tlsn_proof_file.name}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            # stdout, stderr = await process.communicate()
-        except Exception as e:
-            logger.error(f"Failed to verify TLSN proof: {str(e)}")
-            raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
-
+        process = await asyncio.create_subprocess_shell(
+            f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_tlsn_proof_file.name}",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {identity=}")
@@ -126,6 +110,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                         })
                         tasks.append(task)
                     l.set()
+                    print(f"!@# tasks={tasks}")
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
                 # Check if all responses are successful
@@ -133,21 +118,20 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 for party_id, response in enumerate(responses):
                     if response.status != 200:
                         logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
-                        raise HTTPException(status_code=400, detail="Failed to request sharing data MPC from all parties")
+                        raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}")
                 logger.debug(f"All responses for sharing data MPC for {identity=} are successful")
                 # Check if all data commitments are the same
                 data_commitments = [(await response.json())["data_commitment"] for response in responses]
                 if len(set(data_commitments)) != 1:
-                    logger.fatal(f"Data commitments mismatch for {identity=}. Something is wrong wit MPC.")
+                    logger.error(f"Data commitments mismatch for {identity=}. Something is wrong with MPC. {data_commitments=}")
                     raise HTTPException(status_code=400, detail="Data commitments mismatch")
                 logger.debug(f"Data commitments for {identity=} are the same: {data_commitments=}")
                 # Check if data commitment hash from TLSN proof and MPC matches
-                data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
-                if data_commitment_hash != data_commitments[0]:
-                    logger.fatal(f"Data commitment hash mismatch for {identity=}. Something is wrong with TLSN proof.")
+                tlsn_data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
+                if tlsn_data_commitment_hash != data_commitments[0]:
+                    logger.error(f"Data commitment hash mismatch for {identity=}. Something is wrong with TLSN proof. {tlsn_data_commitment_hash=} != {data_commitments[0]=}")
                     raise HTTPException(status_code=400, detail="Data commitment hash mismatch")
                 logger.debug(f"Data commitment hash from TLSN proof and MPC matches for {identity=}")
-                print(f"!@# data_commitment_hash={data_commitment_hash}")
 
                 # Proof is valid, copy to tlsn_proofs_dir, and delete the temp file.
                 tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)

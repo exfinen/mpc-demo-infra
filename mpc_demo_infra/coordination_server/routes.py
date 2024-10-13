@@ -2,21 +2,16 @@ import json
 import asyncio
 import tempfile
 from pathlib import Path
-from dataclasses import dataclass
 import logging
 
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 from .schemas import (
-    NegotiateShareDataRequest, NegotiateShareDataResponse,
     RegisterDataProviderRequest, RegisterDataProviderResponse,
-    VerifyRegistrationRequest, VerifyRegistrationResponse,
-    MPCStatus, CheckShareDataStatusResponse,
-    SetShareDataCompleteRequest,
     RequestSharingDataRequest, RequestSharingDataResponse,
 )
 from .database import DataProvider, Voucher, get_db
@@ -90,12 +85,8 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     await sharing_data_lock.acquire()
 
     try:
-        # Request computation parties servers to run MPC
-        mpc_ports = [settings.mpc_port_base + party_id for party_id in range(settings.num_parties)]
         l = asyncio.Event()
 
-        # Return ports for computation parties servers to run MPC so that user can run client to connect.
-        # Then, calls `request_sharing_data_mpc` on each computation party server.
         async def request_sharing_data_all_parties():
             try:
                 logger.info(f"Requesting sharing data MPC for {identity=}")
@@ -105,7 +96,8 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                         url = f"{settings.protocol}://{party_ip}/request_sharing_data_mpc"
                         task = session.post(url, json={
                             "client_id": client_id,
-                            "mpc_ports": mpc_ports,
+                            "mpc_port_base": settings.mpc_port_base,
+                            "client_port": settings.client_port,
                             "tlsn_proof": tlsn_proof
                         })
                         tasks.append(task)
@@ -158,8 +150,12 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout waiting for sharing data MPC for {identity=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
             raise e
-        # Return ports for computation parties servers to run MPC so that user can run client to connect
-        return RequestSharingDataResponse(mpc_ports=mpc_ports)
+        # Change the return statement
+        return RequestSharingDataResponse(
+            mpc_port_base=settings.mpc_port_base,
+            client_id=client_id,
+            client_port=settings.client_port
+        )
     except Exception as e:
         logger.error(f"Failed to share data: {str(e)}")
         sharing_data_lock.release()

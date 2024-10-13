@@ -3,7 +3,8 @@ from typing import Optional
 
 class RequestSharingDataMPCRequest(BaseModel):
     client_id: int
-    mpc_ports: list[int]
+    mpc_port_base: int
+    client_port: int
     tlsn_proof: str
 
 class RequestSharingDataMPCResponse(BaseModel):
@@ -14,15 +15,6 @@ class QueryComputationRequest(BaseModel):
 
 class QueryComputationResponse(BaseModel):
     success: bool
-    message: Optional[str] = None
+    message: str
+    computation_index: int
     computation_result: str
-
-
-class RequestSharingDataMPCRequest(BaseModel):
-    client_id: int
-    mpc_ports: list[int]
-    tlsn_proof: str
-
-
-class RequestSharingDataMPCResponse(BaseModel):
-    data_commitment: str

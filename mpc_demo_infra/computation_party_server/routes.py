@@ -6,8 +6,7 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 
-import requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -42,7 +41,8 @@ CMD_RUN_MPC = f"./semi-party.x"
 @router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
 def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session = Depends(get_db)):
     client_id = request.client_id
-    mpc_ports = request.mpc_ports
+    mpc_port_base = request.mpc_port_base
+    client_port = request.client_port
     tlsn_proof = request.tlsn_proof
     logger.info(f"Requesting sharing data MPC for {client_id=}")
     # 1. Verify TLSN proof
@@ -67,7 +67,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
 
     # Prepare for IP file
     mpc_addresses = [
-        f"{ip}:{port}" for ip, port in zip(settings.party_ips, mpc_ports)
+        f"{ip}:{mpc_port_base + party_id}" for party_id, ip in enumerate(settings.party_ips)
     ]
     with tempfile.NamedTemporaryFile(delete=False) as ip_file:
         logger.debug(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")
@@ -76,7 +76,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
 
     logger.debug(f"Preparing data sharing program")
     # Compile and run share_data program
-    circuit_name = prepare_data_sharing_program(client_id)
+    circuit_name = prepare_data_sharing_program(client_id, client_port, backup_shares_path is None)
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
@@ -131,6 +131,8 @@ def backup_shares(party_id: int) -> Path | None:
     if not source_path.exists():
         return None
     dir = get_backup_shares_dir(party_id)
+    # TODO: probably should use "MPC_SESSION_ID" instead of time.
+    # but we need to store MPC_SESSION ahead.
     # Get current timestamp
     current_time = datetime.now()
 
@@ -155,7 +157,7 @@ def rollback_shares(party_id: int, backup_path: Path | None):
         shutil.copy(backup_path, dest_path)
 
 
-def prepare_data_sharing_program(client_id: int):
+def prepare_data_sharing_program(client_id: int, client_port: int, is_first_data_sharing: bool):
     # Generate share_data_<client_id>.mpc with template in program/share_data.mpc
     template_path = TEMPLATE_PROGRAM_DIR / "share_data.mpc"
     with open(template_path, "r") as template_file:
@@ -163,6 +165,9 @@ def prepare_data_sharing_program(client_id: int):
     circuit_name = f"share_data_{client_id}"
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
     program_content = program_content.replace("{client_id}", str(client_id))
+    program_content = program_content.replace("{client_port}", str(client_port))
+    if is_first_data_sharing:
+        program_content = program_content.replace("client_values.read_from_file(0)", "")
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name
@@ -204,7 +209,7 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
             outputs.append(float(line[len(OUTPUT_PREFIX):].strip()))
         # Case for 'Reg[0] = 0x28059a08d116926177e4dfd87e72da4cd44966b61acc3f21870156b868b81e6a #'
         elif line.startswith('Reg['):
-            # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161 #
+            # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             after_equal = line.split('=')[1].strip()
             # ed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             reg_value = after_equal.split(' ')[0][2:]

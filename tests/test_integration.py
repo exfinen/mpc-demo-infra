@@ -3,29 +3,40 @@ import requests
 import pytest
 import asyncio
 import aiohttp
-import signal
+from pathlib import Path
+
 from mpc_demo_infra.coordination_server.config import settings
-from mpc_demo_infra.coordination_server.database import SessionLocal, Voucher
+from mpc_demo_infra.coordination_server.database import SessionLocal, Voucher, DataProvider
 
 from .common import TLSN_PROOF
 
 
 COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
+NUM_PARTIES = 3
 # Adjust these ports as needed
-COORDINATION_PORT = 5566
-COMPUTATION_PORTS = [COORDINATION_PORT + 1, COORDINATION_PORT + 2, COORDINATION_PORT + 3]
+COORDINATION_PORT = 5565
+MPC_PORT_BASE = 8010
+CLIENT_PORT = 14000
+COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
+COMPUTATION_PARTY_PORTS = [5566 + party_id for party_id in range(NUM_PARTIES)]
+
+TIMEOUT_MPC = 60
 
 CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coordination-server-run"]
 CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "computation-party-server-run"]
 
-async def start_coordination_server(cmd: list[str], port: int, mpc_ports: list[int]):
-    party_ips = [f"localhost:{port}" for port in mpc_ports]
+async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: Path):
+    party_ips = [f"{host}:{port}" for host, port in zip(COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)]
     process = await asyncio.create_subprocess_exec(
         *cmd,
         env={
             **os.environ,
+            "NUM_PARTIES": str(NUM_PARTIES),
             "PORT": str(port),
             "PARTY_IPS": '["' + '","'.join(party_ips) + '"]',
+            "MPC_PORT_BASE": str(MPC_PORT_BASE),
+            "CLIENT_PORT": str(CLIENT_PORT),
+            "TLSN_PROOFS_DIR": str(tlsn_proofs_dir),
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -47,9 +58,17 @@ async def start_computation_party_server(cmd: list[str], party_id: int, port: in
     )
     return process
 
-@pytest.fixture(scope="function")
+
+@pytest.fixture
+def tlsn_proofs_dir(tmp_path):
+    p = tmp_path / "tlsn_proofs"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+@pytest.fixture
 @pytest.mark.asyncio
-async def servers():
+async def servers(tlsn_proofs_dir):
     print(f"Setting up servers")
     # Remove the existing coordination.db file
     # Extract the coordination.db path from the database URL
@@ -64,10 +83,10 @@ async def servers():
             os.remove(party_db_path)
 
     start_tasks = [
-        start_coordination_server(CMD_PREFIX_COORDINATION_SERVER, COORDINATION_PORT, COMPUTATION_PORTS),
+        start_coordination_server(CMD_PREFIX_COORDINATION_SERVER, COORDINATION_PORT, tlsn_proofs_dir),
     ] + [
         start_computation_party_server(CMD_PREFIX_COMPUTATION_PARTY_SERVER, party_id, port)
-        for party_id, port in enumerate(COMPUTATION_PORTS)
+        for party_id, port in enumerate(COMPUTATION_PARTY_PORTS)
     ]
 
     processes = await asyncio.gather(*start_tasks)
@@ -90,37 +109,125 @@ async def servers():
     await asyncio.sleep(1)
 
 
+# def run_save_data_client(client_port: int, client_id: int, value: int):
+#     import sys
+#     sys.path.append(settings.mpspdz_project_root)
+
+#     from ExternalDemo.client import Client, octetStream
+#     from ExternalDemo.domains import *
+
+#     isInput = 1
+
+#     # client id should be assigned by our server
+#     client = Client(COMPUTATION_HOSTS, client_port, client_id)
+
+#     for socket in client.sockets:
+#         os = octetStream()
+#         os.store(isInput)
+#         os.Send(socket)
+
+
+#     def run(x):
+#         client.send_private_inputs([x])
+#         print("finish sending private inputs")
+#         # print('Winning client id is :', client.receive_outputs(1)[0])
+
+#     # running two rounds
+#     # first for sint, then for sfix
+#     run(value)
+
+
 @pytest.mark.asyncio
-async def test_basic_integration(servers):
-    voucher = "1234567890"
-    identity = "test_identity"
+async def test_basic_integration(servers, tlsn_proofs_dir: Path):
+    voucher1 = "1234567890"
+    voucher2 = "0987654321"
+    identity1 = "test_identity1"
+    identity2 = "test_identity2"
     with SessionLocal() as db:
-        voucher = Voucher(code=voucher)
-        db.add(voucher)
+        voucher_1 = Voucher(code=voucher1)
+        db.add(voucher_1)
+        voucher_2 = Voucher(code=voucher2)
+        db.add(voucher_2)
         db.commit()
-        db.refresh(voucher)
+        db.refresh(voucher_1)
+        db.refresh(voucher_2)
 
     # Register the user
-    response = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-        "voucher_code": voucher.code,
-        "identity": identity
+    response1 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+        "voucher_code": voucher1,
+        "identity": identity1
     })
-    assert response.status_code == 200
+    assert response1.status_code == 200
+
+    response2 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+        "voucher_code": voucher2,
+        "identity": identity2
+    })
+    assert response2.status_code == 200
 
     # Request the data
     # for party_id in range(settings.num_parties):
     # asynchronously request /share_data for all parties
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-            "identity": identity,
+            "identity": identity1,
             "tlsn_proof": TLSN_PROOF
         }) as response:
             assert response.status == 200
             data = await response.json()
-            print(f"!@# Data: {data}")
-            mpc_ports = data["mpc_ports"]
-    assert len(mpc_ports) == settings.num_parties
-    await asyncio.sleep(10)
-    # TODO: Run client interface client and connect to mpc_ports
+            client_port_1 = data["client_port"]
+            client_id_1 = data["client_id"]
+
+    # Wait until all computation parties started their MPC servers.
+    await asyncio.sleep(2)
+
+    value_1 = 3
+    value_2 = value_1
+
+    # Clean up the existing shares
+    for party_id in range(settings.num_parties):
+        (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
+
+    print(f"!@# Requesting share data for {identity1}")
+    # await asyncio.sleep(10000)
+    await asyncio.create_subprocess_shell(
+        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {value_1}",
+        # stdout=asyncio.subprocess.PIPE,
+        # stderr=asyncio.subprocess.PIPE
+    )
+
+    await asyncio.sleep(1)
+
+    print(f"!@# Requesting share data for {identity2}")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
+            "identity": identity2,
+        "tlsn_proof": TLSN_PROOF
+    }) as response:
+            assert response.status == 200
+            data = await response.json()
+            client_port_2 = data["client_port"]
+            client_id_2 = data["client_id"]
+    await asyncio.create_subprocess_shell(
+        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {value_2}",
+        # stdout=asyncio.subprocess.PIPE,
+        # stderr=asyncio.subprocess.PIPE
+    )
+
+
+    # async def wait_until_request_fulfilled():
+    #     # Poll if tlsn_proof is saved, which means the background task running MPC finished.
+    #     tlsn_proof_path = tlsn_proofs_dir / f"proof_{client_id}.json"
+    #     while not tlsn_proof_path.exists():
+    #         await asyncio.sleep(1)
+
+    # await asyncio.wait_for(
+    #     asyncio.gather(
+    #         task,
+    #         wait_until_request_fulfilled()
+    #     ),
+    #     timeout=TIMEOUT_MPC,
+    # )
 
     print("Test finished")

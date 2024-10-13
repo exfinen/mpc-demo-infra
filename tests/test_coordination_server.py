@@ -1,7 +1,7 @@
 import os
 import pytest
 import asyncio
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from sqlalchemy import create_engine
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
@@ -168,7 +168,8 @@ async def test_share_data_with_registered_identity(tmp_path, client, db_session,
                 })
 
     assert response.status_code == 200, f"Response: {response.json()}"
-    assert "mpc_ports" in response.json()
+    assert "mpc_port_base" in response.json()
+    assert "client_port" in response.json()
     assert expected_tlsn_proof.exists(), "Expected TLSN proof file not found"
 
 def test_share_data_with_unregistered_identity(client, db_session):
@@ -297,5 +298,6 @@ async def test_share_data_with_mismatched_data_commitments_tlsn_and_mpc(tmp_path
                 })
 
     assert response.status_code == 200, f"Response: {response.json()}"
-    assert "mpc_ports" in response.json()
+    assert "mpc_port_base" in response.json()
+    assert "client_port" in response.json()
     assert not expected_tlsn_proof.exists(), "Expected TLSN proof file not found"

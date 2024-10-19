@@ -16,6 +16,7 @@ from .schemas import (
     RequestSharingDataMPCResponse,
     QueryComputationRequest,
     QueryComputationResponse,
+    RequestCertResponse,
 )
 from .database import get_db
 from .config import settings
@@ -29,6 +30,7 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 # MP-SPDZ
 MP_SPDZ_PROJECT_ROOT = Path(settings.mpspdz_project_root)
 MPSPDZ_PROGRAM_DIR = MP_SPDZ_PROJECT_ROOT / "Programs" / "Source"
+CLIENT_CERT_PATH = MP_SPDZ_PROJECT_ROOT / "Player-Data"
 
 TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 
@@ -38,13 +40,22 @@ CMD_COMPILE_MPC = "./compile.py"
 CMD_RUN_MPC = f"./semi-party.x"
 
 
+@router.post("/request_cert", response_model=RequestCertResponse)
+def request_cert():
+    with open(CLIENT_CERT_PATH / f"P{settings.party_id}.pem", "r") as cert_file:
+        cert_file_content = cert_file.read()
+    return RequestCertResponse(cert_file=cert_file_content)
+
+
 @router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
 def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session = Depends(get_db)):
-    client_id = request.client_id
-    mpc_port_base = request.mpc_port_base
-    client_port = request.client_port
+    secret_index = request.secret_index
     tlsn_proof = request.tlsn_proof
-    logger.info(f"Requesting sharing data MPC for {client_id=}")
+    mpc_port_base = request.mpc_port_base
+    client_id = request.client_id
+    client_port = request.client_port
+    client_cert_file = request.client_cert_file
+    logger.info(f"Requesting sharing data MPC for {secret_index=}")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.
@@ -74,14 +85,27 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
         ip_file.flush()
 
+    # Save client's cert file to CLIENT_CERT_PATH
+    client_cert_path = CLIENT_CERT_PATH / f"C{client_id}.pem"
+    with open(client_cert_path, "w") as cert_file:
+        cert_file.write(client_cert_file)
+
+    # c_rehash
+    subprocess.run(
+        f"c_rehash {CLIENT_CERT_PATH}",
+        check=True,
+        shell=True,
+    )
+
     logger.debug(f"Preparing data sharing program")
     # Compile and run share_data program
-    circuit_name = prepare_data_sharing_program(client_id, client_port, backup_shares_path is None)
+    circuit_name = prepare_data_sharing_program(secret_index, client_port, backup_shares_path is None)
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
         logger.debug(f"Running program {circuit_name}")
         output, mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file.name)
+        print(f"!@# output: {output}")
     except Exception as e:
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
@@ -157,15 +181,16 @@ def rollback_shares(party_id: int, backup_path: Path | None):
         shutil.copy(backup_path, dest_path)
 
 
-def prepare_data_sharing_program(client_id: int, client_port: int, is_first_data_sharing: bool):
+def prepare_data_sharing_program(secret_index: int, client_port: int, is_first_data_sharing: bool):
     # Generate share_data_<client_id>.mpc with template in program/share_data.mpc
     template_path = TEMPLATE_PROGRAM_DIR / "share_data.mpc"
     with open(template_path, "r") as template_file:
         program_content = template_file.read()
-    circuit_name = f"share_data_{client_id}"
+    circuit_name = f"share_data_{secret_index}"
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
-    program_content = program_content.replace("{client_id}", str(client_id))
+    program_content = program_content.replace("{secret_index}", str(secret_index))
     program_content = program_content.replace("{client_port}", str(client_port))
+    program_content = program_content.replace("{max_data_providers}", str(settings.max_data_providers))
     if is_first_data_sharing:
         program_content = program_content.replace("client_values.read_from_file(0)", "")
     with open(target_program_path, "w") as program_file:

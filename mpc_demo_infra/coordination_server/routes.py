@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RegisterDataProviderRequest, RegisterDataProviderResponse,
     RequestSharingDataRequest, RequestSharingDataResponse,
+    RequestCertResponse,
 )
 from .database import DataProvider, Voucher, get_db
 from .config import settings
@@ -23,6 +24,8 @@ CMD_VERIFYTLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
 
 TIMEOUT_CALLING_COMPUTATION_SERVERS = 30
+
+MAX_CLIENT_ID = 1000
 
 
 @router.post("/register", response_model=RegisterDataProviderResponse)
@@ -48,6 +51,18 @@ def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)
     return {"provider_id": new_provider.id}
 
 
+@router.post("/request_cert", response_model=RequestCertResponse)
+async def request_cert():
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for party_ip in settings.party_ips:
+            url = f"{settings.protocol}://{party_ip}/request_cert"
+            tasks.append(session.post(url))
+        responses = await asyncio.gather(*tasks)
+        certs = [await response.text() for response in responses]
+    return RequestCertResponse(certs=certs)
+
+
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
@@ -55,15 +70,16 @@ sharing_data_lock = asyncio.Lock()
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
     identity = request.identity
+    client_id = request.client_id
     tlsn_proof = request.tlsn_proof
+    client_cert_file = request.client_cert_file
 
     logger.info(f"Verifying registration for identity: {identity}")
+    if client_id >= MAX_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Client ID is out of range")
     # Check if identity has not registered, raise error
-    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == identity).first()
-    if not data_provider:
-        raise HTTPException(status_code=400, detail="Identity not registered")
-    logger.info(f"Registration verified for identity: {identity}")
-    client_id = data_provider.id
+    secret_index = get_secret_index_from_db(identity, db)
+    logger.info(f"Registration verified for identity: {identity}, {client_id=}")
 
     # Verify TLSN proof.
     with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
@@ -95,14 +111,15 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     for party_ip in settings.party_ips:
                         url = f"{settings.protocol}://{party_ip}/request_sharing_data_mpc"
                         task = session.post(url, json={
-                            "client_id": client_id,
+                            "tlsn_proof": tlsn_proof,
                             "mpc_port_base": settings.mpc_port_base,
+                            "secret_index": secret_index,
+                            "client_id": client_id,
                             "client_port": settings.client_port,
-                            "tlsn_proof": tlsn_proof
+                            "client_cert_file": client_cert_file
                         })
                         tasks.append(task)
                     l.set()
-                    print(f"!@# tasks={tasks}")
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
                 # Check if all responses are successful
@@ -171,3 +188,10 @@ def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:
     commitment = openings[1]
     data_commitment_hash = bytes(commitment["hash"]).hex()
     return data_commitment_hash
+
+
+def get_secret_index_from_db(identity: str, db: Session = Depends(get_db)):
+    data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == identity).first()
+    if not data_provider:
+        raise HTTPException(status_code=400, detail="Identity not registered")
+    return data_provider.id - 1

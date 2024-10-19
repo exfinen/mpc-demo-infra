@@ -1,5 +1,8 @@
 from pydantic import BaseSettings
 from typing import List
+from pathlib import Path
+
+this_file_path = Path(__file__).parent
 
 class Settings(BaseSettings):
     num_parties: int = 3
@@ -12,7 +15,7 @@ class Settings(BaseSettings):
     # Database settings
     database_url: str = "sqlite:///./coordination.db"
 
-    tlsn_project_root: str = "/Users/mhchia/projects/work/pse/tlsn"
+    tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
     tlsn_proofs_dir: str = f"tlsn_proofs"
 
@@ -24,7 +27,7 @@ class Settings(BaseSettings):
 
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
     party_ips: List[str] = ["localhost:6666", "localhost:6667", "localhost:6668"]
-    mpspdz_project_root: str = "/Users/mhchia/projects/work/pse/MP-SPDZ"
+    mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
 
     class Config:
         env_file = ".env"

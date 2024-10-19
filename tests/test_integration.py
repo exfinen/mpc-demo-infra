@@ -1,10 +1,13 @@
 import os
 import requests
+import subprocess
+import random
 import pytest
 import asyncio
 import aiohttp
 from pathlib import Path
 
+from mpc_demo_infra.coordination_server.routes import MAX_CLIENT_ID
 from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.coordination_server.database import SessionLocal, Voucher, DataProvider
 
@@ -137,8 +140,23 @@ async def servers(tlsn_proofs_dir):
 #     run(value)
 
 
+async def generate_client_cert(tmp_dir: Path) -> tuple[int, Path, Path]:
+    client_id = random.randint(0, MAX_CLIENT_ID - 1)
+    # openssl req -newkey rsa -nodes -x509 -out Player-Data/C$i.pem -keyout Player-Data/C$i.key -subj "/CN=C$i"
+    cert_path = tmp_dir / f"C{client_id}.pem"
+    key_path = tmp_dir / f"C{client_id}.key"
+    process = await asyncio.create_subprocess_exec(
+        "/usr/local/bin/openssl", "req", "-newkey", "rsa", "-nodes", "-x509", "-out", str(cert_path), "-keyout", str(key_path), "-subj", f"/CN=C{client_id}",
+        # stdout=asyncio.subprocess.PIPE,
+        # stderr=asyncio.subprocess.PIPE,
+    )
+    await process.wait()
+    if process.returncode != 0:
+        raise Exception(f"Failed to generate client cert for {client_id}")
+    return client_id, cert_path, key_path
+
 @pytest.mark.asyncio
-async def test_basic_integration(servers, tlsn_proofs_dir: Path):
+async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     voucher1 = "1234567890"
     voucher2 = "0987654321"
     identity1 = "test_identity1"
@@ -152,31 +170,35 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path):
         db.refresh(voucher_1)
         db.refresh(voucher_2)
 
-    # Register the user
-    response1 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+    client_id_1, cert_path_1, key_path_1 = await generate_client_cert(tmp_path)
+
+    response_register_1 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
         "voucher_code": voucher1,
         "identity": identity1
     })
-    assert response1.status_code == 200
+    assert response_register_1.status_code == 200
 
-    response2 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+    response_register_2 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
         "voucher_code": voucher2,
         "identity": identity2
     })
-    assert response2.status_code == 200
+    assert response_register_2.status_code == 200
 
     # Request the data
     # for party_id in range(settings.num_parties):
     # asynchronously request /share_data for all parties
+    with open(cert_path_1, "r") as cert_file:
+        cert_file_content = cert_file.read()
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
             "identity": identity1,
-            "tlsn_proof": TLSN_PROOF
+            "tlsn_proof": TLSN_PROOF,
+            "client_cert_file": cert_file_content,
+            "client_id": client_id_1,
         }) as response:
             assert response.status == 200
             data = await response.json()
             client_port_1 = data["client_port"]
-            client_id_1 = data["client_id"]
 
     # Wait until all computation parties started their MPC servers.
     await asyncio.sleep(2)
@@ -189,31 +211,31 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path):
         (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
 
     print(f"!@# Requesting share data for {identity1}")
-    # await asyncio.sleep(10000)
+    print(f"Running: cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}")
     await asyncio.create_subprocess_shell(
-        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {value_1}",
+        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}",
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
     )
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(2)
 
-    print(f"!@# Requesting share data for {identity2}")
+    # print(f"!@# Requesting share data for {identity2}")
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-            "identity": identity2,
-        "tlsn_proof": TLSN_PROOF
-    }) as response:
-            assert response.status == 200
-            data = await response.json()
-            client_port_2 = data["client_port"]
-            client_id_2 = data["client_id"]
-    await asyncio.create_subprocess_shell(
-        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {value_2}",
-        # stdout=asyncio.subprocess.PIPE,
-        # stderr=asyncio.subprocess.PIPE
-    )
+    # async with aiohttp.ClientSession() as session:
+    #     async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
+    #         "identity": identity2,
+    #     "tlsn_proof": TLSN_PROOF
+    # }) as response:
+    #         assert response.status == 200
+    #         data = await response.json()
+    #         client_port_2 = data["client_port"]
+    #         client_id_2 = data["client_id"]
+    # await asyncio.create_subprocess_shell(
+    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {value_2}",
+    #     # stdout=asyncio.subprocess.PIPE,
+    #     # stderr=asyncio.subprocess.PIPE
+    # )
 
 
     # async def wait_until_request_fulfilled():

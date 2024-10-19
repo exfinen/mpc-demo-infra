@@ -36,7 +36,7 @@ TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 
 SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
-CMD_COMPILE_MPC = "./compile.py"
+CMD_COMPILE_MPC = "./compile.py -F 256"
 CMD_RUN_MPC = f"./semi-party.x"
 
 
@@ -99,18 +99,16 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
 
     logger.debug(f"Preparing data sharing program")
     # Compile and run share_data program
-    circuit_name = prepare_data_sharing_program(secret_index, client_port, backup_shares_path is None)
+    circuit_name = prepare_data_sharing_program(secret_index, client_port, settings.max_data_providers, backup_shares_path is None)
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
         logger.debug(f"Running program {circuit_name}")
-        output, mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file.name)
-        print(f"!@# output: {output}")
+        mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file.name)
     except Exception as e:
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
-    logger.debug(f"Output: {output}")
     logger.debug(f"Commitment: {mpc_data_commitment_hash}")
 
     logger.debug(f"Verifying data commitment hash")
@@ -181,7 +179,7 @@ def rollback_shares(party_id: int, backup_path: Path | None):
         shutil.copy(backup_path, dest_path)
 
 
-def prepare_data_sharing_program(secret_index: int, client_port: int, is_first_data_sharing: bool):
+def prepare_data_sharing_program(secret_index: int, client_port: int, max_data_providers: int, is_first_run: bool):
     # Generate share_data_<client_id>.mpc with template in program/share_data.mpc
     template_path = TEMPLATE_PROGRAM_DIR / "share_data.mpc"
     with open(template_path, "r") as template_file:
@@ -190,9 +188,10 @@ def prepare_data_sharing_program(secret_index: int, client_port: int, is_first_d
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
     program_content = program_content.replace("{secret_index}", str(secret_index))
     program_content = program_content.replace("{client_port}", str(client_port))
-    program_content = program_content.replace("{max_data_providers}", str(settings.max_data_providers))
-    if is_first_data_sharing:
-        program_content = program_content.replace("client_values.read_from_file(0)", "")
+    program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
+    if is_first_run:
+        # Remove lines that contains '# NOTE: Skipped if it's the first run'
+        program_content = '\n'.join([line for line in program_content.split('\n') if "# NOTE: Skipped if it's the first run" not in line])
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name
@@ -212,13 +211,17 @@ def run_program(circuit_name: str, ip_file_path: str):
     cmd_run_mpc = f"{CMD_RUN_MPC} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {ip_file_path}"
 
     # Run the MPC program
-    process = subprocess.run(
-        f"cd {settings.mpspdz_project_root} && {cmd_run_mpc}",
-        check=True,
-        shell=True,
-        capture_output=True,
-        text=True
-    )
+    try:
+        process = subprocess.run(
+            f"cd {settings.mpspdz_project_root} && {cmd_run_mpc}",
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise e
+    if process.returncode != 0:
+        raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")
     return process
 
 
@@ -230,17 +233,21 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
     OUTPUT_PREFIX = "output: "
     commitments = []
     for line in output_lines:
-        if line.startswith(OUTPUT_PREFIX):
-            outputs.append(float(line[len(OUTPUT_PREFIX):].strip()))
+        # if line.startswith(OUTPUT_PREFIX):
+        #     outputs.append(float(line[len(OUTPUT_PREFIX):].strip()))
         # Case for 'Reg[0] = 0x28059a08d116926177e4dfd87e72da4cd44966b61acc3f21870156b868b81e6a #'
-        elif line.startswith('Reg['):
+        if line.startswith('Reg['):
             # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             after_equal = line.split('=')[1].strip()
             # ed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             reg_value = after_equal.split(' ')[0][2:]
             commitments.append(reg_value)
+        print(f"!@# line: {line}")
+
+    for err in process.stderr.split('\n'):
+        print(f"!@# err: {err}")
     if len(commitments) != 1:
         raise ValueError(f"Expected 1 commitment, got {len(commitments)}")
-    if len(outputs) != 1:
-        raise ValueError(f"Expected 1 output, got {len(outputs)}")
-    return outputs[0], commitments[0]
+    # if len(outputs) != 1:
+    #     raise ValueError(f"Expected 1 output, got {len(outputs)}")
+    return commitments[0]

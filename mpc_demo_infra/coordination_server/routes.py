@@ -127,7 +127,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 for party_id, response in enumerate(responses):
                     if response.status != 200:
                         logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
-                        raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}")
+                        raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
                 logger.debug(f"All responses for sharing data MPC for {identity=} are successful")
                 # Check if all data commitments are the same
                 data_commitments = [(await response.json())["data_commitment"] for response in responses]
@@ -194,4 +194,4 @@ def get_secret_index_from_db(identity: str, db: Session = Depends(get_db)):
     data_provider: DataProvider | None = db.query(DataProvider).filter(DataProvider.identity == identity).first()
     if not data_provider:
         raise HTTPException(status_code=400, detail="Identity not registered")
-    return data_provider.id - 1
+    return data_provider.id

@@ -6,7 +6,7 @@ this_file_path = Path(__file__).parent
 class Settings(BaseSettings):
     num_parties: int = 3
     party_id: int = 0
-    max_data_providers: int = 1000
+    max_data_providers: int = 10
 
     # Database settings
     database_url: str = f"sqlite:///./party_0.db"

@@ -201,7 +201,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             client_port_1 = data["client_port"]
 
     # Wait until all computation parties started their MPC servers.
-    await asyncio.sleep(2)
+    await asyncio.sleep(1)
 
     value_1 = 3
     value_2 = value_1
@@ -211,28 +211,33 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
 
     print(f"!@# Requesting share data for {identity1}")
-    print(f"Running: cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}")
+    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}"
+    print(f"Running: {cmd}")
     await asyncio.create_subprocess_shell(
-        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}",
+        cmd,
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
     )
 
-    await asyncio.sleep(2)
+    # await asyncio.sleep(1)
 
     # print(f"!@# Requesting share data for {identity2}")
-
+    # client_id_2, cert_path_2, key_path_2 = await generate_client_cert(tmp_path)
+    # with open(cert_path_2, "r") as cert_file:
+    #     cert_file_content = cert_file.read()
     # async with aiohttp.ClientSession() as session:
     #     async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
     #         "identity": identity2,
-    #     "tlsn_proof": TLSN_PROOF
-    # }) as response:
+    #         "tlsn_proof": TLSN_PROOF,
+    #         "client_cert_file": cert_file_content,
+    #         "client_id": client_id_2,
+    #     }) as response:
     #         assert response.status == 200
     #         data = await response.json()
     #         client_port_2 = data["client_port"]
     #         client_id_2 = data["client_id"]
     # await asyncio.create_subprocess_shell(
-    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {value_2}",
+    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {cert_path_2} {key_path_2} {value_2}",
     #     # stdout=asyncio.subprocess.PIPE,
     #     # stderr=asyncio.subprocess.PIPE
     # )

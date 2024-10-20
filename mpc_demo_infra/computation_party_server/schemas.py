@@ -7,6 +7,7 @@ class RequestSharingDataMPCRequest(BaseModel):
     client_id: int
     client_port: int
     client_cert_file: str
+    input_bytes: int
 
 class RequestSharingDataMPCResponse(BaseModel):
     data_commitment: str

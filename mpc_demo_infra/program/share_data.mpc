@@ -12,18 +12,12 @@ from Compiler.circuit import sha3_256
 from Compiler.GC.types import sbitvec, sbit
 
 
-secret_index = regint({secret_index})
-# d = sfix({client_port})
-# print_ln("output: %s", c.reveal())
-# data commitment hash
-# print_ln("Reg[8] = 0xfd9067ca55ff4258e2fd73d64cb41e1314dbd2456502d59591761388b9bf0e24")
-
-# TODO: adapt this file to make it work with client interface
+SECRET_INDEX = regint({secret_index})
 PORTNUM = {client_port}
 MAX_DATA_PROVIDERS = {max_data_providers}
-NUM_BYTES_FOLLOWERS = 1
-DELTA = '2501fa5c2b50281d97cc4e63bb1beaef'
-ZERO_ENCODINGS = ['b51d9f6c1d7133a3c2d307b431c7f3ea', '2842eaaf492880247548f2cb189c2f5b', 'f1844ae7b20ad935605c87878b0ffb96', 'd19b84012adf53dedc896ebb36f7decd', 'e9629218d15b7d0887ffa78c4c70d237', 'd7ce38f06c1b134f30ee3dcd5c947d54', '7e666304dbc6c6a48d270c6d4c71f789', '62a1e68e06fd1d02adeb3646cfb47601']
+INPUT_BYTES = {input_bytes}
+DELTA = {delta}
+ZERO_ENCODINGS = {zero_encodings}
 
 
 def accept_client():
@@ -67,12 +61,6 @@ def calculate_data_commitment(num_bytes_followers: int, followers: sint, delta: 
 
 
 def main():
-    # Sanity check
-    @if_(secret_index >= MAX_DATA_PROVIDERS)
-    def _():
-        print_ln('index too high')
-        crash()
-
     # put as array to make it object
     # First element is the number of clients
     client_values = sint.Array(1 + MAX_DATA_PROVIDERS)
@@ -89,7 +77,7 @@ def main():
     print_ln('client_socket_id: %s', client_socket_id)
 
     input_value, input_nonce = client_input(sint, client_socket_id)
-    client_values[secret_index] = input_value
+    client_values[SECRET_INDEX] = input_value
     client_values[0] = client_values[0] + 1
     client_values.write_to_file(0)
     print_ln('client_values: after update: %s', [client_values[i].reveal() for i in range(MAX_DATA_PROVIDERS + 1)])
@@ -100,15 +88,15 @@ def main():
 
     # nonce must be secret_shared
     # Hardcode 1 as byte of this input
-    # input_commitment = calculate_data_commitment(NUM_BYTES_FOLLOWERS, input_value, input_delta, input_zero_encodings, input_nonce)
-    input_commitment = sbitvec.from_hex("fd9067ca55ff4258e2fd73d64cb41e1314dbd2456502d59591761388b9bf0e24")
+    input_commitment = calculate_data_commitment(INPUT_BYTES, input_value, input_delta, input_zero_encodings, input_nonce)
+    # input_commitment = sbitvec.from_hex("a7fb749820e5a4439a7eff67c76598f1db507a3d1513370a0c0efe7cbaa47beb")
     # input_commitment.reveal_print_hex()
     input_commitment.reveal_print_hex()
 
-    # commitment_values[secret_index] = input_commitment
+    # commitment_values[SECRET_INDEX] = input_commitment
     commitment_values.write_to_file(1+MAX_DATA_PROVIDERS)
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
-    sint.reveal_to_clients([client_socket_id],[commitment_values[secret_index]])
+    sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX]])
     print_ln('Now closing this connection')
     print_ln('num data providers: %s', client_values[0].reveal())
 

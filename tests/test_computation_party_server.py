@@ -10,7 +10,7 @@ from mpc_demo_infra.computation_party_server.routes import share_data, query_com
 from mpc_demo_infra.computation_party_server.schemas import ShareDataRequest, QueryComputationRequest
 from mpc_demo_infra.computation_party_server.config import settings
 
-from .common import TLSN_PROOF
+from .common import TLSN_PROOF_1
 
 client = TestClient(app)
 
@@ -44,7 +44,7 @@ def test_share_data_success(mock_run, mock_post, mock_db):
 
     request_data = ShareDataRequest(
         identity=identity,
-        tlsn_proof=TLSN_PROOF,
+        tlsn_proof=TLSN_PROOF_1,
     )
     response = client.post("/share_data", json=request_data.dict())
 
@@ -85,7 +85,7 @@ def test_share_data_identity_verification_failed(mock_post, mock_db):
 
     request_data = ShareDataRequest(
         identity="invalid_id@zkstats.io",
-        tlsn_proof=TLSN_PROOF,
+        tlsn_proof=TLSN_PROOF_1,
     )
     response = client.post("/share_data", json=request_data.dict())
 
@@ -105,7 +105,7 @@ def test_share_data_invalid_tlsn_proof(mock_post, mock_db):
     mock_post.return_value = mock_response
 
     # Create an invalid TLSN proof by modifying a few characters
-    invalid_tlsn_proof = TLSN_PROOF.replace('129', '128').replace('50', '51')
+    invalid_tlsn_proof = TLSN_PROOF_1.replace('129', '128').replace('50', '51')
 
     request_data = ShareDataRequest(
         identity=identity,
@@ -137,7 +137,7 @@ def test_share_data_negotiate_share_data_fails(mock_post, mock_db):
 
     request_data = ShareDataRequest(
         identity=identity,
-        tlsn_proof=TLSN_PROOF,
+        tlsn_proof=TLSN_PROOF_1,
     )
     response = client.post("/share_data", json=request_data.dict())
 
@@ -185,7 +185,7 @@ def test_share_data_set_share_data_complete_fails(mock_run, mock_post, mock_db):
 
     request_data = ShareDataRequest(
         identity=identity,
-        tlsn_proof=TLSN_PROOF,
+        tlsn_proof=TLSN_PROOF_1,
     )
     response = client.post("/share_data", json=request_data.dict())
 
@@ -243,7 +243,7 @@ def test_share_data_mpc(mock_run, mock_post, mock_db):
 
     request_data = ShareDataRequest(
         identity=identity,
-        tlsn_proof=TLSN_PROOF,
+        tlsn_proof=TLSN_PROOF_1,
     )
     response = client.post("/share_data", json=request_data.dict())
 

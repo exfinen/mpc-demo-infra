@@ -73,6 +73,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
+    input_bytes = request.input_bytes
 
     logger.info(f"Verifying registration for identity: {identity}")
     if client_id >= MAX_CLIENT_ID:
@@ -111,12 +112,13 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     for party_ip in settings.party_ips:
                         url = f"{settings.protocol}://{party_ip}/request_sharing_data_mpc"
                         task = session.post(url, json={
+                            "input_bytes": input_bytes,
                             "tlsn_proof": tlsn_proof,
                             "mpc_port_base": settings.mpc_port_base,
                             "secret_index": secret_index,
                             "client_id": client_id,
                             "client_port": settings.client_port,
-                            "client_cert_file": client_cert_file
+                            "client_cert_file": client_cert_file,
                         })
                         tasks.append(task)
                     l.set()

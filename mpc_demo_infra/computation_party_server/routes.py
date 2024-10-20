@@ -55,7 +55,10 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_id = request.client_id
     client_port = request.client_port
     client_cert_file = request.client_cert_file
+    input_bytes = request.input_bytes
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
+    if secret_index >= settings.max_data_providers:
+        raise HTTPException(status_code=400, detail="Secret index out of range")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.
@@ -98,8 +101,19 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     )
 
     logger.debug(f"Preparing data sharing program")
+    tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
     # Compile and run share_data program
-    circuit_name = prepare_data_sharing_program(secret_index, client_port, settings.max_data_providers, backup_shares_path is None)
+    # tlsn_delta = '2501fa5c2b50281d97cc4e63bb1beaef'
+    # tlsn_zero_encodings = ['b51d9f6c1d7133a3c2d307b431c7f3ea', '2842eaaf492880247548f2cb189c2f5b', 'f1844ae7b20ad935605c87878b0ffb96', 'd19b84012adf53dedc896ebb36f7decd', 'e9629218d15b7d0887ffa78c4c70d237', 'd7ce38f06c1b134f30ee3dcd5c947d54', '7e666304dbc6c6a48d270c6d4c71f789', '62a1e68e06fd1d02adeb3646cfb47601']
+    circuit_name = prepare_data_sharing_program(
+        secret_index,
+        client_port,
+        settings.max_data_providers,
+        backup_shares_path is None,
+        input_bytes,
+        tlsn_delta,
+        tlsn_zero_encodings,
+    )
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
@@ -109,11 +123,11 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
-    logger.debug(f"Commitment: {mpc_data_commitment_hash}")
+    print(f"!@# mpc_data_commitment_hash: {mpc_data_commitment_hash}")
+    print(f"!@# tlsn_data_commitment_hash: {tlsn_data_commitment_hash}")
 
     logger.debug(f"Verifying data commitment hash")
     # 3. Verify data commitment hash from TLSN proof and MPC matches or not. If not, rollback shares.
-    tlsn_data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
     logger.debug(f"TLSN data commitment hash: {tlsn_data_commitment_hash}")
     logger.debug(f"MPC data commitment hash: {mpc_data_commitment_hash}")
     if mpc_data_commitment_hash != tlsn_data_commitment_hash:
@@ -121,17 +135,6 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail="Data commitment hash mismatch between TLSN proof and MPC")
     return RequestSharingDataMPCResponse(data_commitment=tlsn_data_commitment_hash)
-
-
-def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:
-    proof_data = json.loads(tlsn_proof)
-    private_openings = proof_data["substrings"]["private_openings"]
-    if len(private_openings) != 1:
-        raise ValueError(f"Expected 1 private opening, got {len(private_openings)}")
-    _, openings = list(private_openings.items())[0]
-    commitment = openings[1]
-    data_commitment_hash = bytes(commitment["hash"]).hex()
-    return data_commitment_hash
 
 
 @router.post("/query_computation", response_model=QueryComputationResponse)
@@ -179,7 +182,15 @@ def rollback_shares(party_id: int, backup_path: Path | None):
         shutil.copy(backup_path, dest_path)
 
 
-def prepare_data_sharing_program(secret_index: int, client_port: int, max_data_providers: int, is_first_run: bool):
+def prepare_data_sharing_program(
+    secret_index: int,
+    client_port: int,
+    max_data_providers: int,
+    is_first_run: bool,
+    input_bytes: int,
+    tlsn_delta: str,
+    tlsn_zero_encodings: list[str]
+) -> str:
     # Generate share_data_<client_id>.mpc with template in program/share_data.mpc
     template_path = TEMPLATE_PROGRAM_DIR / "share_data.mpc"
     with open(template_path, "r") as template_file:
@@ -189,9 +200,14 @@ def prepare_data_sharing_program(secret_index: int, client_port: int, max_data_p
     program_content = program_content.replace("{secret_index}", str(secret_index))
     program_content = program_content.replace("{client_port}", str(client_port))
     program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
+    program_content = program_content.replace("{input_bytes}", str(input_bytes))
+    program_content = program_content.replace("{delta}", repr(tlsn_delta))
+    program_content = program_content.replace("{zero_encodings}", repr(tlsn_zero_encodings))
+
+    # Remove lines that contains '# NOTE: Skipped if it's the first run'
     if is_first_run:
-        # Remove lines that contains '# NOTE: Skipped if it's the first run'
         program_content = '\n'.join([line for line in program_content.split('\n') if "# NOTE: Skipped if it's the first run" not in line])
+
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name
@@ -251,3 +267,43 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
     # if len(outputs) != 1:
     #     raise ValueError(f"Expected 1 output, got {len(outputs)}")
     return commitments[0]
+
+
+def extract_tlsn_proof_data(tlsn_proof: str):
+    import json
+
+    WORD_SIZE = 16
+    WORDS_PER_LABEL = 8
+
+    tlsn_proof = json.loads(tlsn_proof)
+    private_openings = tlsn_proof["substrings"]["private_openings"]
+    if len(private_openings) != 1:
+        raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
+    commitment_index, openings = list(private_openings.items())[0]
+    commitment_info, commitment = openings
+    data_commitment_hash = bytes(commitment["hash"]).hex()
+    # FIXME: `nonce` shouldn't be included in the proof
+    # data_commitment_nonce = bytes(commitment["nonce"]).hex()
+
+    encodings = tlsn_proof["encodings"]
+    deltas = []
+    zero_encodings = []
+    for e in encodings:
+        delta = e["U8"]["state"]["delta"]
+        labels = e["U8"]["labels"]
+        if len(delta) != WORD_SIZE:
+            raise Exception(f"Expected {WORD_SIZE} bytes in delta, got {len(delta)}")
+        delta_hex = bytes(delta).hex()
+        deltas.append(delta_hex)
+        if len(labels) != WORDS_PER_LABEL:
+            raise Exception(f"Expected {WORDS_PER_LABEL} labels, got {len(labels)}")
+        for l in labels:
+            if len(l) != WORD_SIZE:
+                raise Exception(f"Expected {WORD_SIZE} bytes in label, got {len(l)}")
+            label_hex = bytes(l).hex()
+            zero_encodings.append(label_hex)
+    if len(zero_encodings) != WORDS_PER_LABEL * len(encodings):
+        raise Exception(f"Expected {WORDS_PER_LABEL * len(encodings)} labels, got {len(zero_encodings)}")
+    if not len(set(deltas)) == 1:
+        raise Exception(f"Expected all deltas to be the same, got {deltas}")
+    return data_commitment_hash, deltas[0], zero_encodings

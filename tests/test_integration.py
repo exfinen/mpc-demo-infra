@@ -11,7 +11,18 @@ from mpc_demo_infra.coordination_server.routes import MAX_CLIENT_ID
 from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.coordination_server.database import SessionLocal, Voucher, DataProvider
 
-from .common import TLSN_PROOF
+from .common import (
+    TLSN_PROOF_1,
+    value_1,
+    data_commitment_hash_1,
+    nonce_1,
+    input_bytes_1,
+    TLSN_PROOF_2,
+    value_2,
+    data_commitment_hash_2,
+    nonce_2,
+    input_bytes_2,
+)
 
 
 COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
@@ -155,6 +166,8 @@ async def generate_client_cert(tmp_dir: Path) -> tuple[int, Path, Path]:
         raise Exception(f"Failed to generate client cert for {client_id}")
     return client_id, cert_path, key_path
 
+
+
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     voucher1 = "1234567890"
@@ -184,6 +197,13 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     })
     assert response_register_2.status_code == 200
 
+    print(f"input_bytes_1: {input_bytes_1}")
+    print(f"data_commitment_hash_1: {data_commitment_hash_1}")
+    print(f"nonce_1: {nonce_1}")
+    print(f"input_bytes_2: {input_bytes_2}")
+    print(f"data_commitment_hash_2: {data_commitment_hash_2}")
+    print(f"nonce_2: {nonce_2}")
+
     # Request the data
     # for party_id in range(settings.num_parties):
     # asynchronously request /share_data for all parties
@@ -192,9 +212,10 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
             "identity": identity1,
-            "tlsn_proof": TLSN_PROOF,
+            "tlsn_proof": TLSN_PROOF_1,
             "client_cert_file": cert_file_content,
             "client_id": client_id_1,
+            "input_bytes": input_bytes_1,
         }) as response:
             assert response.status == 200
             data = await response.json()
@@ -203,15 +224,12 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # Wait until all computation parties started their MPC servers.
     await asyncio.sleep(1)
 
-    value_1 = 3
-    value_2 = value_1
-
     # Clean up the existing shares
     for party_id in range(settings.num_parties):
         (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
 
     print(f"!@# Requesting share data for {identity1}")
-    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1}"
+    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1} {nonce_1}"
     print(f"Running: {cmd}")
     await asyncio.create_subprocess_shell(
         cmd,
@@ -228,7 +246,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # async with aiohttp.ClientSession() as session:
     #     async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
     #         "identity": identity2,
-    #         "tlsn_proof": TLSN_PROOF,
+    #         "tlsn_proof": TLSN_PROOF_1,
     #         "client_cert_file": cert_file_content,
     #         "client_id": client_id_2,
     #     }) as response:
@@ -237,7 +255,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     #         client_port_2 = data["client_port"]
     #         client_id_2 = data["client_id"]
     # await asyncio.create_subprocess_shell(
-    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {cert_path_2} {key_path_2} {value_2}",
+    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {cert_path_2} {key_path_2} {value_2} {nonce_2}",
     #     # stdout=asyncio.subprocess.PIPE,
     #     # stderr=asyncio.subprocess.PIPE
     # )

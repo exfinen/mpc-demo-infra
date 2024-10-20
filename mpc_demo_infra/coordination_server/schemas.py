@@ -10,6 +10,7 @@ class RequestSharingDataRequest(BaseModel):
     tlsn_proof: str
     client_id: int
     client_cert_file: str
+    input_bytes: int
 
 class RequestSharingDataResponse(BaseModel):
     mpc_port_base: int

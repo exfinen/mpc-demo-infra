@@ -5,22 +5,18 @@ class RequestSharingDataMPCRequest(BaseModel):
     mpc_port_base: int
     secret_index: int
     client_id: int
-    client_port: int
+    client_port_base: int
     client_cert_file: str
     input_bytes: int
 
 class RequestSharingDataMPCResponse(BaseModel):
     data_commitment: str
 
-class QueryComputationRequest(BaseModel):
-    computation_index: int
+class RequestQueryComputationMPCRequest(BaseModel):
+    mpc_port_base: int
+    client_id: int
+    client_port_base: int
+    client_cert_file: str
 
-class QueryComputationResponse(BaseModel):
-    success: bool
-    message: str
-    computation_index: int
-    computation_result: str
-
-
-class RequestCertResponse(BaseModel):
-    cert_file: str
+class RequestQueryComputationMPCResponse(BaseModel):
+    pass

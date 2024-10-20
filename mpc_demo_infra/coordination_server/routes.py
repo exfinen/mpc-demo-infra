@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RegisterDataProviderRequest, RegisterDataProviderResponse,
     RequestSharingDataRequest, RequestSharingDataResponse,
-    RequestCertResponse,
+    RequestQueryComputationRequest, RequestQueryComputationResponse,
 )
 from .database import DataProvider, Voucher, get_db
 from .config import settings
@@ -23,7 +23,7 @@ router = APIRouter()
 CMD_VERIFYTLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
 
-TIMEOUT_CALLING_COMPUTATION_SERVERS = 30
+TIMEOUT_CALLING_COMPUTATION_SERVERS = 60
 
 MAX_CLIENT_ID = 1000
 
@@ -49,18 +49,6 @@ def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)
     db.refresh(new_provider)
     logger.info(f"Successfully registered provider with id: {new_provider.id}")
     return {"provider_id": new_provider.id}
-
-
-@router.post("/request_cert", response_model=RequestCertResponse)
-async def request_cert():
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for party_ip in settings.party_ips:
-            url = f"{settings.protocol}://{party_ip}/request_cert"
-            tasks.append(session.post(url))
-        responses = await asyncio.gather(*tasks)
-        certs = [await response.text() for response in responses]
-    return RequestCertResponse(certs=certs)
 
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.
@@ -117,7 +105,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                             "mpc_port_base": settings.mpc_port_base,
                             "secret_index": secret_index,
                             "client_id": client_id,
-                            "client_port": settings.client_port,
+                            "client_port_base": settings.client_port_base,
                             "client_cert_file": client_cert_file,
                         })
                         tasks.append(task)
@@ -173,12 +161,67 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         return RequestSharingDataResponse(
             mpc_port_base=settings.mpc_port_base,
             client_id=client_id,
-            client_port=settings.client_port
+            client_port_base=settings.client_port_base
         )
     except Exception as e:
         logger.error(f"Failed to share data: {str(e)}")
         sharing_data_lock.release()
         raise HTTPException(status_code=400, detail="Failed to share data")
+
+@router.post("/query_computation", response_model=RequestQueryComputationResponse)
+async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
+    client_id = request.client_id
+    client_cert_file = request.client_cert_file
+    logger.info(f"Querying computation for client {client_id}")
+    if client_id >= MAX_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Client ID is out of range")
+
+    # MPC port for all parties to listen and connect to each other.
+    # E.g. mpc_port_base = 8000, party 0 -> 8000, party 1 -> 8001, party 2 -> 8002
+    # TODO: Have a way to pick a unused (or just random) ports
+    mpc_port_base = settings.mpc_port_base
+    # Client port for MPC servers to listen to client's requests.
+    # E.g. client_port_base = 9000, party 0 -> 9000, party 1 -> 9001, party 2 -> 9002
+    # TODO: Have a way to pick a unused (or just random) ports
+    client_port_base = settings.client_port_base
+    logger.info(f"Using mpc port base: {mpc_port_base}")
+
+    l = asyncio.Event()
+
+    async def request_querying_computation_all_parties():
+        logger.info(f"Requesting querying computation MPC for {client_id=}")
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for party_ip in settings.party_ips:
+                url = f"{settings.protocol}://{party_ip}/request_querying_computation_mpc"
+                task = session.post(url, json={
+                    "mpc_port_base": mpc_port_base,
+                    "client_id": client_id,
+                    "client_port_base": client_port_base,
+                    "client_cert_file": client_cert_file,
+                })
+                tasks.append(task)
+            l.set()
+            # Send all requests concurrently
+            responses = await asyncio.gather(*tasks)
+        # Check if all responses are successful
+        logger.info(f"Received responses for querying computation MPC for {client_id=}")
+        for party_id, response in enumerate(responses):
+            if response.status != 200:
+                logger.error(f"Failed to request querying computation MPC from {party_id}: {response.status}")
+                raise HTTPException(status_code=500, detail=f"Failed to request querying computation MPC from {party_id}. Details: {await response.text()}")
+        logger.debug(f"All responses for querying computation MPC for {client_id=} are successful")
+
+    asyncio.create_task(request_querying_computation_all_parties())
+    # Wait until `gather` called, with a timeout
+    try:
+        await asyncio.wait_for(l.wait(), timeout=TIMEOUT_CALLING_COMPUTATION_SERVERS)
+    except asyncio.TimeoutError as e:
+        logger.error(f"Timeout waiting for querying computation for {client_id=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
+        raise e
+    return RequestQueryComputationResponse(
+        client_port_base=settings.client_port_base
+    )
 
 
 def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:

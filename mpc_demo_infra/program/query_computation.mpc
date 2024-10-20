@@ -1,0 +1,81 @@
+# coding: utf-8
+"""
+  Demo to show for DevCon, focusing on client interface, allowing clients to disconnect after giving inputs and reconnect to get output
+  while also allowing servers to store values
+"""
+from typing import Type
+from Compiler.types import sint, regint, Array, MemValue
+from Compiler.library import print_ln, do_while, for_range, accept_client_connection, listen_for_clients, if_, if_e, else_, crash
+from Compiler.instructions import closeclientconnection
+from Compiler.util import if_else
+from Compiler.circuit import sha3_256
+
+sfix.round_nearest = True
+
+PORTNUM = {client_port_base}
+MAX_DATA_PROVIDERS = {max_data_providers}
+
+
+def calculate_sum(client_values: sint.Array):
+    return sum(client_values[1:])
+
+def calculate_mean(client_values: sint.Array):
+    return sum(client_values[1:]) / client_values[0]
+
+COMPUTATION_LIST = [calculate_sum, calculate_mean]
+
+
+def accept_client():
+    client_socket_id = accept_client_connection(PORTNUM)
+    computation_index = regint.read_from_socket(client_socket_id)
+    return client_socket_id, computation_index
+
+def computation(index: regint, client_values: sint.Array):
+    print_ln('comp index: %s', index)
+    result = sint.Array(1)
+    num_data_providers: sint = client_values[0]
+    input_values: sint.Array = client_values[1:]
+    # Sum
+    @if_e(index == 0)
+    def _():
+        result[0]=sum(input_values)
+    # Mean
+    @else_
+    def _():
+        result[0]=sum(input_values) / num_data_providers
+    return result
+
+def main():
+
+    # Start listening for client socket connections
+    listen_for_clients(PORTNUM)
+    print_ln('Listening for client connections on base port %s', PORTNUM)
+
+    client_socket_id, computation_index = accept_client()
+    # put as array to make it object
+    # First element is the number of clients
+    client_values = sint.Array(1 + MAX_DATA_PROVIDERS)
+    commitment_values = sint.Array(MAX_DATA_PROVIDERS)
+
+    client_values.read_from_file(0)
+    commitment_values.read_from_file(1 + MAX_DATA_PROVIDERS)
+
+    result = computation(computation_index, client_values)
+
+    print_ln('Result of computation %s: %s', computation_index, result[0].reveal())
+
+    #sint.reveal_to_clients([client_socket_id], result)
+    return_array = sint.Array(1 + MAX_DATA_PROVIDERS)
+    return_array[0] = result[0]
+
+    # Return the commitment values to the client
+    @for_range(MAX_DATA_PROVIDERS)
+    def _(i):
+        return_array[1+i] = commitment_values[i]
+
+    return_array.reveal_to_clients([client_socket_id])
+
+    print_ln('Now closing this connection')
+    closeclientconnection(client_socket_id)
+
+main()

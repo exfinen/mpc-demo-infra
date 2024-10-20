@@ -1,9 +1,12 @@
 from pydantic import BaseModel
 
 
-class RequestCertResponse(BaseModel):
-    certs: list[str]
+class RegisterDataProviderRequest(BaseModel):
+    identity: str
+    voucher_code: str
 
+class RegisterDataProviderResponse(BaseModel):
+    provider_id: int
 
 class RequestSharingDataRequest(BaseModel):
     identity: str
@@ -13,13 +16,11 @@ class RequestSharingDataRequest(BaseModel):
     input_bytes: int
 
 class RequestSharingDataResponse(BaseModel):
-    mpc_port_base: int
-    client_port: int
+    client_port_base: int
+
+class RequestQueryComputationRequest(BaseModel):
     client_id: int
+    client_cert_file: str
 
-class RegisterDataProviderRequest(BaseModel):
-    identity: str
-    voucher_code: str
-
-class RegisterDataProviderResponse(BaseModel):
-    provider_id: int
+class RequestQueryComputationResponse(BaseModel):
+    client_port_base: int

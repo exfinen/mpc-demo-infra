@@ -14,9 +14,8 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RequestSharingDataMPCRequest,
     RequestSharingDataMPCResponse,
-    QueryComputationRequest,
-    QueryComputationResponse,
-    RequestCertResponse,
+    RequestQueryComputationMPCRequest,
+    RequestQueryComputationMPCResponse,
 )
 from .database import get_db
 from .config import settings
@@ -40,12 +39,6 @@ CMD_COMPILE_MPC = "./compile.py -F 256"
 CMD_RUN_MPC = f"./semi-party.x"
 
 
-@router.post("/request_cert", response_model=RequestCertResponse)
-def request_cert():
-    with open(CLIENT_CERT_PATH / f"P{settings.party_id}.pem", "r") as cert_file:
-        cert_file_content = cert_file.read()
-    return RequestCertResponse(cert_file=cert_file_content)
-
 
 @router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
 def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session = Depends(get_db)):
@@ -53,7 +46,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     tlsn_proof = request.tlsn_proof
     mpc_port_base = request.mpc_port_base
     client_id = request.client_id
-    client_port = request.client_port
+    client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
     input_bytes = request.input_bytes
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
@@ -77,37 +70,21 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
+    print(f"!@# backup_shares_path: {backup_shares_path}")
     logger.debug(f"Backed up shares to {backup_shares_path}")
 
-    # Prepare for IP file
-    mpc_addresses = [
-        f"{ip}:{mpc_port_base + party_id}" for party_id, ip in enumerate(settings.party_ips)
-    ]
-    with tempfile.NamedTemporaryFile(delete=False) as ip_file:
-        logger.debug(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")
-        ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
-        ip_file.flush()
+    # 3. Generate ip file
+    ip_file_path = generate_ip_file(mpc_port_base)
 
-    # Save client's cert file to CLIENT_CERT_PATH
-    client_cert_path = CLIENT_CERT_PATH / f"C{client_id}.pem"
-    with open(client_cert_path, "w") as cert_file:
-        cert_file.write(client_cert_file)
-
-    # c_rehash
-    subprocess.run(
-        f"c_rehash {CLIENT_CERT_PATH}",
-        check=True,
-        shell=True,
-    )
+    # 4. Generate client cert file
+    generate_client_cert_file(client_id, client_cert_file)
 
     logger.debug(f"Preparing data sharing program")
     tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
     # Compile and run share_data program
-    # tlsn_delta = '2501fa5c2b50281d97cc4e63bb1beaef'
-    # tlsn_zero_encodings = ['b51d9f6c1d7133a3c2d307b431c7f3ea', '2842eaaf492880247548f2cb189c2f5b', 'f1844ae7b20ad935605c87878b0ffb96', 'd19b84012adf53dedc896ebb36f7decd', 'e9629218d15b7d0887ffa78c4c70d237', 'd7ce38f06c1b134f30ee3dcd5c947d54', '7e666304dbc6c6a48d270c6d4c71f789', '62a1e68e06fd1d02adeb3646cfb47601']
-    circuit_name = prepare_data_sharing_program(
+    circuit_name, target_program_path = generate_data_sharing_program(
         secret_index,
-        client_port,
+        client_port_base,
         settings.max_data_providers,
         backup_shares_path is None,
         input_bytes,
@@ -118,13 +95,11 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     compile_program(circuit_name)
     try:
         logger.debug(f"Running program {circuit_name}")
-        mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file.name)
+        mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file_path)
     except Exception as e:
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
-    print(f"!@# mpc_data_commitment_hash: {mpc_data_commitment_hash}")
-    print(f"!@# tlsn_data_commitment_hash: {tlsn_data_commitment_hash}")
 
     logger.debug(f"Verifying data commitment hash")
     # 3. Verify data commitment hash from TLSN proof and MPC matches or not. If not, rollback shares.
@@ -137,11 +112,65 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     return RequestSharingDataMPCResponse(data_commitment=tlsn_data_commitment_hash)
 
 
-@router.post("/query_computation", response_model=QueryComputationResponse)
-def query_computation(request: QueryComputationRequest, db: Session = Depends(get_db)):
-    logger.info(f"Querying computation {request.computation_index}")
-    # TODO: implement
-    return QueryComputationResponse(success=True, message="Computation queried successfully", computation_index=request.computation_index, computation_result="")
+@router.post("/request_querying_computation_mpc", response_model=RequestQueryComputationMPCResponse)
+def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest, db: Session = Depends(get_db)):
+    mpc_port_base = request.mpc_port_base
+    client_id = request.client_id
+    client_port_base = request.client_port_base
+    client_cert_file = request.client_cert_file
+    logger.info(f"Querying computation")
+
+    shares_path = SHARES_DIR / f"Transactions-P{settings.party_id}.data"
+    if not shares_path.exists():
+        raise HTTPException(status_code=400, detail="No data available")
+
+    # Prepare for IP file
+    ip_file_path = generate_ip_file(mpc_port_base)
+
+    # Generate client cert file
+    generate_client_cert_file(client_id, client_cert_file)
+
+    circuit_name, target_program_path = generate_computation_query_program(
+        client_port_base,
+        settings.max_data_providers,
+    )
+
+    logger.debug(f"Compiling computation query program {circuit_name}")
+    compile_program(circuit_name)
+    logger.debug(f"Running program {circuit_name}")
+    try:
+        mpc_computation_result = run_computation_query_program(circuit_name, ip_file_path)
+    except Exception as e:
+        logger.error(f"Failed to run program {circuit_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    logger.debug(f"MPC computation result: {mpc_computation_result}")
+    return RequestQueryComputationMPCResponse()
+
+
+def generate_ip_file(mpc_port_base: int) -> str:
+    # Prepare for IP file
+    mpc_addresses = [
+        f"{ip}:{mpc_port_base + party_id}" for party_id, ip in enumerate(settings.party_ips)
+    ]
+    with tempfile.NamedTemporaryFile(delete=False) as ip_file:
+        logger.debug(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")
+        ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
+        ip_file.flush()
+    return ip_file.name
+
+
+def generate_client_cert_file(client_id: int, client_cert_file: str) -> Path:
+    # Save client's cert file to CLIENT_CERT_PATH
+    client_cert_path = CLIENT_CERT_PATH / f"C{client_id}.pem"
+    with open(client_cert_path, "w") as cert_file:
+        cert_file.write(client_cert_file)
+    # c_rehash
+    subprocess.run(
+        f"c_rehash {CLIENT_CERT_PATH}",
+        check=True,
+        shell=True,
+    )
+    return client_cert_path
 
 
 def get_backup_shares_dir(party_id: int):
@@ -174,7 +203,8 @@ def backup_shares(party_id: int) -> Path | None:
 def rollback_shares(party_id: int, backup_path: Path | None):
     dest_path = SHARES_DIR / f"Transactions-P{party_id}.data"
     if backup_path is None:
-        # If there is no backup, just unlink the current shares
+        # If there is no backup, it means it's the first run and failed.
+        # So just unlink the current shares
         dest_path.unlink()
         return
     else:
@@ -182,9 +212,9 @@ def rollback_shares(party_id: int, backup_path: Path | None):
         shutil.copy(backup_path, dest_path)
 
 
-def prepare_data_sharing_program(
+def generate_data_sharing_program(
     secret_index: int,
-    client_port: int,
+    client_port_base: int,
     max_data_providers: int,
     is_first_run: bool,
     input_bytes: int,
@@ -198,7 +228,7 @@ def prepare_data_sharing_program(
     circuit_name = f"share_data_{secret_index}"
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
     program_content = program_content.replace("{secret_index}", str(secret_index))
-    program_content = program_content.replace("{client_port}", str(client_port))
+    program_content = program_content.replace("{client_port_base}", str(client_port_base))
     program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
     program_content = program_content.replace("{input_bytes}", str(input_bytes))
     program_content = program_content.replace("{delta}", repr(tlsn_delta))
@@ -210,7 +240,23 @@ def prepare_data_sharing_program(
 
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
-    return circuit_name
+    return circuit_name, target_program_path
+
+
+def generate_computation_query_program(
+    client_port_base: int,
+    max_data_providers: int,
+) -> str:
+    template_path = TEMPLATE_PROGRAM_DIR / "query_computation.mpc"
+    with open(template_path, "r") as template_file:
+        program_content = template_file.read()
+    circuit_name = f"query_computation_{client_port_base}"
+    target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
+    program_content = program_content.replace("{client_port_base}", str(client_port_base))
+    program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
+    with open(target_program_path, "w") as program_file:
+        program_file.write(program_content)
+    return circuit_name, target_program_path
 
 
 def compile_program(circuit_name: str):
@@ -224,7 +270,7 @@ def compile_program(circuit_name: str):
 
 def run_program(circuit_name: str, ip_file_path: str):
     # Run share_data_<client_id>.mpc
-    cmd_run_mpc = f"{CMD_RUN_MPC} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {ip_file_path}"
+    cmd_run_mpc = f"{CMD_RUN_MPC} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
 
     # Run the MPC program
     try:
@@ -241,16 +287,12 @@ def run_program(circuit_name: str, ip_file_path: str):
     return process
 
 
-def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
+def run_data_sharing_program(circuit_name: str, ip_file_path: Path) -> list[str]:
     process = run_program(circuit_name, ip_file_path)
     output_lines = process.stdout.split('\n')
 
-    outputs = []
-    OUTPUT_PREFIX = "output: "
     commitments = []
     for line in output_lines:
-        # if line.startswith(OUTPUT_PREFIX):
-        #     outputs.append(float(line[len(OUTPUT_PREFIX):].strip()))
         # Case for 'Reg[0] = 0x28059a08d116926177e4dfd87e72da4cd44966b61acc3f21870156b868b81e6a #'
         if line.startswith('Reg['):
             # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
@@ -258,15 +300,26 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: str) -> list[str]:
             # ed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             reg_value = after_equal.split(' ')[0][2:]
             commitments.append(reg_value)
-        print(f"!@# line: {line}")
+        # print(f"!@# line: {line}")
 
-    for err in process.stderr.split('\n'):
-        print(f"!@# err: {err}")
+    # for err in process.stderr.split('\n'):
+    #     print(f"!@# err: {err}")
     if len(commitments) != 1:
         raise ValueError(f"Expected 1 commitment, got {len(commitments)}")
-    # if len(outputs) != 1:
-    #     raise ValueError(f"Expected 1 output, got {len(outputs)}")
     return commitments[0]
+
+
+def run_computation_query_program(circuit_name: str, ip_file_path: Path) -> list[str]:
+    process = run_program(circuit_name, ip_file_path)
+    # 'Result of computation 0: 10'
+    output_lines = process.stdout.split('\n')
+    outputs = []
+    for line in output_lines:
+        if line.startswith('Result of computation'):
+            outputs.append(line.split(':')[1].strip())
+    if len(outputs) != 1:
+        raise ValueError(f"Expected 1 output, got {len(outputs)}")
+    return outputs[0]
 
 
 def extract_tlsn_proof_data(tlsn_proof: str):

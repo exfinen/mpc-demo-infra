@@ -13,7 +13,7 @@ from Compiler.GC.types import sbitvec, sbit
 
 
 SECRET_INDEX = regint({secret_index})
-PORTNUM = {client_port}
+PORTNUM = {client_port_base}
 MAX_DATA_PROVIDERS = {max_data_providers}
 INPUT_BYTES = {input_bytes}
 DELTA = {delta}
@@ -93,8 +93,8 @@ def main():
     # input_commitment.reveal_print_hex()
     input_commitment.reveal_print_hex()
 
-    # commitment_values[SECRET_INDEX] = input_commitment
-    commitment_values.write_to_file(1+MAX_DATA_PROVIDERS)
+    commitment_values[SECRET_INDEX] = input_commitment
+    commitment_values.write_to_file(1 + MAX_DATA_PROVIDERS)
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
     sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX]])
     print_ln('Now closing this connection')

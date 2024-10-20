@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     api_keys: List[str] = ["your_api_key_1", "your_api_key_2"]
 
     mpc_port_base: int = 8010
-    client_port: int = 14000
+    client_port_base: int = 14000
 
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
     party_ips: List[str] = ["localhost:6666", "localhost:6667", "localhost:6668"]

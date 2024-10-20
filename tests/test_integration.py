@@ -30,7 +30,8 @@ NUM_PARTIES = 3
 # Adjust these ports as needed
 COORDINATION_PORT = 5565
 MPC_PORT_BASE = 8010
-CLIENT_PORT = 14000
+MAX_DATA_PROVIDERS = 10
+CLIENT_PORT_BASE = 14000
 COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
 COMPUTATION_PARTY_PORTS = [5566 + party_id for party_id in range(NUM_PARTIES)]
 
@@ -49,7 +50,7 @@ async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: 
             "PORT": str(port),
             "PARTY_IPS": '["' + '","'.join(party_ips) + '"]',
             "MPC_PORT_BASE": str(MPC_PORT_BASE),
-            "CLIENT_PORT": str(CLIENT_PORT),
+            "CLIENT_PORT_BASE": str(CLIENT_PORT_BASE),
             "TLSN_PROOFS_DIR": str(tlsn_proofs_dir),
         },
         # stdout=asyncio.subprocess.PIPE,
@@ -66,6 +67,7 @@ async def start_computation_party_server(cmd: list[str], party_id: int, port: in
             "PARTY_ID": str(party_id),
             "DATABASE_URL": COMPUTATION_DB_URL_TEMPLATE.format(party_id=party_id),
             "COORDINATION_SERVER_URL": f"http://localhost:{COORDINATION_PORT}",
+            "MAX_DATA_PROVIDERS": str(MAX_DATA_PROVIDERS),
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -123,7 +125,7 @@ async def servers(tlsn_proofs_dir):
     await asyncio.sleep(1)
 
 
-# def run_save_data_client(client_port: int, client_id: int, value: int):
+# def run_save_data_client(client_port_base: int, client_id: int, value: int):
 #     import sys
 #     sys.path.append(settings.mpspdz_project_root)
 
@@ -133,7 +135,7 @@ async def servers(tlsn_proofs_dir):
 #     isInput = 1
 
 #     # client id should be assigned by our server
-#     client = Client(COMPUTATION_HOSTS, client_port, client_id)
+#     client = Client(COMPUTATION_HOSTS, client_port_base, client_id)
 
 #     for socket in client.sockets:
 #         os = octetStream()
@@ -170,6 +172,10 @@ async def generate_client_cert(tmp_dir: Path) -> tuple[int, Path, Path]:
 
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
+    # Clean up the existing shares
+    for party_id in range(settings.num_parties):
+        (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
+
     voucher1 = "1234567890"
     voucher2 = "0987654321"
     identity1 = "test_identity1"
@@ -182,8 +188,6 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         db.commit()
         db.refresh(voucher_1)
         db.refresh(voucher_2)
-
-    client_id_1, cert_path_1, key_path_1 = await generate_client_cert(tmp_path)
 
     response_register_1 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
         "voucher_code": voucher1,
@@ -207,60 +211,93 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # Request the data
     # for party_id in range(settings.num_parties):
     # asynchronously request /share_data for all parties
+    client_id_1, cert_path_1, key_path_1 = await generate_client_cert(tmp_path)
     with open(cert_path_1, "r") as cert_file:
-        cert_file_content = cert_file.read()
+        cert_file_content_1 = cert_file.read()
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
             "identity": identity1,
             "tlsn_proof": TLSN_PROOF_1,
-            "client_cert_file": cert_file_content,
+            "client_cert_file": cert_file_content_1,
             "client_id": client_id_1,
             "input_bytes": input_bytes_1,
         }) as response:
             assert response.status == 200
             data = await response.json()
-            client_port_1 = data["client_port"]
+            client_port_1 = data["client_port_base"]
 
     # Wait until all computation parties started their MPC servers.
+
+    print(f"!@# Running data sharing client for {identity1}")
+    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/data_sharing_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1} {nonce_1}"
+    print(f"Running: {cmd}")
+    process = await asyncio.create_subprocess_shell(
+        cmd,
+        # stdout=asyncio.subprocess.PIPE,
+        # stderr=asyncio.subprocess.PIPE
+    )
+    await process.wait()
+
+    # await asyncio.sleep(1)
+
+    # print(f"!@# Requesting share data for {identity2}")
+    # client_id_2, cert_path_2, key_path_2 = await generate_client_cert(tmp_path)
+    # with open(cert_path_2, "r") as cert_file:
+    #     cert_file_content = cert_file.read()
+    # async with aiohttp.ClientSession() as session:
+    #     async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
+    #         "identity": identity2,
+    #         "tlsn_proof": TLSN_PROOF_2,
+    #         "client_cert_file": cert_file_content,
+    #         "client_id": client_id_2,
+    #         "input_bytes": input_bytes_2,
+    #     }) as response:
+    #         assert response.status == 200
+    #         data = await response.json()
+    #         client_port_2 = data["client_port_base"]
+    #         client_id_2 = data["client_id"]
+    # await asyncio.create_subprocess_shell(
+    #     f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {cert_path_2} {key_path_2} {value_2} {nonce_2}",
+    #     # stdout=asyncio.subprocess.PIPE,
+    #     # stderr=asyncio.subprocess.PIPE
+    # )
+    # await process.wait()
+
+
+    client_id_3, cert_path_3, key_path_3 = await generate_client_cert(tmp_path)
+    computation_index = 0
+
+    # Wait until the data sharing client finished
     await asyncio.sleep(1)
 
-    # Clean up the existing shares
-    for party_id in range(settings.num_parties):
-        (Path(settings.mpspdz_project_root) / f"Persistence/Transactions-P{party_id}.data").unlink(missing_ok=True)
+    # Request querying computation
+    with open(cert_path_3, "r") as cert_file:
+        cert_file_content_3 = cert_file.read()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/query_computation", json={
+            "client_id": client_id_3,
+            "client_cert_file": cert_file_content_3,
+        }) as response:
+            assert response.status == 200
+            data = await response.json()
+            client_port_3 = data["client_port_base"]
 
-    print(f"!@# Requesting share data for {identity1}")
-    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_1} {settings.num_parties} {client_id_1} {cert_path_1} {key_path_1} {value_1} {nonce_1}"
+    # port_base = int(sys.argv[1])
+    # n_parties = int(sys.argv[2])
+    # client_id = int(sys.argv[3])
+    # cert_file = sys.argv[4]
+    # key_file = sys.argv[5]
+    # max_data_providers = int(sys.argv[6])
+    # computation_index = int(sys.argv[7])
+    print(f"!@# Running querying computation client")
+    cmd = f"cd {settings.mpspdz_project_root} && python ExternalDemo/computation_query_client.py {client_port_3} {settings.num_parties} {client_id_3} {cert_path_3} {key_path_3} {MAX_DATA_PROVIDERS} {computation_index}"
     print(f"Running: {cmd}")
     await asyncio.create_subprocess_shell(
         cmd,
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
     )
-
-    await asyncio.sleep(1)
-
-    print(f"!@# Requesting share data for {identity2}")
-    client_id_2, cert_path_2, key_path_2 = await generate_client_cert(tmp_path)
-    with open(cert_path_2, "r") as cert_file:
-        cert_file_content = cert_file.read()
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-            "identity": identity2,
-            "tlsn_proof": TLSN_PROOF_2,
-            "client_cert_file": cert_file_content,
-            "client_id": client_id_2,
-            "input_bytes": input_bytes_2,
-        }) as response:
-            assert response.status == 200
-            data = await response.json()
-            client_port_2 = data["client_port"]
-            client_id_2 = data["client_id"]
-    await asyncio.create_subprocess_shell(
-        f"cd {settings.mpspdz_project_root} && python ExternalDemo/save_data_client.py {client_port_2} {settings.num_parties} {client_id_2} {cert_path_2} {key_path_2} {value_2} {nonce_2}",
-        # stdout=asyncio.subprocess.PIPE,
-        # stderr=asyncio.subprocess.PIPE
-    )
-
+    await process.wait()
 
     # async def wait_until_request_fulfilled():
     #     # Poll if tlsn_proof is saved, which means the background task running MPC finished.

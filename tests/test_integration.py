@@ -1,3 +1,4 @@
+import csv
 import os
 import random
 import pytest
@@ -39,6 +40,9 @@ CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 TIMEOUT_MPC = 60
 
 CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coordination-server-run"]
+CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coordination-server-gen-vouchers"]
+CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coordination-server-list-vouchers"]
+
 CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "computation-party-server-run"]
 
 async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: Path):
@@ -241,6 +245,30 @@ async def share_data(tmp_path: Path, voucher_code: str, tlsn_proof: str, value: 
     )
 
 
+async def gen_vouchers(num_vouchers: int):
+    process = await asyncio.create_subprocess_exec(*CMD_PREFIX_GEN_VOUCHERS, str(num_vouchers))
+    await process.wait()
+    assert process.returncode == 0
+
+
+async def get_vouchers():
+    process = await asyncio.create_subprocess_exec(
+        *CMD_PREFIX_LIST_VOUCHERS,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+    assert process.returncode == 0
+
+    # parse with csv
+    reader = csv.reader(stdout.decode().splitlines())
+    # [['id', 'voucher_code', 'is_used'], ['1', 'PEF2tZ5gqX4UkC6XwJ5LuA', 'False'], ['2', 'gOAn9Wvo7pydmTZlJibAAQ', 'False']]
+    vouchers_rows = list(reader)
+    without_header = vouchers_rows[1:]
+    vouchers = [row[1] for row in without_header]
+    return vouchers
+
+
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     # Clean up the existing shares
@@ -263,28 +291,25 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     for party_id, cert in enumerate(party_certs):
         (CERTS_PATH / f"P{party_id}.pem").write_text(cert)
 
-    voucher1 = "1234567890"
-    voucher2 = "0987654321"
+    # Gen vouchers
+    num_vouchers = 2
+    await gen_vouchers(num_vouchers)
 
-    with SessionLocal() as db:
-        voucher_1 = Voucher(code=voucher1)
-        db.add(voucher_1)
-        voucher_2 = Voucher(code=voucher2)
-        db.add(voucher_2)
-        db.commit()
-        db.refresh(voucher_1)
-        db.refresh(voucher_2)
+    # List vouchers
+    vouchers = await get_vouchers()
+    assert len(vouchers) == num_vouchers
+    voucher_1, voucher_2 = vouchers
 
     await asyncio.sleep(1)
 
     # Share data concurrently using voucher codes
     await asyncio.gather(
-        share_data(tmp_path, voucher1, TLSN_PROOF_1, value_1, nonce_1),
-        share_data(tmp_path, voucher2, TLSN_PROOF_2, value_2, nonce_2),
+        share_data(tmp_path, voucher_1, TLSN_PROOF_1, value_1, nonce_1),
+        share_data(tmp_path, voucher_2, TLSN_PROOF_2, value_2, nonce_2),
     )
 
     # Query computation concurrently
-    num_queries = 1
+    num_queries = 2
     await asyncio.gather(*[query_computation(tmp_path) for _ in range(num_queries)])
 
 

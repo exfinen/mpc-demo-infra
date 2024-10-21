@@ -26,9 +26,9 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-coordination-server-create-tables = "mpc_demo_infra.coordination_server.database:create_tables"
 coordination-server-run = "mpc_demo_infra.coordination_server.main:run"
-computation-party-server-create-tables = "mpc_demo_infra.computation_party_server.database:create_tables"
+coordination-server-gen-vouchers = "mpc_demo_infra.coordination_server.main:gen_vouchers"
+coordination-server-list-vouchers = "mpc_demo_infra.coordination_server.main:list_vouchers"
 computation-party-server-run = "mpc_demo_infra.computation_party_server.main:run"
 
 [tool.pytest.ini_options]

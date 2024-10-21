@@ -1,10 +1,17 @@
+import argparse
+import csv
+import logging
+import secrets
+import sys
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from .routes import router
 from .middleware import IPFilterMiddleware
-from .database import engine, Base
+from .database import engine, Base, SessionLocal, Voucher
 from .config import settings
-from fastapi.middleware.cors import CORSMiddleware
-import logging
+
 
 # Configure logging
 logging.basicConfig(
@@ -64,3 +71,30 @@ def run():
         port=settings.port,
         # reload=True
     )
+
+
+def gen_vouchers():
+    parser = argparse.ArgumentParser(description="Generate vouchers for the MPC Coordination Server")
+    parser.add_argument("num_vouchers", type=int, help="Number of vouchers to generate")
+    args = parser.parse_args()
+
+    num_vouchers = int(args.num_vouchers)
+
+    print(f"Generating {num_vouchers} vouchers...")
+
+    with SessionLocal() as db:
+        for _ in range(num_vouchers):
+            voucher_code = secrets.token_urlsafe(16)
+            new_voucher = Voucher(code=voucher_code)
+            db.add(new_voucher)
+        db.commit()  # Add this line to commit the changes
+        print(f"Successfully generated and committed {num_vouchers} vouchers.")
+
+
+def list_vouchers():
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["id", "voucher_code", "is_used"])
+    with SessionLocal() as db:
+        vouchers = db.query(Voucher).all()
+        for voucher in vouchers:
+            writer.writerow([voucher.id, voucher.code, voucher.is_used])

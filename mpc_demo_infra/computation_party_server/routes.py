@@ -36,8 +36,8 @@ TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 
 SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
-CMD_COMPILE_MPC = "./compile.py -F 256"
-CMD_RUN_MPC = f"./semi-party.x"
+CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
+CMD_RUN_MPC = f"./{settings.mpspdz_protocol}-party.x"
 
 
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)

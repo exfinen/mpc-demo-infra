@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 
+class GetPartyCertResponse(BaseModel):
+    party_id: int
+    cert_file: str
+
 class RequestSharingDataMPCRequest(BaseModel):
     tlsn_proof: str
     mpc_port_base: int

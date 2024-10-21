@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from .schemas import (
+    GetPartyCertResponse,
     RequestSharingDataMPCRequest,
     RequestSharingDataMPCResponse,
     RequestQueryComputationMPCRequest,
@@ -29,7 +30,7 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 # MP-SPDZ
 MP_SPDZ_PROJECT_ROOT = Path(settings.mpspdz_project_root)
 MPSPDZ_PROGRAM_DIR = MP_SPDZ_PROJECT_ROOT / "Programs" / "Source"
-CLIENT_CERT_PATH = MP_SPDZ_PROJECT_ROOT / "Player-Data"
+CERTS_PATH = MP_SPDZ_PROJECT_ROOT / "Player-Data"
 
 TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 
@@ -38,6 +39,14 @@ BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 CMD_COMPILE_MPC = "./compile.py -F 256"
 CMD_RUN_MPC = f"./semi-party.x"
 
+
+@router.get("/get_party_cert", response_model=GetPartyCertResponse)
+def get_party_cert():
+    party_id = settings.party_id
+    cert_path = CERTS_PATH / f"P{party_id}.pem"
+    with open(cert_path, "r") as cert_file:
+        cert = cert_file.read()
+    return GetPartyCertResponse(party_id=party_id, cert_file=cert)
 
 
 @router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
@@ -160,13 +169,13 @@ def generate_ip_file(mpc_port_base: int) -> str:
 
 
 def generate_client_cert_file(client_id: int, client_cert_file: str) -> Path:
-    # Save client's cert file to CLIENT_CERT_PATH
-    client_cert_path = CLIENT_CERT_PATH / f"C{client_id}.pem"
+    # Save client's cert file to CERTS_PATH
+    client_cert_path = CERTS_PATH / f"C{client_id}.pem"
     with open(client_cert_path, "w") as cert_file:
         cert_file.write(client_cert_file)
     # c_rehash
     subprocess.run(
-        f"c_rehash {CLIENT_CERT_PATH}",
+        f"c_rehash {CERTS_PATH}",
         check=True,
         shell=True,
     )

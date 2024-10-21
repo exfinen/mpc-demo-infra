@@ -192,6 +192,22 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)
 
+    # Get party certs
+    async def get_party_cert(session, party_id: int, computation_party_port: int):
+        async with session.get(f"http://localhost:{computation_party_port}/get_party_cert") as response:
+            assert response.status == 200
+            data = await response.json()
+            return data["cert_file"]
+
+    # Get party certs concurrently
+    async with aiohttp.ClientSession() as session:
+        party_certs = await asyncio.gather(
+            *[get_party_cert(session, party_id, computation_party_port) for party_id, computation_party_port in enumerate(COMPUTATION_PARTY_PORTS)]
+        )
+    # Write party certs to files
+    for party_id, cert in enumerate(party_certs):
+        (CERTS_PATH / f"P{party_id}.pem").write_text(cert)
+
     voucher1 = "1234567890"
     voucher2 = "0987654321"
     identity1 = "test_identity1"
@@ -205,17 +221,18 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         db.refresh(voucher_1)
         db.refresh(voucher_2)
 
-    response_register_1 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-        "voucher_code": voucher1,
-        "identity": identity1
-    })
-    assert response_register_1.status_code == 200
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+            "voucher_code": voucher1,
+            "identity": identity1
+        }) as response_register_1:
+            assert response_register_1.status == 200
 
-    response_register_2 = requests.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-        "voucher_code": voucher2,
-        "identity": identity2
-    })
-    assert response_register_2.status_code == 200
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/register", json={
+            "voucher_code": voucher2,
+            "identity": identity2
+        }) as response_register_2:
+            assert response_register_2.status == 200
 
     print(f"input_bytes_1: {input_bytes_1}")
     print(f"data_commitment_hash_1: {data_commitment_hash_1}")

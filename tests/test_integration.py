@@ -214,10 +214,6 @@ async def query_computation(tmp_path: Path):
     )
 
 
-def get_input_bytes(_input: int) -> int:
-    return len(str(_input))
-
-
 async def share_data(tmp_path: Path, voucher_code: str, tlsn_proof: str, value: int, nonce: str):
     client_id, cert_path, key_path = await generate_client_cert(tmp_path)
     with open(cert_path, "r") as cert_file:

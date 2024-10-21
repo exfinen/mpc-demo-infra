@@ -1,12 +1,10 @@
 import os
-import requests
 import random
 import pytest
 import asyncio
 import aiohttp
 from pathlib import Path
 
-from mpc_demo_infra.coordination_server.routes import MAX_CLIENT_ID
 from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.coordination_server.database import SessionLocal, Voucher
 from mpc_demo_infra.client import run_data_sharing_client, run_computation_query_client
@@ -16,12 +14,10 @@ from .common import (
     value_1,
     data_commitment_hash_1,
     nonce_1,
-    input_bytes_1,
     TLSN_PROOF_2,
     value_2,
     data_commitment_hash_2,
     nonce_2,
-    input_bytes_2,
 )
 
 
@@ -29,11 +25,14 @@ COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
 NUM_PARTIES = 3
 # Adjust these ports as needed
 COORDINATION_PORT = 5565
-MPC_PORT_BASE = 8010
+# Max number of data providers
 MAX_DATA_PROVIDERS = 10
-CLIENT_PORT_BASE = 14000
+# Max client ID for certificate generation (not MAX_DATA_PROVIDERS!)
+MAX_CLIENT_ID = 1000
+FREE_PORTS_START = 8010
+FREE_PORTS_END = 8100
 COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
-COMPUTATION_PARTY_PORTS = [5566 + party_id for party_id in range(NUM_PARTIES)]
+COMPUTATION_PARTY_PORTS = [COORDINATION_PORT + 1 + party_id for party_id in range(NUM_PARTIES)]
 MPSPDZ_PROJECT_ROOT = Path(__file__).parent.parent.parent / "MP-SPDZ"
 CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 
@@ -51,9 +50,10 @@ async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: 
             "NUM_PARTIES": str(NUM_PARTIES),
             "PORT": str(port),
             "PARTY_IPS": '["' + '","'.join(party_ips) + '"]',
-            "MPC_PORT_BASE": str(MPC_PORT_BASE),
-            "CLIENT_PORT_BASE": str(CLIENT_PORT_BASE),
+            "FREE_PORTS_START": str(FREE_PORTS_START),
+            "FREE_PORTS_END": str(FREE_PORTS_END),
             "TLSN_PROOFS_DIR": str(tlsn_proofs_dir),
+            "MAX_CLIENT_ID": str(MAX_CLIENT_ID),
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -186,6 +186,65 @@ async def run_computation_query_client_with_cert(
     )
 
 
+async def query_computation(tmp_path: Path):
+    client_id, cert_path, key_path = await generate_client_cert(tmp_path)
+    computation_index = 0
+
+    # Request querying computation
+    with open(cert_path, "r") as cert_file:
+        cert_file_content = cert_file.read()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/query_computation", json={
+            "client_id": client_id,
+            "client_cert_file": cert_file_content,
+        }) as response:
+            assert response.status == 200
+            data = await response.json()
+            client_port = data["client_port_base"]
+
+    await run_computation_query_client_with_cert(
+        client_port,
+        client_id,
+        cert_path,
+        key_path,
+        computation_index
+    )
+
+
+def get_input_bytes(_input: int) -> int:
+    return len(str(_input))
+
+
+async def share_data(tmp_path: Path, identity: str, tlsn_proof: str, value: int, nonce: str):
+    # Request the data
+    # asynchronously request /share_data for all parties
+    client_id, cert_path, key_path = await generate_client_cert(tmp_path)
+    with open(cert_path, "r") as cert_file:
+        cert_file_content = cert_file.read()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
+            "identity": identity,
+            "tlsn_proof": tlsn_proof,
+            "client_cert_file": cert_file_content,
+            "client_id": client_id,
+            "input_bytes": get_input_bytes(value),
+        }) as response:
+            assert response.status == 200
+            data = await response.json()
+            client_port = data["client_port_base"]
+
+    # Wait until all computation parties started their MPC servers.
+    print(f"!@# Running data sharing client for {identity=}, {client_port=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
+    await run_data_sharing_client_with_cert(
+        client_port,
+        client_id,
+        cert_path,
+        key_path,
+        value,
+        nonce
+    )
+
+
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     # Clean up the existing shares
@@ -234,87 +293,21 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         }) as response_register_2:
             assert response_register_2.status == 200
 
-    print(f"input_bytes_1: {input_bytes_1}")
-    print(f"data_commitment_hash_1: {data_commitment_hash_1}")
-    print(f"nonce_1: {nonce_1}")
-    print(f"input_bytes_2: {input_bytes_2}")
-    print(f"data_commitment_hash_2: {data_commitment_hash_2}")
-    print(f"nonce_2: {nonce_2}")
 
-    # Request the data
-    # asynchronously request /share_data for all parties
-    client_id_1, cert_path_1, key_path_1 = await generate_client_cert(tmp_path)
-    with open(cert_path_1, "r") as cert_file:
-        cert_file_content_1 = cert_file.read()
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-            "identity": identity1,
-            "tlsn_proof": TLSN_PROOF_1,
-            "client_cert_file": cert_file_content_1,
-            "client_id": client_id_1,
-            "input_bytes": input_bytes_1,
-        }) as response:
-            assert response.status == 200
-            data = await response.json()
-            client_port_1 = data["client_port_base"]
+    await asyncio.sleep(1)
 
-    # Wait until all computation parties started their MPC servers.
-    print(f"!@# Running data sharing client for {identity1=}, {client_port_1=}, {client_id_1=}, {cert_path_1=}, {key_path_1=}, {value_1=}, {nonce_1=}")
-    await run_data_sharing_client_with_cert(
-        client_port_1,
-        client_id_1,
-        cert_path_1,
-        key_path_1,
-        value_1,
-        nonce_1
+    # Share data concurrently.
+    # However, on the coordination server side, only one request is processed at a time to avoid race condition.
+    # So it's not that different from calling `share_data` serially.
+    await asyncio.gather(
+        share_data(tmp_path, identity1, TLSN_PROOF_1, value_1, nonce_1),
+        share_data(tmp_path, identity2, TLSN_PROOF_2, value_2, nonce_2),
     )
 
-    # print(f"!@# Requesting share data for {identity2}")
-    # client_id_2, cert_path_2, key_path_2 = await generate_client_cert(tmp_path)
-    # with open(cert_path_2, "r") as cert_file:
-    #     cert_file_content = cert_file.read()
-    # async with aiohttp.ClientSession() as session:
-    #     async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-    #         "identity": identity2,
-    #         "tlsn_proof": TLSN_PROOF_2,
-    #         "client_cert_file": cert_file_content,
-    #         "client_id": client_id_2,
-    #         "input_bytes": input_bytes_2,
-    #     }) as response:
-    #         assert response.status == 200
-    #         data = await response.json()
-    #         client_port_2 = data["client_port_base"]
-    #         client_id_2 = data["client_id"]
-    # await asyncio.create_subprocess_shell(
-    #     f"cd {MPSPDZ_PROJECT_ROOT} && python ExternalDemo/save_data_client.py {client_port_2} {NUM_PARTIES} {client_id_2} {cert_path_2} {key_path_2} {value_2} {nonce_2}",
-    #     # stdout=asyncio.subprocess.PIPE,
-    #     # stderr=asyncio.subprocess.PIPE
-    # )
-    # await process.wait()
+    # Query computation concurrently
+    num_queries = 1
+    await asyncio.gather(*[query_computation(tmp_path) for _ in range(num_queries)])
 
-
-    client_id_3, cert_path_3, key_path_3 = await generate_client_cert(tmp_path)
-    computation_index = 0
-
-    # Request querying computation
-    with open(cert_path_3, "r") as cert_file:
-        cert_file_content_3 = cert_file.read()
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/query_computation", json={
-            "client_id": client_id_3,
-            "client_cert_file": cert_file_content_3,
-        }) as response:
-            assert response.status == 200
-            data = await response.json()
-            client_port_3 = data["client_port_base"]
-
-    await run_computation_query_client_with_cert(
-        client_port_3,
-        client_id_3,
-        cert_path_3,
-        key_path_3,
-        computation_index
-    )
 
     # async def wait_until_request_fulfilled():
     #     # Poll if tlsn_proof is saved, which means the background task running MPC finished.

@@ -19,15 +19,8 @@ def get_nonce_from_tlsn_proof(tlsn_proof: str):
     return data_commitment_hash, data_commitment_nonce
 
 
-def get_input_bytes(_input: int) -> int:
-    return len(str(_input))
-
-
-
 value_1 = 3
-input_bytes_1 = get_input_bytes(value_1)
 data_commitment_hash_1, nonce_1 = get_nonce_from_tlsn_proof(TLSN_PROOF_1)
 
 value_2 = 7
-input_bytes_2 = get_input_bytes(value_2)
 data_commitment_hash_2, nonce_2 = get_nonce_from_tlsn_proof(TLSN_PROOF_2)

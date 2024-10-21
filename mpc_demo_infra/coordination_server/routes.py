@@ -25,8 +25,6 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 
 TIMEOUT_CALLING_COMPUTATION_SERVERS = 60
 
-MAX_CLIENT_ID = 1000
-
 
 @router.post("/register", response_model=RegisterDataProviderResponse)
 def register(request: RegisterDataProviderRequest, db: Session = Depends(get_db)):
@@ -64,7 +62,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     input_bytes = request.input_bytes
 
     logger.info(f"Verifying registration for identity: {identity}")
-    if client_id >= MAX_CLIENT_ID:
+    if client_id >= settings.max_client_id:
         raise HTTPException(status_code=400, detail="Client ID is out of range")
     # Check if identity has not registered, raise error
     secret_index = get_secret_index_from_db(identity, db)
@@ -89,6 +87,9 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     logger.info(f"Acquiring lock for sharing data for {identity=}")
     await sharing_data_lock.acquire()
 
+    mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
+    logger.info(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
+
     try:
         l = asyncio.Event()
 
@@ -102,10 +103,10 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                         task = session.post(url, json={
                             "input_bytes": input_bytes,
                             "tlsn_proof": tlsn_proof,
-                            "mpc_port_base": settings.mpc_port_base,
+                            "mpc_port_base": mpc_server_port_base,
                             "secret_index": secret_index,
                             "client_id": client_id,
-                            "client_port_base": settings.client_port_base,
+                            "client_port_base": mpc_client_port_base,
                             "client_cert_file": client_cert_file,
                         })
                         tasks.append(task)
@@ -159,9 +160,9 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
             raise e
         # Change the return statement
         return RequestSharingDataResponse(
-            mpc_port_base=settings.mpc_port_base,
+            mpc_port_base=mpc_server_port_base,
             client_id=client_id,
-            client_port_base=settings.client_port_base
+            client_port_base=mpc_client_port_base
         )
     except Exception as e:
         logger.error(f"Failed to share data: {str(e)}")
@@ -173,18 +174,11 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
     client_id = request.client_id
     client_cert_file = request.client_cert_file
     logger.info(f"Querying computation for client {client_id}")
-    if client_id >= MAX_CLIENT_ID:
+    if client_id >= settings.max_client_id:
         raise HTTPException(status_code=400, detail="Client ID is out of range")
 
-    # MPC port for all parties to listen and connect to each other.
-    # E.g. mpc_port_base = 8000, party 0 -> 8000, party 1 -> 8001, party 2 -> 8002
-    # TODO: Have a way to pick a unused (or just random) ports
-    mpc_port_base = settings.mpc_port_base
-    # Client port for MPC servers to listen to client's requests.
-    # E.g. client_port_base = 9000, party 0 -> 9000, party 1 -> 9001, party 2 -> 9002
-    # TODO: Have a way to pick a unused (or just random) ports
-    client_port_base = settings.client_port_base
-    logger.info(f"Using mpc port base: {mpc_port_base}")
+    mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
+    logger.info(f"Using computation query MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     l = asyncio.Event()
 
@@ -195,9 +189,9 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
             for party_ip in settings.party_ips:
                 url = f"{settings.protocol}://{party_ip}/request_querying_computation_mpc"
                 task = session.post(url, json={
-                    "mpc_port_base": mpc_port_base,
+                    "mpc_port_base": mpc_server_port_base,
                     "client_id": client_id,
-                    "client_port_base": client_port_base,
+                    "client_port_base": mpc_client_port_base,
                     "client_cert_file": client_cert_file,
                 })
                 tasks.append(task)
@@ -220,7 +214,7 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
         logger.error(f"Timeout waiting for querying computation for {client_id=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
         raise e
     return RequestQueryComputationResponse(
-        client_port_base=settings.client_port_base
+        client_port_base=mpc_client_port_base
     )
 
 
@@ -240,3 +234,45 @@ def get_secret_index_from_db(identity: str, db: Session = Depends(get_db)):
     if not data_provider:
         raise HTTPException(status_code=400, detail="Identity not registered")
     return data_provider.id
+
+
+# Ports allocation:
+# if num_parties = 3, free_ports_start = 8010, free_ports_end = 8100
+# free_ports = [8010, 8011, 8012, ..., 8100]
+
+def get_data_sharing_mpc_ports() -> tuple[int, int]:
+    """
+    Ports for data sharing MPC server/client are fixed since we can reuse the same ports,
+    since only one data provider can share data at a time.
+
+    data_sharing_mpc_server_ports = [
+        free_ports_start, ..., free_ports_start + num_parties - 1,
+    ]
+    data_sharing_mpc_client_ports = [
+        free_ports_start + num_parties, ..., free_ports_start + 2 * num_parties - 1,
+    ]
+    """
+    server_port_base = settings.free_ports_start
+    client_port_base = settings.free_ports_start + settings.num_parties
+    return server_port_base, client_port_base
+
+
+# NOTE: Shouldn't need a lock since it's all async and thus `get_computation_query_mpc_ports` is atomic.
+# If any thread is used, we should use a lock here.
+next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
+
+def get_computation_query_mpc_ports() -> tuple[int, int]:
+    """
+    Ports for computation query MPC server/client are dynamic since there can be multiple clients querying at the same time.
+    """
+    global next_query_port_base
+    # server_ports =[next_query_port_base, ..., next_query_port_base + num_parties - 1]
+    server_port_base = next_query_port_base
+    # client_ports = [next_query_port_base + num_parties, ..., next_query_port_base + 2 * num_parties - 1]
+    client_port_base = next_query_port_base + settings.num_parties
+    if client_port_base + settings.num_parties > settings.free_ports_end:
+        # Used up all ports, wrap around
+        next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
+    else:
+        next_query_port_base = client_port_base + settings.num_parties
+    return server_port_base, client_port_base

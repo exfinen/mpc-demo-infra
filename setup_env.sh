@@ -5,6 +5,18 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Default value for MP-SPDZ setup
+setup_mpspdz=false
+
+# Parse command line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --setup-mpspdz) setup_mpspdz=true ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 # Update system
 sudo apt update
 
@@ -19,7 +31,7 @@ fi
 # Install Poetry if not present
 if ! command_exists poetry; then
     echo "Installing Poetry..."
-    curl -sSL https://install.python-poetry.org | python3 -
+    sudo apt install -y python3-poetry
 else
     echo "Poetry is already installed."
 fi
@@ -45,32 +57,36 @@ else
     echo "TLSN repository already exists."
 fi
 
-# Clone MP-SPDZ repository if not present
-if [ ! -d "../MP-SPDZ" ]; then
-    echo "Cloning MP-SPDZ repository..."
-    cd ..
-    git clone https://github.com/ZKStats/MP-SPDZ
-    cd MP-SPDZ
-    git checkout demo_client
+# Setup MP-SPDZ if flag is set
+if [ "$setup_mpspdz" = true ]; then
+    echo "Setting up MP-SPDZ..."
+    if [ ! -d "../MP-SPDZ" ]; then
+        echo "Cloning MP-SPDZ repository..."
+        cd ..
+        git clone https://github.com/ZKStats/MP-SPDZ
+        cd MP-SPDZ
+        git checkout demo_client
 
-    # Add MOD to CONFIG.mine if not already present
-    if ! grep -q "MOD = -DGFP_MOD_SZ=5" CONFIG.mine; then
-        echo "MOD = -DGFP_MOD_SZ=5" >> CONFIG.mine
+        # Add MOD to CONFIG.mine if not already present
+        if ! grep -q "MOD = -DGFP_MOD_SZ=5" CONFIG.mine; then
+            echo "MOD = -DGFP_MOD_SZ=5" >> CONFIG.mine
+        fi
+
+        # Install MP-SPDZ
+        make setup
+
+        # Build VM
+        make semi-party.x
+
+        cd ../mpc-demo-infra
+    else
+        echo "MP-SPDZ repository already exists."
     fi
-
-    # Install MP-SPDZ
-    make setup
-
-    # Build VM
-    make semi-party.x
-
-    cd ../mpc-demo-infra
 else
-    echo "MP-SPDZ repository already exists."
+    echo "Skipping MP-SPDZ setup."
 fi
 
 # Set up Python virtual environment and install dependencies
-poetry env use python3
 poetry install
 
 echo "Environment setup complete. Please ensure you have the correct versions of all dependencies."

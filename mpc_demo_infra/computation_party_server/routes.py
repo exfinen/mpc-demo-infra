@@ -57,7 +57,6 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_id = request.client_id
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
-    input_bytes = request.input_bytes
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
     if secret_index >= settings.max_data_providers:
         raise HTTPException(status_code=400, detail="Secret index out of range")
@@ -89,14 +88,14 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     generate_client_cert_file(client_id, client_cert_file)
 
     logger.debug(f"Preparing data sharing program")
-    tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
+    num_bytes_input, tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
     # Compile and run share_data program
     circuit_name, target_program_path = generate_data_sharing_program(
         secret_index,
         client_port_base,
         settings.max_data_providers,
         backup_shares_path is None,
-        input_bytes,
+        num_bytes_input,
         tlsn_delta,
         tlsn_zero_encodings,
     )
@@ -350,6 +349,7 @@ def extract_tlsn_proof_data(tlsn_proof: str):
     encodings = tlsn_proof["encodings"]
     deltas = []
     zero_encodings = []
+    num_bytes_input = len(encodings)
     for e in encodings:
         delta = e["U8"]["state"]["delta"]
         labels = e["U8"]["labels"]
@@ -368,4 +368,4 @@ def extract_tlsn_proof_data(tlsn_proof: str):
         raise Exception(f"Expected {WORDS_PER_LABEL * len(encodings)} labels, got {len(zero_encodings)}")
     if not len(set(deltas)) == 1:
         raise Exception(f"Expected all deltas to be the same, got {deltas}")
-    return data_commitment_hash, deltas[0], zero_encodings
+    return num_bytes_input, data_commitment_hash, deltas[0], zero_encodings

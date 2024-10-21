@@ -185,7 +185,6 @@ async def run_computation_query_client_with_cert(
         computation_index
     )
 
-
 async def query_computation(tmp_path: Path):
     client_id, cert_path, key_path = await generate_client_cert(tmp_path)
     computation_index = 0
@@ -215,26 +214,23 @@ def get_input_bytes(_input: int) -> int:
     return len(str(_input))
 
 
-async def share_data(tmp_path: Path, identity: str, tlsn_proof: str, value: int, nonce: str):
-    # Request the data
-    # asynchronously request /share_data for all parties
+async def share_data(tmp_path: Path, voucher_code: str, tlsn_proof: str, value: int, nonce: str):
     client_id, cert_path, key_path = await generate_client_cert(tmp_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
     async with aiohttp.ClientSession() as session:
         async with session.post(f"http://localhost:{COORDINATION_PORT}/share_data", json={
-            "identity": identity,
+            "voucher_code": voucher_code,
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
-            "input_bytes": get_input_bytes(value),
         }) as response:
             assert response.status == 200
             data = await response.json()
             client_port = data["client_port_base"]
 
     # Wait until all computation parties started their MPC servers.
-    print(f"!@# Running data sharing client for {identity=}, {client_port=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
+    print(f"!@# Running data sharing client for {voucher_code=}, {client_port=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
     await run_data_sharing_client_with_cert(
         client_port,
         client_id,
@@ -269,8 +265,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
 
     voucher1 = "1234567890"
     voucher2 = "0987654321"
-    identity1 = "test_identity1"
-    identity2 = "test_identity2"
+
     with SessionLocal() as db:
         voucher_1 = Voucher(code=voucher1)
         db.add(voucher_1)
@@ -280,28 +275,12 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         db.refresh(voucher_1)
         db.refresh(voucher_2)
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-            "voucher_code": voucher1,
-            "identity": identity1
-        }) as response_register_1:
-            assert response_register_1.status == 200
-
-        async with session.post(f"http://localhost:{COORDINATION_PORT}/register", json={
-            "voucher_code": voucher2,
-            "identity": identity2
-        }) as response_register_2:
-            assert response_register_2.status == 200
-
-
     await asyncio.sleep(1)
 
-    # Share data concurrently.
-    # However, on the coordination server side, only one request is processed at a time to avoid race condition.
-    # So it's not that different from calling `share_data` serially.
+    # Share data concurrently using voucher codes
     await asyncio.gather(
-        share_data(tmp_path, identity1, TLSN_PROOF_1, value_1, nonce_1),
-        share_data(tmp_path, identity2, TLSN_PROOF_2, value_2, nonce_2),
+        share_data(tmp_path, voucher1, TLSN_PROOF_1, value_1, nonce_1),
+        share_data(tmp_path, voucher2, TLSN_PROOF_2, value_2, nonce_2),
     )
 
     # Query computation concurrently

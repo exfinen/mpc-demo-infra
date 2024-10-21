@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     # ../../tlsn_
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
-
     tlsn_proofs_dir: str = f"tlsn_proofs"
 
     port: int = 8006

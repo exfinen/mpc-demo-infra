@@ -28,13 +28,14 @@ class Settings(BaseSettings):
     free_ports_end: int = 8100
 
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
-    party_ips: List[str] = ["localhost:6666", "localhost:6667", "localhost:6668"]
+    party_hosts: List[str] = ["localhost", "localhost", "localhost"]
+    party_ports: List[int] = [6666, 6667, 6668]
 
     # Max client ID for certificate generation (not MAX_DATA_PROVIDERS!)
     max_client_id: int = 1000
 
     class Config:
-        env_file = ".env"
+        env_file = ".env.coord"
 
 
 settings = Settings()

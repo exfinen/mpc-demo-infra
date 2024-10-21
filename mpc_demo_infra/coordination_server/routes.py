@@ -80,8 +80,8 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 logger.info(f"Requesting sharing data MPC for {voucher_code=}")
                 async with aiohttp.ClientSession() as session:
                     tasks = []
-                    for party_ip in settings.party_ips:
-                        url = f"{settings.protocol}://{party_ip}/request_sharing_data_mpc"
+                    for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
+                        url = f"{settings.protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
                             "mpc_port_base": mpc_server_port_base,
@@ -167,8 +167,8 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
         logger.info(f"Requesting querying computation MPC for {client_id=}")
         async with aiohttp.ClientSession() as session:
             tasks = []
-            for party_ip in settings.party_ips:
-                url = f"{settings.protocol}://{party_ip}/request_querying_computation_mpc"
+            for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
+                url = f"{settings.protocol}://{party_host}:{party_port}/request_querying_computation_mpc"
                 task = session.post(url, json={
                     "mpc_port_base": mpc_server_port_base,
                     "client_id": client_id,

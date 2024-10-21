@@ -3,7 +3,9 @@ import csv
 import logging
 import secrets
 import sys
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -65,6 +67,7 @@ async def shutdown_event():
 
 def run():
     import uvicorn
+    print(f"Running coordination server on port {settings.port}")
     uvicorn.run(
         "mpc_demo_infra.coordination_server.main:app",
         host="0.0.0.0",

@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     tlsn_proofs_dir: str = f"tlsn_proofs"
 
     port: int = 8006
-    party_ips: list[str] = ["localhost", "localhost", "localhost"]
+    party_hosts: list[str] = ["localhost", "localhost", "localhost"]
     mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
 
     class Config:
-        env_file = ".env"
+        env_file = ".env.party"
 
 settings = Settings()

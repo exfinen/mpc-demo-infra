@@ -1,5 +1,7 @@
 #!/bin/bash
 
+MPC_PROTOCOL="semi"
+
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -45,6 +47,10 @@ else
     echo "Rust and Cargo are already installed."
 fi
 
+# Install pkg-config (used by TLSN)
+echo "Installing pkg-config..."
+sudo apt install -y pkg-config
+
 # Clone TLSN repository if not present
 if [ ! -d "../tlsn" ]; then
     echo "Cloning TLSN repository..."
@@ -52,7 +58,9 @@ if [ ! -d "../tlsn" ]; then
     git clone https://github.com/ZKStats/tlsn
     cd tlsn
     git checkout mpspdz-compat
-    cd ../mpc-demo-infra
+    cd tlsn/examples
+    cargo build --release --example simple_verifier
+    cd ../../../mpc-demo-infra
 else
     echo "TLSN repository already exists."
 fi
@@ -76,7 +84,7 @@ if [ "$setup_mpspdz" = true ]; then
         make setup
 
         # Build VM
-        make semi-party.x
+        make "$MPC_PROTOCOL-party.x"
 
         cd ../mpc-demo-infra
     else

@@ -158,7 +158,7 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
 def generate_ip_file(mpc_port_base: int) -> str:
     # Prepare for IP file
     mpc_addresses = [
-        f"{ip}:{mpc_port_base + party_id}" for party_id, ip in enumerate(settings.party_ips)
+        f"{host}:{mpc_port_base + party_id}" for party_id, host in enumerate(settings.party_hosts)
     ]
     with tempfile.NamedTemporaryFile(delete=False) as ip_file:
         logger.debug(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")

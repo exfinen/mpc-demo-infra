@@ -5,11 +5,11 @@
 - poetry
 - cargo
 - [TLSN](https://github.com/ZKStats/tlsn)
-    - clone it as `../tlsn`
     - branch: `mpspdz-compat`
+    - clone it as `../tlsn`
 - [MP-SPDZ](https://github.com/ZKStats/MP-SPDZ) (only required for computation party server)
-    - clone it as `../MP-SPDZ`
     - branch: `demo_client`
+    - clone it as `../MP-SPDZ`
     - need to add `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`
     - install: `make setup`
     - build vm: `make semi-party.x`
@@ -23,7 +23,7 @@ Prepare environment:
 ./setup_env.sh
 ```
 
-Edit `.env.coord`:
+To change configs, edit `.env.coord`:
 ```bash
 cp .env.coord.example .env.coord
 ```
@@ -39,16 +39,39 @@ Prepare environment:
 ./setup_env.sh --setup-mpspdz
 ```
 
-Edit `.env.party`:
+To change configs, edit `.env.party`:
 ```bash
 cp .env.party.example .env.party
 ```
 
-Run:
+Generate vouchers:
+```bash
+poetry run coord-gen-vouchers <num_vouchers>
+```
+
+List vouchers:
+```bash
+poetry run coord-list-vouchers
+```
+
+Run the server:
 ```bash
 poetry run party-run
 ```
 
-### Data provider client
+### Client CLI
 
-### Computation query client
+To change configs, edit `.env.client`:
+```bash
+cp .env.client.example .env.client
+```
+
+Share data:
+```bash
+poetry run client-share-data <voucher_code>
+```
+
+Query computation result:
+```bash
+poetry run client-query <computation_index>
+```

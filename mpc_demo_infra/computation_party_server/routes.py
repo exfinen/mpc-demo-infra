@@ -38,7 +38,7 @@ TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
-CMD_RUN_MPC = f"./{settings.mpspdz_protocol}-party.x"
+MPC_VM_BINARY = f"{settings.mpspdz_protocol}-party.x"
 
 
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)
@@ -278,8 +278,12 @@ def compile_program(circuit_name: str):
 
 
 def run_program(circuit_name: str, ip_file_path: str):
+    binary_path = settings.mpspdz_project_root / MPC_VM_BINARY
+    if not binary_path.exists():
+        # Build the binary if not exists
+        raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root.resolve()}")
     # Run share_data_<client_id>.mpc
-    cmd_run_mpc = f"{CMD_RUN_MPC} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
+    cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
 
     # Run the MPC program
     try:

@@ -1,7 +1,7 @@
 from pydantic import BaseSettings
 from pathlib import Path
 
-this_file_path = Path(__file__).parent
+this_file_path = Path(__file__).parent.resolve()
 
 class Settings(BaseSettings):
     num_parties: int = 3

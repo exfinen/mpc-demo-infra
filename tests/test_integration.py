@@ -6,7 +6,7 @@ import asyncio
 from pathlib import Path
 
 from mpc_demo_infra.coordination_server.config import settings
-from mpc_demo_infra.client.lib import get_parties_certs, share_data, query_computation
+from mpc_demo_infra.client_lib.lib import get_parties_certs, share_data, query_computation
 
 from .common import (
     TLSN_PROOF_1,
@@ -20,14 +20,11 @@ from .common import (
 )
 
 
+PROTOCOL = "http"
 COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
 NUM_PARTIES = 3
 # Adjust these ports as needed
 COORDINATION_PORT = 5565
-# Max number of data providers
-MAX_DATA_PROVIDERS = 10
-# Max client ID for certificate generation (not MAX_DATA_PROVIDERS!)
-MAX_CLIENT_ID = 1000
 FREE_PORTS_START = 8010
 FREE_PORTS_END = 8100
 COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
@@ -37,11 +34,11 @@ CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 
 TIMEOUT_MPC = 60
 
-CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coordination-server-run"]
-CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coordination-server-gen-vouchers"]
-CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coordination-server-list-vouchers"]
+CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coord-run"]
+CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coord-gen-vouchers"]
+CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coord-list-vouchers"]
 
-CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "computation-party-server-run"]
+CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "party-run"]
 
 async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: Path):
     process = await asyncio.create_subprocess_exec(
@@ -55,7 +52,6 @@ async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: 
             "FREE_PORTS_START": str(FREE_PORTS_START),
             "FREE_PORTS_END": str(FREE_PORTS_END),
             "TLSN_PROOFS_DIR": str(tlsn_proofs_dir),
-            "MAX_CLIENT_ID": str(MAX_CLIENT_ID),
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -70,8 +66,7 @@ async def start_computation_party_server(cmd: list[str], party_id: int, port: in
             "PORT": str(port),
             "PARTY_ID": str(party_id),
             "DATABASE_URL": COMPUTATION_DB_URL_TEMPLATE.format(party_id=party_id),
-            "COORDINATION_SERVER_URL": f"http://localhost:{COORDINATION_PORT}",
-            "MAX_DATA_PROVIDERS": str(MAX_DATA_PROVIDERS),
+            "COORDINATION_SERVER_URL": f"{PROTOCOL}://localhost:{COORDINATION_PORT}",
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -159,7 +154,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)
 
-    await get_parties_certs(CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
+    await get_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
 
     # Gen vouchers
     num_vouchers = 2
@@ -172,13 +167,12 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
 
     await asyncio.sleep(1)
 
-    coordination_server_url = f"http://localhost:{COORDINATION_PORT}"
+    coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
     await asyncio.gather(
         share_data(
             CERTS_PATH,
             coordination_server_url,
             COMPUTATION_HOSTS,
-            MAX_CLIENT_ID,
             voucher_1,
             TLSN_PROOF_1,
             value_1,
@@ -188,7 +182,6 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         #     CERTS_PATH,
         #     coordination_server_url,
         #     COMPUTATION_HOSTS,
-        #     MAX_CLIENT_ID,
         #     voucher_2,
         #     TLSN_PROOF_2,
         #     value_2,
@@ -199,16 +192,17 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # Query computation concurrently
     num_queries = 2
     computation_index = 0
-    await asyncio.gather(*[
+    res_queries = await asyncio.gather(*[
         query_computation(
             CERTS_PATH,
             coordination_server_url,
             COMPUTATION_HOSTS,
-            MAX_CLIENT_ID,
-            MAX_DATA_PROVIDERS,
             computation_index,
         ) for _ in range(num_queries)
     ])
+    assert len(res_queries) == num_queries
+    results_0 = res_queries[0]
+    print(f"{results_0=}")
 
 
     # async def wait_until_request_fulfilled():

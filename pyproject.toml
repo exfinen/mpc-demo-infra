@@ -26,10 +26,12 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-coordination-server-run = "mpc_demo_infra.coordination_server.main:run"
-coordination-server-gen-vouchers = "mpc_demo_infra.coordination_server.main:gen_vouchers"
-coordination-server-list-vouchers = "mpc_demo_infra.coordination_server.main:list_vouchers"
-computation-party-server-run = "mpc_demo_infra.computation_party_server.main:run"
+coord-run = "mpc_demo_infra.coordination_server.main:run"
+coord-gen-vouchers = "mpc_demo_infra.coordination_server.main:gen_vouchers"
+coord-list-vouchers = "mpc_demo_infra.coordination_server.main:list_vouchers"
+party-run = "mpc_demo_infra.computation_party_server.main:run"
+client-share-data = "mpc_demo_infra.client_cli.main:notarize_and_share_data_cli"
+client-query = "mpc_demo_infra.client_cli.main:query_computation_and_verify_cli"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

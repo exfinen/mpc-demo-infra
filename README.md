@@ -30,7 +30,7 @@ cp .env.coord.example .env.coord
 
 Run:
 ```bash
-poetry run coordination-server-run
+poetry run coord-run
 ```
 
 ### Computation party server
@@ -46,7 +46,7 @@ cp .env.party.example .env.party
 
 Run:
 ```bash
-poetry run computation-party-server-run
+poetry run party-run
 ```
 
 ### Data provider client

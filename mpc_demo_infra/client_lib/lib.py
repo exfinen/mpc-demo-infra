@@ -5,7 +5,9 @@ import random
 from pathlib import Path
 
 from .client import Client, octetStream
+from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS
 
+EMPTY_COMMITMENT = '0'
 
 def hex_to_int(hex):
     return int(hex, 16)
@@ -67,10 +69,19 @@ def run_computation_query_client(
         # computationIndex is public, not need to be secret shared.
         os.store(computation_index)
         os.Send(socket)
-    output_list = client.receive_outputs(1+max_data_providers)
-    print('Computation index',computation_index, "is", output_list[0])
-    for i in range(max_data_providers):
-        print('commitment: ',i, 'is', hex(reverse_bytes(output_list[i+1])))
+    # If computation returns more than one value, need to change the following line.
+    output_list = client.receive_outputs(1 + max_data_providers)
+    # TODO: Need to change the following line if computation returns more than one value.
+    results = output_list[0:1]
+    print('Computation index',computation_index, "is", results)
+
+    # return {index -> commitment}
+    data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[1:]]
+    commitments = {
+        # index is 1-based, commitment is hex string without 0x prefix
+        index + 1: commitment for index, commitment in enumerate(data_commitments) if commitment != EMPTY_COMMITMENT
+    }
+    return results, commitments
 
 
 async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[int, Path, Path]:
@@ -80,8 +91,8 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     key_path = certs_path / f"C{client_id}.key"
     process = await asyncio.create_subprocess_exec(
         "/usr/local/bin/openssl", "req", "-newkey", "rsa", "-nodes", "-x509", "-out", str(cert_path), "-keyout", str(key_path), "-subj", f"/CN=C{client_id}",
-        # stdout=asyncio.subprocess.PIPE,
-        # stderr=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
     await process.wait()
     if process.returncode != 0:
@@ -89,74 +100,16 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     return client_id, cert_path, key_path
 
 
-async def run_data_sharing_client_with_cert(
-    party_hosts: list[str],
-    client_port_base: int,
-    all_certs_path: Path,
-    client_id: int,
-    cert_path: Path,
-    key_path: Path,
-    value: int,
-    nonce: str
-):
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_data_sharing_client,
-        party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        value,
-        nonce
-    )
-
-
-async def query_computation(
-    all_certs_path: Path,
-    coordination_server_url: str,
-    computation_party_hosts: list[str],
-    max_client_id: int,
-    max_data_providers: int,
-    computation_index: int,
-):
-    client_id, cert_path, key_path = await generate_client_cert(max_client_id, all_certs_path)
-    with open(cert_path, "r") as cert_file:
-        cert_file_content = cert_file.read()
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f"{coordination_server_url}/query_computation", json={
-            "client_id": client_id,
-            "client_cert_file": cert_file_content,
-        }) as response:
-            assert response.status == 200
-            data = await response.json()
-            client_port_base = data["client_port_base"]
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_computation_query_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        max_data_providers,
-        computation_index
-    )
-
-
 async def share_data(
     all_certs_path: Path,
     coordination_server_url: str,
     computation_party_hosts: list[str],
-    max_client_id: int,
     voucher_code: str,
     tlsn_proof: str,
     value: int,
     nonce: str,
 ):
-    client_id, cert_path, key_path = await generate_client_cert(max_client_id, all_certs_path)
+    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
     async with aiohttp.ClientSession() as session:
@@ -172,25 +125,67 @@ async def share_data(
 
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
-    await run_data_sharing_client_with_cert(
+    return await asyncio.get_event_loop().run_in_executor(
+        None,
+        run_data_sharing_client,
         computation_party_hosts,
         client_port_base,
-        all_certs_path,
+        str(all_certs_path),
         client_id,
-        cert_path,
-        key_path,
+        str(cert_path),
+        str(key_path),
         value,
         nonce
     )
 
 
+async def query_computation(
+    all_certs_path: Path,
+    coordination_server_url: str,
+    computation_party_hosts: list[str],
+    computation_index: int,
+):
+    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
+    with open(cert_path, "r") as cert_file:
+        cert_file_content = cert_file.read()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/query_computation", json={
+            "client_id": client_id,
+            "client_cert_file": cert_file_content,
+        }) as response:
+            assert response.status == 200
+            data = await response.json()
+            client_port_base = data["client_port_base"]
+
+    results, commitments = await asyncio.get_event_loop().run_in_executor(
+        None,
+        run_computation_query_client,
+        computation_party_hosts,
+        client_port_base,
+        str(all_certs_path),
+        client_id,
+        str(cert_path),
+        str(key_path),
+        MAX_DATA_PROVIDERS,
+        computation_index
+    )
+    # TODO: Verify commitments with tlsn proofs
+
+    return results
+
+
+def get_party_cert_path(certs_path: Path, party_id: int) -> Path:
+    return certs_path / f"P{party_id}.pem"
+
+
 async def get_parties_certs(
+    party_web_protocol: str,  # http or https
     certs_path: Path,
     party_hosts: list[str],
     party_ports: list[int],
 ):
     async def get_party_cert(session, host: str, port: int, party_id: int):
-        async with session.get(f"http://{host}:{port}/get_party_cert") as response:
+        async with session.get(f"{party_web_protocol}://{host}:{port}/get_party_cert") as response:
             assert response.status == 200
             data = await response.json()
             assert data["party_id"] == party_id
@@ -202,6 +197,6 @@ async def get_parties_certs(
         )
     # Write party certs to files
     for party_id, cert in enumerate(party_certs):
-        (certs_path / f"P{party_id}.pem").write_text(cert)
+        get_party_cert_path(certs_path, party_id).write_text(cert)
 
 

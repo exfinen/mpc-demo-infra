@@ -4,25 +4,19 @@ from pathlib import Path
 this_file_path = Path(__file__).parent
 
 class Settings(BaseSettings):
-    num_parties: int = 3
-    party_id: int = 0
-    program_bits: int = 256
-    mpspdz_protocol: str = "semi"
-
-    # Database settings
-    database_url: str = f"sqlite:///./party_0.db"
-
     # Coordination server settings
     coordination_server_url: str = "http://localhost:8005"
 
+    # mpc-demo-infra/certs
+    certs_path: str = str(this_file_path.parent.parent / "certs")
     # ../../../tlsn
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
-    port: int = 8006
+    party_web_protocol: str = "http"
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
-    mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
+    party_ports: list[int] = [8006, 8007, 8008]
 
     class Config:
-        env_file = ".env.party"
+        env_file = ".env.client_cli"
 
 settings = Settings()

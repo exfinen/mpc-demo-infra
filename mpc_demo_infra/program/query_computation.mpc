@@ -16,15 +16,6 @@ PORTNUM = {client_port_base}
 MAX_DATA_PROVIDERS = {max_data_providers}
 
 
-def calculate_sum(client_values: sint.Array):
-    return sum(client_values[1:])
-
-def calculate_mean(client_values: sint.Array):
-    return sum(client_values[1:]) / client_values[0]
-
-COMPUTATION_LIST = [calculate_sum, calculate_mean]
-
-
 def accept_client():
     client_socket_id = accept_client_connection(PORTNUM)
     computation_index = regint.read_from_socket(client_socket_id)

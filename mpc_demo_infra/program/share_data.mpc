@@ -93,10 +93,11 @@ def main():
     # input_commitment.reveal_print_hex()
     input_commitment.reveal_print_hex()
 
-    commitment_values[SECRET_INDEX] = input_commitment
+    # commitment of input i is stored in commitment_values[i-1]
+    commitment_values[SECRET_INDEX-1] = input_commitment
     commitment_values.write_to_file(1 + MAX_DATA_PROVIDERS)
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
-    sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX]])
+    sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX-1]])
     print_ln('Now closing this connection')
     print_ln('num data providers: %s', client_values[0].reveal())
 

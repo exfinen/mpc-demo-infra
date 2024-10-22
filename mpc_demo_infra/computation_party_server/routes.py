@@ -1,4 +1,3 @@
-import json
 import tempfile
 import logging
 import subprocess
@@ -21,10 +20,12 @@ from .schemas import (
 from .database import get_db
 from .config import settings
 
+from ..constants import MAX_DATA_PROVIDERS
+
 router = APIRouter()
 
 # TLSN
-CMD_VERIFYTLSN_PROOF = "cargo run --release --example simple_verifier"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
 
 # MP-SPDZ
@@ -58,7 +59,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
-    if secret_index >= settings.max_data_providers:
+    if secret_index >= MAX_DATA_PROVIDERS:
         raise HTTPException(status_code=400, detail="Secret index out of range")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
@@ -68,7 +69,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         # Run TLSN proof verifier
         try:
             subprocess.run(
-                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_file.name}",
+                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFY_TLSN_PROOF} {temp_file.name}",
                 check=True,
                 shell=True,
                 capture_output=True,
@@ -93,7 +94,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     circuit_name, target_program_path = generate_data_sharing_program(
         secret_index,
         client_port_base,
-        settings.max_data_providers,
+        MAX_DATA_PROVIDERS,
         backup_shares_path is None,
         num_bytes_input,
         tlsn_delta,
@@ -140,7 +141,7 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
 
     circuit_name, target_program_path = generate_computation_query_program(
         client_port_base,
-        settings.max_data_providers,
+        MAX_DATA_PROVIDERS,
     )
 
     logger.debug(f"Compiling computation query program {circuit_name}")

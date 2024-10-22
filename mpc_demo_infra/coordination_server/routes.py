@@ -16,10 +16,11 @@ from .schemas import (
 )
 from .database import Voucher, get_db
 from .config import settings
+from ..constants import MAX_CLIENT_ID
 
 router = APIRouter()
 
-CMD_VERIFYTLSN_PROOF = "cargo run --release --example simple_verifier"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
 
 TIMEOUT_CALLING_COMPUTATION_SERVERS = 60
@@ -37,7 +38,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_cert_file = request.client_cert_file
 
     logger.info(f"Verifying registration for voucher code: {voucher_code}")
-    if client_id >= settings.max_client_id:
+    if client_id >= MAX_CLIENT_ID:
         raise HTTPException(status_code=400, detail="Client ID is out of range")
     # Check if voucher exists
     voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == voucher_code).first()
@@ -46,6 +47,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     if voucher.is_used:
         raise HTTPException(status_code=400, detail="Voucher code already used")
     voucher.is_used = True
+    db.commit()
     secret_index = voucher.id
 
     logger.info(f"Registration verified for voucher code: {voucher_code}, {client_id=}")
@@ -57,7 +59,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
 
         # Run TLSN proof verifier
         process = await asyncio.create_subprocess_shell(
-            f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFYTLSN_PROOF} {temp_tlsn_proof_file.name}",
+            f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -81,7 +83,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 async with aiohttp.ClientSession() as session:
                     tasks = []
                     for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
-                        url = f"{settings.protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
+                        url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
                             "mpc_port_base": mpc_server_port_base,
@@ -155,7 +157,7 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
     client_id = request.client_id
     client_cert_file = request.client_cert_file
     logger.info(f"Querying computation for client {client_id}")
-    if client_id >= settings.max_client_id:
+    if client_id >= MAX_CLIENT_ID:
         raise HTTPException(status_code=400, detail="Client ID is out of range")
 
     mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
@@ -168,7 +170,7 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
         async with aiohttp.ClientSession() as session:
             tasks = []
             for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
-                url = f"{settings.protocol}://{party_host}:{party_port}/request_querying_computation_mpc"
+                url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_querying_computation_mpc"
                 task = session.post(url, json={
                     "mpc_port_base": mpc_server_port_base,
                     "client_id": client_id,

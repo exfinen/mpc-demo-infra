@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     num_parties: int = 3
     port: int = 8005
 
-    protocol: str = "http"
     # Allowed IPs for access control
     allowed_ips: List[str] = ["192.168.1.100", "192.168.1.101"]
 
@@ -17,7 +16,8 @@ class Settings(BaseSettings):
 
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
-    tlsn_proofs_dir: str = f"tlsn_proofs"
+    # mpc-demo-infra/tlsn_proofs
+    tlsn_proofs_dir: str = str(this_file_path.parent.parent / "tlsn_proofs")
 
     # API Keys for additional authentication (optional)
     api_keys: List[str] = ["your_api_key_1", "your_api_key_2"]
@@ -27,12 +27,10 @@ class Settings(BaseSettings):
     # including the end port
     free_ports_end: int = 8100
 
+    party_web_protocol: str = "http"
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
     party_hosts: List[str] = ["localhost", "localhost", "localhost"]
-    party_ports: List[int] = [6666, 6667, 6668]
-
-    # Max client ID for certificate generation (not MAX_DATA_PROVIDERS!)
-    max_client_id: int = 1000
+    party_ports: List[int] = [8006, 8007, 8008]
 
     class Config:
         env_file = ".env.coord"

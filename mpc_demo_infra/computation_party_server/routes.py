@@ -43,7 +43,7 @@ SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 SHARES_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 BACKUP_SHARES_ROOT.mkdir(parents=True, exist_ok=True)
-CMD_COMPILE_MPC = f"./compile.py -R {settings.program_bits}"
+CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
 MPC_VM_BINARY = f"{settings.mpspdz_protocol}-party.x"
 
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)

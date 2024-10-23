@@ -140,6 +140,8 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 except (FileNotFoundError, PermissionError) as e:
                     logger.warning(f"Failed to delete temporary TLSN proof file: {e}")
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
+                db.commit()
+                logger.debug(f"Committed changes to database for {voucher_code=}")
             finally:
                 sharing_data_lock.release()
                 logger.info(f"Released lock for sharing data for {voucher_code=}")
@@ -153,9 +155,6 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         except asyncio.TimeoutError as e:
             logger.error(f"Timeout waiting for sharing data MPC for {voucher_code=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
             raise e
-        logger.debug(f"Sharing data MPC for {voucher_code=} passed")
-        db.commit()
-        logger.debug(f"Committed changes to database for {voucher_code=}")
         # Change the return statement
         return RequestSharingDataResponse(
             client_port_base=mpc_client_port_base

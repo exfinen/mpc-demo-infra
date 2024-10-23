@@ -135,10 +135,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     temp_tlsn_proof_file.close()
                 except IOError as e:
                     logger.warning(f"Failed to close temporary TLSN proof file: {e}")
-                try:
-                    Path(temp_tlsn_proof_file.name).unlink()
-                except (FileNotFoundError, PermissionError) as e:
-                    logger.warning(f"Failed to delete temporary TLSN proof file: {e}")
+                Path(temp_tlsn_proof_file.name).unlink(missing_ok=True)
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
                 db.commit()
                 logger.debug(f"Committed changes to database for {voucher_code=}")

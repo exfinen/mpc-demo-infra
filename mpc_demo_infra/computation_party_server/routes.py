@@ -220,7 +220,7 @@ def rollback_shares(party_id: int, backup_path: Path | None):
     if backup_path is None:
         # If there is no backup, it means it's the first run and failed.
         # So just unlink the current shares
-        dest_path.unlink()
+        dest_path.unlink(missing_ok=True)
         return
     else:
         # else, copy the backup shares back

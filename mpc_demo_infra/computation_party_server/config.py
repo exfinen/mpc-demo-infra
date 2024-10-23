@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     num_parties: int = 3
     party_id: int = 0
     program_bits: int = 256
-    mpspdz_protocol: str = "replicated-ring"
+    mpspdz_protocol: str = "semi"
 
     # Database settings
     database_url: str = f"sqlite:///./party_0.db"

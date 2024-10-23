@@ -35,6 +35,7 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 MP_SPDZ_PROJECT_ROOT = Path(settings.mpspdz_project_root)
 MPSPDZ_PROGRAM_DIR = MP_SPDZ_PROJECT_ROOT / "Programs" / "Source"
 CERTS_PATH = MP_SPDZ_PROJECT_ROOT / "Player-Data"
+CERTS_PATH.mkdir(parents=True, exist_ok=True)
 
 TEMPLATE_PROGRAM_DIR = Path(__file__).parent.parent / "program"
 

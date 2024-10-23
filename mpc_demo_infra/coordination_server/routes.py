@@ -36,7 +36,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
-    logger.debug(f"Received request: {voucher_code=}, {client_id=}, {tlsn_proof=}, {client_cert_file=}")
+    logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:

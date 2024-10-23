@@ -287,7 +287,7 @@ def run_program(circuit_name: str, ip_file_path: str):
     binary_path = Path(settings.mpspdz_project_root) / MPC_VM_BINARY
     if not binary_path.exists():
         # Build the binary if not exists
-        raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root.resolve()}")
+        raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root}")
     # Run share_data_<client_id>.mpc
     cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
 

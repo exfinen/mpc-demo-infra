@@ -19,7 +19,7 @@ from .limiter import limiter
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler()
@@ -71,7 +71,7 @@ def run():
         "mpc_demo_infra.coordination_server.main:app",
         host="0.0.0.0",
         port=settings.port,
-        # reload=True
+        log_level="debug"
     )
 
 

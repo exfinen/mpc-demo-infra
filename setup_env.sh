@@ -74,6 +74,7 @@ if [ "$setup_mpspdz" = true ]; then
         git clone https://github.com/ZKStats/MP-SPDZ
         cd MP-SPDZ
         git checkout demo_client
+        git submodule update --init --recursive
 
         # Add MOD to CONFIG.mine if not already present
         if ! grep -q "MOD = -DGFP_MOD_SZ=5" CONFIG.mine; then

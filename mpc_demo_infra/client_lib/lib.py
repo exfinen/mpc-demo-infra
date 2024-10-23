@@ -5,7 +5,7 @@ import random
 from pathlib import Path
 
 from .client import Client, octetStream
-from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS
+from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
 
 EMPTY_COMMITMENT = '0'
 
@@ -36,7 +36,7 @@ def run_data_sharing_client(
     input_value: int,
     nonce: str,
 ):
-    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file)
+    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
 
     for socket in client.sockets:
         os = octetStream()
@@ -62,7 +62,7 @@ def run_computation_query_client(
     computation_index: int,
 ):
     # client id should be assigned by our server
-    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file)
+    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
 
     for socket in client.sockets:
         os = octetStream()

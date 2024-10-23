@@ -12,7 +12,7 @@
     - clone it as `../MP-SPDZ`
     - need to add `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`
     - install: `make setup`
-    - build vm: `make semi-party.x`
+    - build vm: `make replicated-ring-party.x`
 
 The above dependencies can be installed by running the following script `./setup_env.sh`.
 

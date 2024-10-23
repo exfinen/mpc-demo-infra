@@ -33,30 +33,33 @@ def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
     sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
 
 class Client:
-    def __init__(self, hostnames, port_base, my_client_id, certs_path:str, my_certfile: str, my_keyfile: str):
+    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-        ctx.load_cert_chain(certfile=my_certfile, keyfile=my_keyfile)
+        ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
 
         self.sockets = []
-        for i, hostname in enumerate(hostnames):
-            for j in range(10000):
-                try:
-                    plain_socket = socket.create_connection(
-                        (hostname, port_base + i))
-                    break
-                except ConnectionRefusedError:
-                    if j < 60:
-                        time.sleep(1)
-                    else:
-                        raise
+        for i, host in enumerate(hosts):
+            port = port_base + client_id
+            print(f"Attempting to connect to {host}:{port}")
+            try:
+                plain_socket = socket.create_connection((host, port), timeout=timeout)
+            except socket.timeout:
+                print(f"Connection to {host}:{port} timed out after {timeout} seconds")
+                raise
+            except ConnectionRefusedError:
+                print(f"Connection to {host}:{port} was actively refused")
+                raise
+            except Exception as e:
+                print(f"Unexpected error when connecting to {host}:{port}: {str(e)}")
+                raise
 
             if platform.system() == "Linux":
                 set_keepalive_linux(plain_socket)
             elif platform.system() == "Darwin":
                 set_keepalive_osx(plain_socket)
 
-            octetStream(b'%d' % my_client_id).Send(plain_socket)
+            octetStream(b'%d' % client_id).Send(plain_socket)
             self.sockets.append(ctx.wrap_socket(plain_socket,
                                                 server_hostname='P%d' % i))
 

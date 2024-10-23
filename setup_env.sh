@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MPC_PROTOCOL="semi"
+MPC_PROTOCOL="replicated-ring"
 
 # Function to check if a command exists
 command_exists() {
@@ -21,6 +21,7 @@ done
 
 # Update system
 sudo apt update
+sudo apt install automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
 
 # Install Python 3 if not present
 if ! command_exists python3; then

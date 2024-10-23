@@ -16,14 +16,12 @@ from .schemas import (
 )
 from .database import Voucher, get_db
 from .config import settings
-from ..constants import MAX_CLIENT_ID
+from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 
 router = APIRouter()
 
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
-
-TIMEOUT_CALLING_COMPUTATION_SERVERS = 60
 
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.
@@ -148,9 +146,9 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         logger.debug(f"Waiting for sharing data MPC for {voucher_code=}")
         # Wait until `gather` called, with a timeout
         try:
-            await asyncio.wait_for(l.wait(), timeout=TIMEOUT_CALLING_COMPUTATION_SERVERS)
+            await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
         except asyncio.TimeoutError as e:
-            logger.error(f"Timeout waiting for sharing data MPC for {voucher_code=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
+            logger.error(f"Timeout waiting for sharing data MPC for {voucher_code=}, {CLIENT_TIMEOUT=}")
             raise e
         # Change the return statement
         return RequestSharingDataResponse(
@@ -208,9 +206,9 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
     logger.debug(f"Waiting for querying computation MPC for {client_id=}")
     # Wait until `gather` called, with a timeout
     try:
-        await asyncio.wait_for(l.wait(), timeout=TIMEOUT_CALLING_COMPUTATION_SERVERS)
+        await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
     except asyncio.TimeoutError as e:
-        logger.error(f"Timeout waiting for querying computation for {client_id=}, {TIMEOUT_CALLING_COMPUTATION_SERVERS=}")
+        logger.error(f"Timeout waiting for querying computation for {client_id=}, {CLIENT_TIMEOUT=}")
         raise e
     logger.debug(f"Querying computation for {client_id=} passed")
     return RequestQueryComputationResponse(

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Coordination server settings
     coordination_server_url: str = "http://localhost:8005"
+    party_api_key: str = "1234567890"
 
     # ../../../tlsn
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")

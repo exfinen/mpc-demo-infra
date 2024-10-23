@@ -8,12 +8,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from .routes import router
 from .middleware import IPFilterMiddleware
 from .database import engine, Base, SessionLocal, Voucher
 from .config import settings
-
+from .limiter import limiter
 
 # Configure logging
 logging.basicConfig(
@@ -35,14 +37,11 @@ app = FastAPI(
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# CORS Middleware (adjust origins as needed)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Replace with specific origins in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+# Set up limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # Add IP Filtering Middleware
 # app.add_middleware(IPFilterMiddleware)
@@ -101,3 +100,7 @@ def list_vouchers():
         vouchers = db.query(Voucher).all()
         for voucher in vouchers:
             writer.writerow([voucher.id, voucher.code, voucher.is_used])
+
+
+def gen_party_api_key():
+    print(secrets.token_hex(16))

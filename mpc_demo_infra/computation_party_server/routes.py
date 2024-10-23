@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,11 @@ from .schemas import (
 )
 from .database import get_db
 from .config import settings
-
+from .limiter import limiter
 from ..constants import MAX_DATA_PROVIDERS
+
+SHARE_DATA_ENDPOINT = "/request_sharing_data_mpc"
+QUERY_COMPUTATION_ENDPOINT = "/request_querying_computation_mpc"
 
 router = APIRouter()
 
@@ -40,8 +43,8 @@ BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
 MPC_VM_BINARY = f"{settings.mpspdz_protocol}-party.x"
 
-
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)
+# @limiter.limit("1/minute")  # Override default limit for this route
 def get_party_cert():
     party_id = settings.party_id
     cert_path = CERTS_PATH / f"P{party_id}.pem"
@@ -50,7 +53,7 @@ def get_party_cert():
     return GetPartyCertResponse(party_id=party_id, cert_file=cert)
 
 
-@router.post("/request_sharing_data_mpc", response_model=RequestSharingDataMPCResponse)
+@router.post(SHARE_DATA_ENDPOINT, response_model=RequestSharingDataMPCResponse)
 def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session = Depends(get_db)):
     secret_index = request.secret_index
     tlsn_proof = request.tlsn_proof
@@ -121,7 +124,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     return RequestSharingDataMPCResponse(data_commitment=tlsn_data_commitment_hash)
 
 
-@router.post("/request_querying_computation_mpc", response_model=RequestQueryComputationMPCResponse)
+@router.post(QUERY_COMPUTATION_ENDPOINT, response_model=RequestQueryComputationMPCResponse)
 def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest, db: Session = Depends(get_db)):
     mpc_port_base = request.mpc_port_base
     client_id = request.client_id
@@ -278,7 +281,7 @@ def compile_program(circuit_name: str):
 
 
 def run_program(circuit_name: str, ip_file_path: str):
-    binary_path = settings.mpspdz_project_root / MPC_VM_BINARY
+    binary_path = Path(settings.mpspdz_project_root) / MPC_VM_BINARY
     if not binary_path.exists():
         # Build the binary if not exists
         raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root.resolve()}")
@@ -374,3 +377,4 @@ def extract_tlsn_proof_data(tlsn_proof: str):
     if not len(set(deltas)) == 1:
         raise Exception(f"Expected all deltas to be the same, got {deltas}")
     return num_bytes_input, data_commitment_hash, deltas[0], zero_encodings
+

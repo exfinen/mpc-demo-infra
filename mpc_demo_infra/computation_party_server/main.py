@@ -1,10 +1,15 @@
+import logging
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 from .routes import router
-from .middleware import IPFilterMiddleware
+from .middleware import APIKeyMiddleware
+from .limiter import limiter
 from .database import engine, Base
 from .config import settings
-from fastapi.middleware.cors import CORSMiddleware
-import logging
+
 
 # Configure logging
 logging.basicConfig(
@@ -26,21 +31,13 @@ app = FastAPI(
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# CORS Middleware (adjust origins as needed)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Replace with specific origins in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Add IP Filtering Middleware
-# app.add_middleware(IPFilterMiddleware)
-
-# Add API Key Middleware (optional)
-# Uncomment the next line to enable API Key authentication
-# app.add_middleware(APIKeyMiddleware)
+# Set up limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(APIKeyMiddleware)
+# Add middlewares
+# app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # Include API routes
 app.include_router(router)
@@ -64,4 +61,3 @@ def run():
         port=settings.port,
         # reload=True
     )
-

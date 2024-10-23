@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # including the end port
     free_ports_end: int = 8100
 
+    # Used to call computation party server APIs which are only accessible by the coordination server
+    party_api_key: str = "1234567890"
     party_web_protocol: str = "http"
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
     party_hosts: List[str] = ["localhost", "localhost", "localhost"]

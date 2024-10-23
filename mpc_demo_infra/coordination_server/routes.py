@@ -84,6 +84,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     tasks = []
                     for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
                         url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
+                        headers = {"X-API-Key": settings.party_api_key}
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
                             "mpc_port_base": mpc_server_port_base,
@@ -91,7 +92,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                             "client_id": client_id,
                             "client_port_base": mpc_client_port_base,
                             "client_cert_file": client_cert_file,
-                        })
+                        }, headers=headers)
                         tasks.append(task)
                     l.set()
                     # Send all requests concurrently
@@ -171,12 +172,13 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
             tasks = []
             for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
                 url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_querying_computation_mpc"
+                headers = {"X-API-Key": settings.party_api_key}
                 task = session.post(url, json={
                     "mpc_port_base": mpc_server_port_base,
                     "client_id": client_id,
                     "client_port_base": mpc_client_port_base,
                     "client_cert_file": client_cert_file,
-                })
+                }, headers=headers)
                 tasks.append(task)
             l.set()
             # Send all requests concurrently

@@ -44,7 +44,7 @@ class Client:
             for j in range(10000):
                 try:
                     plain_socket = socket.create_connection(
-                        (hostname, port_base + i))
+                        (hostname, port_base + i), timeout=timeout)
                     break
                 except ConnectionRefusedError:
                     if j < 60:

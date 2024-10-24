@@ -23,17 +23,15 @@ A demonstration infrastructure for Multi-Party Computation (MPC) using TLSN and 
     - install: `make setup`
     - build vm: `make semi-party.x`
 
-The above dependencies can be installed by running the following script `./setup_env.sh --setup-mpspdz` on ubuntu (and hopefully macOS).
-
 ## Getting Started
 
 ### Run it locally
 **Note**: This section is for running the MPC demo locally. For cloud deployment, you'll need to adjust network configurations.
 
 The demo consists of three main components:
-1. Coordination Server: Manages vouchers and coordinates the MPC process.
-2. Computation Party Servers: Perform the actual MPC computations (3 parties required).
-3. Client CLI: Used for sharing data and querying results.
+1. Coordination Server: Coordinates the MPC process.
+2. Computation Party Servers: Run by 3 trusted parties and perform the actual MPC computations.
+3. Client CLI: Used by data provider to share data and query results.
 
 Install dependencies:
 ```bash
@@ -118,6 +116,4 @@ If you encounter issues:
 4. For MP-SPDZ issues, ensure
   - you've added `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`.
   - you've generated certificates for computation parties. If not, run `Scripts/setup-ssl.sh` under `../MP-SPDZ`.
-  - you've built the VM. If not, run `make semi-party.x` under `../MP-SPDZ`.
-
-If problems persist, please open an issue on the GitHub repository.
+  - you've rebuilt the VM. If not, run `make semi-party.x` under `../MP-SPDZ`.

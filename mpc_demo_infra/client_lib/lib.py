@@ -90,7 +90,7 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     cert_path = certs_path / f"C{client_id}.pem"
     key_path = certs_path / f"C{client_id}.key"
     process = await asyncio.create_subprocess_exec(
-        "/usr/local/bin/openssl", "req", "-newkey", "rsa", "-nodes", "-x509", "-out", str(cert_path), "-keyout", str(key_path), "-subj", f"/CN=C{client_id}",
+        "openssl", "req", "-newkey", "rsa", "-nodes", "-x509", "-out", str(cert_path), "-keyout", str(key_path), "-subj", f"/CN=C{client_id}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )

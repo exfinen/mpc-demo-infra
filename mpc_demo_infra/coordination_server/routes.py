@@ -48,7 +48,6 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     if voucher.is_used:
         logger.error(f"Voucher code already used: {voucher_code}")
         raise HTTPException(status_code=400, detail="Voucher code already used")
-    voucher.is_used = True
     secret_index = voucher.id
 
     logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")
@@ -110,6 +109,8 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     if response.status != 200:
                         logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
                         raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
+                voucher.is_used = True
+                db.commit()
                 logger.debug(f"All responses for sharing data MPC for {voucher_code=} are successful")
                 # Check if all data commitments are the same
                 data_commitments = [(await response.json())["data_commitment"] for response in responses]
@@ -135,7 +136,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.warning(f"Failed to close temporary TLSN proof file: {e}")
                 Path(temp_tlsn_proof_file.name).unlink(missing_ok=True)
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
-                db.commit()
+
                 logger.debug(f"Committed changes to database for {voucher_code=}")
             finally:
                 sharing_data_lock.release()

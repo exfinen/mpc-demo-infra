@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MPC_PROTOCOL="semi"
+MPC_PROTOCOL="replicated-ring"
 NUM_PARTIES=3
 
 # Function to check if a command exists
@@ -105,8 +105,8 @@ if [ "$setup_mpspdz" = true ]; then
         git submodule update --init --recursive
 
         # Add MOD to CONFIG.mine if not already present
-        if ! grep -q "MOD = -DGFP_MOD_SZ=5" CONFIG.mine; then
-            echo "MOD = -DGFP_MOD_SZ=5" >> CONFIG.mine
+        if ! grep -q "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" CONFIG.mine; then
+            echo "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" >> CONFIG.mine
         fi
 
         # Install MP-SPDZ

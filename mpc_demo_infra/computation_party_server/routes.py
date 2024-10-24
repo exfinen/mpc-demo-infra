@@ -43,7 +43,9 @@ SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 SHARES_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 BACKUP_SHARES_ROOT.mkdir(parents=True, exist_ok=True)
-CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
+# To achieve program bits = 256, we need to use ring size = 257
+# Ref: https://github.com/data61/MP-SPDZ/blob/894d38c748ab06a6eae8381f6b8c385cf0b2f5fa/Compiler/program.py#L277
+CMD_COMPILE_MPC = f"./compile.py -R {settings.program_bits+1}"
 MPC_VM_BINARY = f"{settings.mpspdz_protocol}-party.x"
 
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)
@@ -289,8 +291,9 @@ def run_program(circuit_name: str, ip_file_path: str):
         # Build the binary if not exists
         raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root}")
     # Run share_data_<client_id>.mpc
-    cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
-
+    # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
+    # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
+    cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
     # Run the MPC program
     try:
         process = subprocess.run(

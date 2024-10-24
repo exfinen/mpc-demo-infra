@@ -19,9 +19,9 @@ A demonstration infrastructure for Multi-Party Computation (MPC) using TLSN and 
 - [MP-SPDZ](https://github.com/ZKStats/MP-SPDZ) (only required for computation party server)
     - branch: `demo_client`
     - clone it as `../MP-SPDZ`
-    - need to add `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`
+    - need to add `MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257` to `CONFIG.mine`
     - install: `make setup`
-    - build vm: `make semi-party.x`
+    - build vm: `make replicated-ring-party.x`
 
 ## Getting Started
 
@@ -116,4 +116,4 @@ If you encounter issues:
 4. For MP-SPDZ issues, ensure
   - you've added `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`.
   - you've generated certificates for computation parties. If not, run `Scripts/setup-ssl.sh` under `../MP-SPDZ`.
-  - you've rebuilt the VM. If not, run `make semi-party.x` under `../MP-SPDZ`.
+  - you've rebuilt the VM. If not, run `make replicated-ring-party.x` under `../MP-SPDZ`.

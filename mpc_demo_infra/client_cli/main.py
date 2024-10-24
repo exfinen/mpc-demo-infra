@@ -2,7 +2,7 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from ..client_lib.lib import get_parties_certs, get_party_cert_path, share_data, query_computation
+from ..client_lib.lib import fetch_parties_certs, share_data, query_computation
 from .config import settings
 
 # project_root/certs
@@ -17,18 +17,14 @@ DATA_TYPE = 0
 
 
 async def notarize_and_share_data(voucher_code: str):
-    num_parties = len(settings.party_hosts)
-    CERTS_PATH.mkdir(parents=True, exist_ok=True)
-    all_certs_exist = all(get_party_cert_path(CERTS_PATH, party_id).exists() for party_id in range(num_parties))
-    if not all_certs_exist:
-        print("Some party certificates are missing. Fetching them...")
-        await get_parties_certs(
-            settings.party_web_protocol,
-            CERTS_PATH,
-            settings.party_hosts,
-            settings.party_ports
-        )
-        print("Party certificates have been fetched and saved.")
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+    print("Party certificates have been fetched and saved.")
 
     # Gen tlsn proofs
     proof_file = PROJECT_ROOT / f"proof.json"
@@ -76,18 +72,14 @@ async def notarize_and_share_data(voucher_code: str):
 async def query_computation_and_verify(
     computation_index: int,
 ):
-    num_parties = len(settings.party_hosts)
-    CERTS_PATH.mkdir(parents=True, exist_ok=True)
-    all_certs_exist = all(get_party_cert_path(CERTS_PATH, party_id).exists() for party_id in range(num_parties))
-    if not all_certs_exist:
-        print("Some party certificates are missing. Fetching them...")
-        await get_parties_certs(
-            settings.party_web_protocol,
-            CERTS_PATH,
-            settings.party_hosts,
-            settings.party_ports
-        )
-        print("Party certificates have been fetched and saved.")
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+    print("Party certificates have been fetched and saved.")
     results = await query_computation(
         CERTS_PATH,
         settings.coordination_server_url,

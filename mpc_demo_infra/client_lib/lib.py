@@ -176,11 +176,7 @@ async def query_computation(
     return results
 
 
-def get_party_cert_path(certs_path: Path, party_id: int) -> Path:
-    return certs_path / f"P{party_id}.pem"
-
-
-async def get_parties_certs(
+async def fetch_parties_certs(
     party_web_protocol: str,  # http or https
     certs_path: Path,
     party_hosts: list[str],
@@ -197,8 +193,7 @@ async def get_parties_certs(
         party_certs = await asyncio.gather(
             *[get_party_cert(session, host, port, party_id) for party_id, (host, port) in enumerate(zip(party_hosts, party_ports))]
         )
+    certs_path.mkdir(parents=True, exist_ok=True)
     # Write party certs to files
     for party_id, cert in enumerate(party_certs):
-        get_party_cert_path(certs_path, party_id).write_text(cert)
-
-
+        (certs_path / f"P{party_id}.pem").write_text(cert)

@@ -6,7 +6,7 @@ import asyncio
 from pathlib import Path
 
 from mpc_demo_infra.coordination_server.config import settings
-from mpc_demo_infra.client_lib.lib import get_parties_certs, share_data, query_computation
+from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation
 
 from .common import (
     TLSN_PROOF_1,
@@ -157,7 +157,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)
 
-    await get_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
+    await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
 
     # Gen vouchers
     num_vouchers = 2

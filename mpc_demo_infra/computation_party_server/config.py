@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
     port: int = 8006
+    party_web_protocol: str = "http"
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
+    party_ports: list[int] = [8006, 8007, 8008]
     mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
 
     class Config:

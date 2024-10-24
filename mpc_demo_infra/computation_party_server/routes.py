@@ -1,3 +1,5 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import logging
 import subprocess
@@ -5,7 +7,8 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+import requests
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -96,6 +99,9 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     # 4. Generate client cert file
     generate_client_cert_file(client_id, client_cert_file)
 
+    # 5. Fetch other parties' certs
+    fetch_other_parties_certs()
+
     logger.debug(f"Preparing data sharing program")
     num_bytes_input, tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
     # Compile and run share_data program
@@ -146,6 +152,9 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
 
     # Generate client cert file
     generate_client_cert_file(client_id, client_cert_file)
+
+    # Fetch other parties' certs
+    fetch_other_parties_certs()
 
     circuit_name, target_program_path = generate_computation_query_program(
         client_port_base,
@@ -345,8 +354,6 @@ def run_computation_query_program(circuit_name: str, ip_file_path: Path) -> list
 
 
 def extract_tlsn_proof_data(tlsn_proof: str):
-    import json
-
     WORD_SIZE = 16
     WORDS_PER_LABEL = 8
 
@@ -384,3 +391,30 @@ def extract_tlsn_proof_data(tlsn_proof: str):
         raise Exception(f"Expected all deltas to be the same, got {deltas}")
     return num_bytes_input, data_commitment_hash, deltas[0], zero_encodings
 
+
+def fetch_other_parties_certs():
+    CERTS_PATH.mkdir(parents=True, exist_ok=True)
+
+    def get_party_cert(host: str, port: int, party_id: int):
+        url = f"{settings.party_web_protocol}://{host}:{port}/get_party_cert"
+        logger.debug(f"Fetching party cert from {host}:{port}")
+        response = requests.get(url)
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch party cert from {host}:{port}, text: {response.text}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch party cert from {host}:{port}, text: {response.text}")
+        data = response.json()
+        if data["party_id"] != party_id:
+            logger.error(f"party_id mismatch, expected {party_id}, got {data['party_id']}")
+            raise HTTPException(status_code=500, detail=f"Party ID mismatch, expected {party_id}, got {data['party_id']}")
+        logger.debug(f"Fetched party cert from {host}:{port}")
+        (CERTS_PATH / f"P{party_id}.pem").write_text(data["cert_file"])
+        logger.debug(f"Saved party cert to {CERTS_PATH / f'P{party_id}.pem'}")
+
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(get_party_cert, host, port, party_id)
+            for party_id, (host, port) in enumerate(zip(settings.party_hosts, settings.party_ports))
+            if party_id != settings.party_id
+        ]
+        for future in futures:
+            future.result()

@@ -38,21 +38,19 @@ class Client:
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
 
+
         self.sockets = []
-        for i, host in enumerate(hosts):
-            port = port_base + client_id
-            print(f"Attempting to connect to {host}:{port}")
-            try:
-                plain_socket = socket.create_connection((host, port), timeout=timeout)
-            except socket.timeout:
-                print(f"Connection to {host}:{port} timed out after {timeout} seconds")
-                raise
-            except ConnectionRefusedError:
-                print(f"Connection to {host}:{port} was actively refused")
-                raise
-            except Exception as e:
-                print(f"Unexpected error when connecting to {host}:{port}: {str(e)}")
-                raise
+        for i, hostname in enumerate(hosts):
+            for j in range(10000):
+                try:
+                    plain_socket = socket.create_connection(
+                        (hostname, port_base + i))
+                    break
+                except ConnectionRefusedError:
+                    if j < 60:
+                        time.sleep(1)
+                    else:
+                        raise
 
             if platform.system() == "Linux":
                 set_keepalive_linux(plain_socket)

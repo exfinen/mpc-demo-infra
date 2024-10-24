@@ -103,17 +103,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.debug(f"Sending all requests concurrently")
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
-                # Check if all responses are successful
-                logger.debug(f"Received responses for sharing data MPC for {voucher_code=}")
-                for party_id, response in enumerate(responses):
-                    if response.status != 200:
-                        logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
-                        raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
-                voucher.is_used = True
-                db.commit()
-                logger.debug(f"All responses for sharing data MPC for {voucher_code=} are successful")
-                # Check if all data commitments are the same
-                data_commitments = [(await response.json())["data_commitment"] for response in responses]
+                    logger.debug(f"Received responses for sharing data MPC for {voucher_code=}")
+                    for party_id, response in enumerate(responses):
+                        if response.status != 200:
+                            logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
+                            raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
+                    # Check if all data commitments are the same
+                    data_commitments = [(await response.json())["data_commitment"] for response in responses]
+                logger.debug(f"All responses for sharing data MPC for {voucher_code=} are successful. data_commitments={data_commitments}")
                 if len(set(data_commitments)) != 1:
                     logger.error(f"Data commitments mismatch for {voucher_code=}. Something is wrong with MPC. {data_commitments=}")
                     raise HTTPException(status_code=400, detail="Data commitments mismatch")
@@ -136,7 +133,9 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.warning(f"Failed to close temporary TLSN proof file: {e}")
                 Path(temp_tlsn_proof_file.name).unlink(missing_ok=True)
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
-
+                # Check if all responses are successful
+                voucher.is_used = True
+                db.commit()
                 logger.debug(f"Committed changes to database for {voucher_code=}")
             finally:
                 sharing_data_lock.release()

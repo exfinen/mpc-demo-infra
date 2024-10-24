@@ -95,6 +95,7 @@ if [ "$setup_mpspdz" = true ]; then
     if [ ! -d "../MP-SPDZ" ]; then
         if [ "$(detect_os)" == "linux" ]; then
             sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+            sudo apt install -y libboost-all-dev
         fi
         echo "Cloning MP-SPDZ repository..."
         cd ..

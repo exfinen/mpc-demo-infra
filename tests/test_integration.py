@@ -144,8 +144,11 @@ async def get_vouchers():
     # [['id', 'voucher_code', 'is_used'], ['1', 'PEF2tZ5gqX4UkC6XwJ5LuA', 'False'], ['2', 'gOAn9Wvo7pydmTZlJibAAQ', 'False']]
     vouchers_rows = list(reader)
     without_header = vouchers_rows[1:]
-    vouchers = [row[1] for row in without_header]
-    return vouchers
+    return [
+        (row[1], row[2] == "True")
+        for row in without_header
+    ]
+
 
 
 @pytest.mark.asyncio
@@ -163,7 +166,8 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # List vouchers
     vouchers = await get_vouchers()
     assert len(vouchers) == num_vouchers
-    voucher_1, voucher_2 = vouchers
+    voucher_1, _ = vouchers[0]
+    voucher_2, _ = vouchers[1]
 
     await asyncio.sleep(1)
 
@@ -188,6 +192,13 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         #     nonce_2,
         # ),
     )
+
+    # Get the vouchers again, voucher 1 should be used
+    vouchers_after_sharing = await get_vouchers()
+    voucher_1_after_sharing, is_used_1_after_sharing = vouchers_after_sharing[0]
+    assert voucher_1_after_sharing == voucher_1, "Voucher 1 should not change"
+    assert is_used_1_after_sharing, "Voucher 1 should be used"
+
 
     # Query computation concurrently
     num_queries = 2

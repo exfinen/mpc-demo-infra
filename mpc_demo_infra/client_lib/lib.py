@@ -119,7 +119,9 @@ async def share_data(
             "client_cert_file": cert_file_content,
             "client_id": client_id,
         }) as response:
-            assert response.status == 200
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to share data with voucher {voucher_code}. Response: {response.status} {response.reason}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 

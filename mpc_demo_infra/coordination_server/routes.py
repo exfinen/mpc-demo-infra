@@ -14,7 +14,7 @@ from .schemas import (
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
 )
-from .database import Voucher, get_db
+from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 
@@ -104,6 +104,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
                     logger.debug(f"Received responses for sharing data MPC for {voucher_code=}")
+                    # Check if all responses are successful
                     for party_id, response in enumerate(responses):
                         if response.status != 200:
                             logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
@@ -125,7 +126,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 # Proof is valid, copy to tlsn_proofs_dir, and delete the temp file.
                 tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)
                 tlsn_proofs_dir.mkdir(parents=True, exist_ok=True)
-                tlsn_proof_path = tlsn_proofs_dir / f"proof_{client_id}.json"
+                tlsn_proof_path = tlsn_proofs_dir / f"proof_{secret_index}.json"
                 tlsn_proof_path.write_text(request.tlsn_proof)
                 try:
                     temp_tlsn_proof_file.close()
@@ -133,10 +134,17 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.warning(f"Failed to close temporary TLSN proof file: {e}")
                 Path(temp_tlsn_proof_file.name).unlink(missing_ok=True)
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
-                # Check if all responses are successful
-                voucher.is_used = True
-                db.commit()
-                logger.debug(f"Committed changes to database for {voucher_code=}")
+                # Mark the voucher as used. A new db session is used to avoid using
+                # `db`, which is possibly closed after we return.
+                with SessionLocal() as db_session:
+                    # Query for the voucher again in this new session
+                    voucher = db_session.query(Voucher).filter(Voucher.code == voucher_code).first()
+                    if voucher:
+                        voucher.is_used = True
+                        db_session.commit()
+                        logger.debug(f"Committed changes to database for {voucher_code=}")
+                    else:
+                        logger.error(f"Voucher not found for {voucher_code=} when trying to mark as used")
             finally:
                 sharing_data_lock.release()
                 logger.info(f"Released lock for sharing data for {voucher_code=}")

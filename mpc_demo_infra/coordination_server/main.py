@@ -37,18 +37,9 @@ app = FastAPI(
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-
 # Set up limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-
-# Add IP Filtering Middleware
-# app.add_middleware(IPFilterMiddleware)
-
-# Add API Key Middleware (optional)
-# Uncomment the next line to enable API Key authentication
-# app.add_middleware(APIKeyMiddleware)
 
 # Include API routes
 app.include_router(router)
@@ -84,13 +75,16 @@ def gen_vouchers():
 
     print(f"Generating {num_vouchers} vouchers...")
 
+    vouchers = [secrets.token_urlsafe(16) for _ in range(num_vouchers)]
     with SessionLocal() as db:
-        for _ in range(num_vouchers):
-            voucher_code = secrets.token_urlsafe(16)
+        for voucher_code in vouchers:
             new_voucher = Voucher(code=voucher_code)
             db.add(new_voucher)
         db.commit()  # Add this line to commit the changes
-        print(f"Successfully generated and committed {num_vouchers} vouchers.")
+    print(f"Successfully generated and committed {num_vouchers} vouchers.")
+    print(f"Generated vouchers:")
+    for voucher in vouchers:
+        print(voucher)
 
 
 def list_vouchers():

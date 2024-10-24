@@ -14,6 +14,9 @@ class Settings(BaseSettings):
 
     # Coordination server settings
     coordination_server_url: str = "http://localhost:8005"
+    # API key that coordination server uses in order to be able to access
+    # `request_sharing_data_mpc` and `request_querying_computation_mpc` endpoints.
+    # In production, we need https to protect the API key from being exposed.
     party_api_key: str = "1234567890"
 
     # ../../../tlsn

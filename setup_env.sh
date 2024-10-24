@@ -1,11 +1,24 @@
 #!/bin/bash
 
-MPC_PROTOCOL="replicated-ring"
+MPC_PROTOCOL="semi"
+NUM_PARTIES=3
 
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
+
+# Function to detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
 
 # Default value for MP-SPDZ setup
 setup_mpspdz=false
@@ -20,8 +33,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Update system
-sudo apt update
-sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+if [ "$(detect_os)" == "linux" ]; then
+    sudo apt update
+else
+    brew update
+fi
 
 # Install Python 3 if not present
 if ! command_exists python3; then
@@ -34,7 +50,11 @@ fi
 # Install Poetry if not present
 if ! command_exists poetry; then
     echo "Installing Poetry..."
-    sudo apt install -y python3-poetry
+    if [ "$(detect_os)" == "linux" ]; then
+        sudo apt install -y python3-poetry
+    else
+        curl -sSL https://install.python-poetry.org | python3 -
+    fi
 else
     echo "Poetry is already installed."
 fi
@@ -48,9 +68,12 @@ else
     echo "Rust and Cargo are already installed."
 fi
 
+
 # Install pkg-config (used by TLSN)
-echo "Installing pkg-config..."
-sudo apt install -y pkg-config
+if [ "$(detect_os)" == "linux" ]; then
+    echo "Installing pkg-config..."
+    sudo apt install -y pkg-config
+fi
 
 # Clone TLSN repository if not present
 if [ ! -d "../tlsn" ]; then
@@ -70,6 +93,9 @@ fi
 if [ "$setup_mpspdz" = true ]; then
     echo "Setting up MP-SPDZ..."
     if [ ! -d "../MP-SPDZ" ]; then
+        if [ "$(detect_os)" == "linux" ]; then
+            sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+        fi
         echo "Cloning MP-SPDZ repository..."
         cd ..
         git clone https://github.com/ZKStats/MP-SPDZ
@@ -87,6 +113,9 @@ if [ "$setup_mpspdz" = true ]; then
 
         # Build VM
         make "$MPC_PROTOCOL-party.x"
+
+        # Generate keys for all parties
+        ./Scripts/setup-ssl.sh $NUM_PARTIES
 
         cd ../mpc-demo-infra
     else

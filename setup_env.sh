@@ -127,6 +127,8 @@ else
 fi
 
 # Set up Python virtual environment and install dependencies
-poetry install
+# setting PYTHON_KEYRING_BACKEND to avoid potential keyring
+# https://github.com/python-poetry/poetry/issues/1917#issuecomment-1235998997
+PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring  poetry install
 
 echo "Environment setup complete. Please ensure you have the correct versions of all dependencies."

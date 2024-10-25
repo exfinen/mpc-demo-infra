@@ -78,8 +78,11 @@ def gen_vouchers():
     vouchers = [secrets.token_urlsafe(16) for _ in range(num_vouchers)]
     with SessionLocal() as db:
         for voucher_code in vouchers:
-            new_voucher = Voucher(code=voucher_code)
-            db.add(new_voucher)
+            while True:
+                new_voucher = Voucher(code=voucher_code)
+                if not str(new_voucher).startswith('-'):
+                    db.add(new_voucher)
+                    break
         db.commit()  # Add this line to commit the changes
     print(f"Successfully generated and committed {num_vouchers} vouchers.")
     print(f"Generated vouchers:")

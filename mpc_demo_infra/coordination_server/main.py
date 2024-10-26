@@ -3,16 +3,13 @@ import csv
 import logging
 import secrets
 import sys
-from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from .routes import router
-from .middleware import IPFilterMiddleware
 from .database import engine, Base, SessionLocal, Voucher
 from .config import settings
 from .limiter import limiter
@@ -40,7 +37,7 @@ Base.metadata.create_all(bind=engine)
 # Set up limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
+app.add_middleware(SlowAPIMiddleware)
 # Include API routes
 app.include_router(router)
 

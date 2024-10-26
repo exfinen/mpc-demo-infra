@@ -1,5 +1,6 @@
 import csv
 import os
+import aiohttp
 import pytest
 import asyncio
 
@@ -25,11 +26,13 @@ COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
 NUM_PARTIES = 3
 # Adjust these ports as needed
 COORDINATION_PORT = 5565
+DATA_CONSUMER_API_PORT = 5577
 FREE_PORTS_START = 8010
 FREE_PORTS_END = 8100
 COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
 COMPUTATION_PARTY_PORTS = [COORDINATION_PORT + 1 + party_id for party_id in range(NUM_PARTIES)]
 MPSPDZ_PROJECT_ROOT = Path(__file__).parent.parent.parent / "MP-SPDZ"
+TLSN_PROJECT_ROOT = Path(__file__).parent.parent.parent / "tlsn"
 CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 
 TIMEOUT_MPC = 60
@@ -39,6 +42,7 @@ CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coord-gen-vouchers"]
 CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coord-list-vouchers"]
 
 CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "party-run"]
+CMD_PREFIX_DATA_CONSUMER_API = ["poetry", "run", "consumer-api-run"]
 
 async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: Path):
     process = await asyncio.create_subprocess_exec(
@@ -67,9 +71,27 @@ async def start_computation_party_server(cmd: list[str], party_id: int, port: in
             "PARTY_ID": str(party_id),
             "DATABASE_URL": COMPUTATION_DB_URL_TEMPLATE.format(party_id=party_id),
             "COORDINATION_SERVER_URL": f"{PROTOCOL}://localhost:{COORDINATION_PORT}",
+            "PARTY_HOSTS": '["' + '","'.join(COMPUTATION_HOSTS) + '"]',
+            "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
+            "TLSN_PROJECT_ROOT": str(TLSN_PROJECT_ROOT),
+            "MPSPDZ_PROJECT_ROOT": str(MPSPDZ_PROJECT_ROOT),
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
+    )
+    return process
+
+async def start_data_consumer_api_server(cmd: list[str], port: int):
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        env={
+            **os.environ,
+            "PORT": str(port),
+            "COORDINATION_SERVER_URL": f"{PROTOCOL}://localhost:{COORDINATION_PORT}",
+            "TLSN_PROJECT_ROOT": str(TLSN_PROJECT_ROOT),
+            "PARTY_HOSTS": '["' + '","'.join(COMPUTATION_HOSTS) + '"]',
+            "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
+        },
     )
     return process
 
@@ -102,6 +124,8 @@ async def servers(tlsn_proofs_dir):
     ] + [
         start_computation_party_server(CMD_PREFIX_COMPUTATION_PARTY_SERVER, party_id, port)
         for party_id, port in enumerate(COMPUTATION_PARTY_PORTS)
+    ] + [
+        start_data_consumer_api_server(CMD_PREFIX_DATA_CONSUMER_API, DATA_CONSUMER_API_PORT)
     ]
 
     processes = await asyncio.gather(*start_tasks)
@@ -199,7 +223,6 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     assert voucher_1_after_sharing == voucher_1, "Voucher 1 should not change"
     assert is_used_1_after_sharing, "Voucher 1 should be used"
 
-
     # Query computation concurrently
     num_queries = 2
     computation_index = 0
@@ -215,6 +238,19 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     results_0 = res_queries[0]
     print(f"{results_0=}")
 
+    # Query data consumer api
+    data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"
+    async def query_data_consumer_api():
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{data_consumer_api_url}/query-computation",
+                json={"computation_index": computation_index},
+            ) as resp:
+                return await resp.json()
+
+    res_data_consumer_api = await query_data_consumer_api()
+    results_api = res_data_consumer_api["results"]
+    assert results_api == list(map(float, results_0)), f"result mismatch from api and from computation party: {results_0=}, {results_api=}"
 
     # async def wait_until_request_fulfilled():
     #     # Poll if tlsn_proof is saved, which means the background task running MPC finished.

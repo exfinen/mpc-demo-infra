@@ -1,11 +1,17 @@
 import logging
+import ssl
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from .routes import router
 from .config import settings
 from .limiter import limiter
+
+# Get project root
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent.resolve()
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +35,13 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include API routes
 app.include_router(router)

@@ -26,7 +26,9 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
                     data = await response.json()
                     if data["position"] == "0"
                        return data["pop_key"]
-        await asyncio.sleep(1)
+                    else:
+                        print(f"\rYou are currently {int(position) + 1}th in line. Estimated wait time: X seconds.")
+                        await asyncio.sleep(1)
 
 
 async def notarize_and_share_data(voucher_code: str):

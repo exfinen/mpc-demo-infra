@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # User queue
     user_queue_size: int = 1000
-    user_queue_head_timeout: int = 60
+    user_queue_head_timeout: int = 120
 
     # Allowed IPs for access control
     allowed_ips: List[str] = ["192.168.1.100", "192.168.1.101"]

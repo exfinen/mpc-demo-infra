@@ -27,3 +27,11 @@ def test_get_position_2_users_valid_pop():
     assert position == 1
     assert q.pop_user(pop_key_1) == True
 
+def test_get_position_2_users_invalid_pop():
+    q = get_queue()
+    position, pop_key_1 = q.get_position('mpc')
+    assert position == 0
+    position, pop_key_2 = q.get_position('apple')
+    assert position == 1
+    assert q.pop_user(pop_key_2) == False
+

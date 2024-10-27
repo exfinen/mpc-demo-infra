@@ -11,9 +11,9 @@ class User:
     _time_at_queue_head: Optional[int] = None
 
 class UserQueue:
-    users: list[User] = []
 
     def __init__(self, max_size: int, queue_head_timeout: int):
+        self.users: list[User] = []
         self.max_size = max_size
         self.queue_head_timeout = queue_head_timeout
         self.lock = threading.Lock()
@@ -37,6 +37,7 @@ class UserQueue:
                 return True
 
     def get_position(self, voucher_code: str) -> Tuple[int, Optional[str]]:
+        print(f'users = {self.users}')
         with self.lock:
             # if the user with voucher is not in the queue, add the user
             if not any(user.voucher_code == voucher_code for user in self.users):

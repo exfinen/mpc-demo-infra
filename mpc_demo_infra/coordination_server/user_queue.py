@@ -27,6 +27,10 @@ class UserQueue:
             user._time_at_queue_head = int(time.time())
             user.pop_key = secrets.token_urlsafe(16)
 
+    # for debugging
+    def _get_users(self) -> list[User]:
+        return self.users
+
     def pop_user(self, pop_key: str) -> bool:
         with self.lock:
             if len(self.users) == 0 or self.users[0].pop_key != pop_key:
@@ -37,7 +41,6 @@ class UserQueue:
                 return True
 
     def get_position(self, voucher_code: str) -> Tuple[int, Optional[str]]:
-        print(f'users = {self.users}')
         with self.lock:
             # if the user with voucher is not in the queue, add the user
             if not any(user.voucher_code == voucher_code for user in self.users):
@@ -45,12 +48,15 @@ class UserQueue:
                 self.users.append(user)
                 self._set_queue_head_data_if_needed() # can be the first user
 
-            # if user[0] is staying there too long, move the user to the end
+            # if user at queue head times out, move the user to the end
             now = UserQueue._get_time()
             if now - self.users[0]._time_at_queue_head > self.queue_head_timeout:
+                # move the user at the queue head to the end of the queue
                 user = self.users.pop(0)
                 user._time_at_queue_head = None
+                user.pop_key = None
                 self.users.append(user)
+
                 self._set_queue_head_data_if_needed()
 
             # return the position and pop_key of the user with the voucher

@@ -16,6 +16,19 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 DATA_TYPE = 0
 
 
+async def poll_queue_until_ready(voucher_code: str) -> str:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{coordination_server_url}/queue_position", json={
+                "voucher_code": voucher_code,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["position"] == "0"
+                       return data["pop_key"]
+        await asyncio.sleep(1)
+
+
 async def notarize_and_share_data(voucher_code: str):
     print("Fetching party certificates...")
     await fetch_parties_certs(
@@ -57,6 +70,9 @@ async def notarize_and_share_data(voucher_code: str):
         data_commitment_nonce = bytes(commitment["nonce"]).hex()
         return data_commitment_hash, data_commitment_nonce
     _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
+
+    pop_key = await poll_queue_until_ready(voucher_code)
+
     # Share data
     await share_data(
         CERTS_PATH,
@@ -66,6 +82,7 @@ async def notarize_and_share_data(voucher_code: str):
         tlsn_proof,
         secret_input,
         nonce,
+        pop_key,
     )
 
 
@@ -79,12 +96,16 @@ async def query_computation_and_verify(
         settings.party_hosts,
         settings.party_ports
     )
+
+    pop_key = await poll_queue_until_ready(voucher_code)
+
     print("Party certificates have been fetched and saved.")
     results = await query_computation(
         CERTS_PATH,
         settings.coordination_server_url,
         settings.party_hosts,
         computation_index,
+        pop_key,
     )
     print(f"{results=}")
 

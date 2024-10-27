@@ -108,6 +108,7 @@ async def share_data(
     tlsn_proof: str,
     value: int,
     nonce: str,
+    pop_key: str,
 ):
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
@@ -118,6 +119,7 @@ async def share_data(
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
+            "pop_key": pop_key,
         }) as response:
             if response.status != 200:
                 text = await response.text()
@@ -146,6 +148,7 @@ async def query_computation(
     coordination_server_url: str,
     computation_party_hosts: list[str],
     computation_index: int,
+    pop_key: str,
 ):
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
@@ -154,6 +157,7 @@ async def query_computation(
         async with session.post(f"{coordination_server_url}/query_computation", json={
             "client_id": client_id,
             "client_cert_file": cert_file_content,
+            "pop_key": pop_key,
         }) as response:
             assert response.status == 200
             data = await response.json()

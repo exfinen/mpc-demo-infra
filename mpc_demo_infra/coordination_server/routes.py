@@ -3,6 +3,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 import logging
+import secrets
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +18,7 @@ from .schemas import (
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
+from .user_queue import user_queue
 
 router = APIRouter()
 
@@ -27,6 +29,18 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
+user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+
+@router.post("/queue_position", response_model=RequestQueuePositionResponse)
+async def queue_position(request: RequestQueuePositionRequest):
+    position = user_queue.get_position(request.voucher_code)
+
+    # add voucher_to_the_queue if not in the queue yet
+    if position == 0:
+        pop_key = secrets.token_urlsafe(16)
+        return RequestQueuePositionResponse(position=position, pop_key=pop_key)
+    else:
+        return RequestQueuePositionResponse(position=position, pop_key=None)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
@@ -34,7 +48,13 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
+    pop_key = request.pop_key
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
+
+    logger.debug(f"Verifying if the pop key ({pop_key}) is valid")
+    if not user_queue.pop_user(pop_key):
+        logger.error(f"Computation party servers cannot be used with invalid pop_key")
+        raise HTTPException(status_code=400, detail="Computation party servers cannot be used with invalid pop_key")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
@@ -172,6 +192,13 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
 async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
+    pop_key = request.pop_key
+
+    logger.debug(f"Verifying if the pop key ({pop_key}) is valid")
+    if not user_queue.pop_user(pop_key):
+        logger.error(f"Computation party servers cannot be used with invalid pop_key")
+        raise HTTPException(status_code=400, detail="Computation party servers cannot be used with invalid pop_key")
+
     logger.debug(f"Querying computation for client {client_id}")
     if client_id >= MAX_CLIENT_ID:
         logger.error(f"Client ID is out of range: {client_id}")

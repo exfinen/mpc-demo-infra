@@ -33,14 +33,8 @@ user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeou
 
 @router.post("/queue_position", response_model=RequestQueuePositionResponse)
 async def queue_position(request: RequestQueuePositionRequest):
-    position = user_queue.get_position(request.voucher_code)
-
-    # add voucher_to_the_queue if not in the queue yet
-    if position == 0:
-        pop_key = secrets.token_urlsafe(16)
-        return RequestQueuePositionResponse(position=position, pop_key=pop_key)
-    else:
-        return RequestQueuePositionResponse(position=position, pop_key=None)
+    position, pop_key = user_queue.get_position(request.voucher_code)
+    return RequestQueuePositionResponse(position=position, pop_key=pop_key)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):

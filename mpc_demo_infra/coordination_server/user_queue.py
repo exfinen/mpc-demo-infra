@@ -1,7 +1,7 @@
 import threading
 from dataclasses import dataclass
 from typing import Optional
-from time
+from time import time
 
 @dataclass
 class User:
@@ -25,14 +25,14 @@ class UserQueue:
         if len(self.users) > 0 and self.users[0].time_at_queue_head is None:
             self.users[0].time_at_queue_head = int(time.time())
 
-    def pop_user(pop_key: str) -> bool:
+    def pop_user(self, pop_key: str) -> bool:
         with self.lock:
             if len(self.users) == 0 or self.users[0].pop_key != pop_key:
-                return false
+                return False
             else:
                 user = users.pop(0)
                 self._set_time_at_queue_head_if_needed()
-                return true
+                return True
 
     def get_position(self, voucher_code: str) -> int:
         with self.lock:

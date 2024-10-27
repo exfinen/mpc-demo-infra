@@ -1,7 +1,7 @@
 import threading
 from dataclasses import dataclass
 from typing import Optional
-from time import time
+import time
 
 @dataclass
 class User:
@@ -17,7 +17,6 @@ class UserQueue:
         self.queue_head_timeout = queue_head_timeout
         self.lock = threading.Lock()
 
-    @classmethod
     def _get_time() -> int:
         return int(time.time())
 
@@ -40,6 +39,7 @@ class UserQueue:
             if not any(user.voucher_code == voucher_code for user in self.users):
                 user = User(voucher_code=voucher_code)
                 self.users.append(user)
+                self._set_time_at_queue_head_if_needed() # can be the first user
 
             # if user[0] is staying there too long, move the user to the end
             now = UserQueue._get_time()
@@ -50,7 +50,7 @@ class UserQueue:
                 self._set_time_at_queue_head_if_needed()
 
             # return the position of the user with the voucher
-            for i, user in enumerate(self.clients):
+            for i, user in enumerate(self.users):
                 if user.voucher_code == voucher_code:
                     return i
 

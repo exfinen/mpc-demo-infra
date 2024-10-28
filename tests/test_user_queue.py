@@ -4,91 +4,99 @@ import time
 def get_queue(max_size: int = 10, queue_head_timeout: int=60) -> UserQueue:
     return UserQueue(max_size=max_size, queue_head_timeout=queue_head_timeout)
 
-def test_pop_user_empty_queue():
+def test_validate_invalid_computation_key():
     q = get_queue()
-    assert q.pop_user('mpc') == False
+    assert q.validate_computation_key('bad_key') == False
 
-def test_get_position_1_user():
+def test_get_position_single_user():
     q = get_queue()
-    position, _ = q.get_position('mpc')
-    assert position == 0
+    pos, key = q.get_position('mpc')
+    assert pos == 0 and key is not None
 
-def test_get_position_2_users():
+def test_get_position_multiple_users():
     q = get_queue()
-    position = q.get_position('mpc')
-    assert position, _ == 0
-    position = q.get_position('apple')
-    assert position, _ == 1
+    pos1, key1 = q.get_position('mpc')
+    assert pos1 == 0 and key1 is not None
+    pos2, key2 = q.get_position('apple')
+    assert pos2 == 1 and key2 is None
+    pos3, key3 = q.get_position('orange')
+    assert pos3 == 2 and key3 is None
 
-def test_get_position_2_users_valid_pop():
+def test_2_users_get_pop_finish_succ():
     q = get_queue()
 
     # add 2 users
-    position, pop_key_1 = q.get_position('mpc')
-    assert position == 0
-    position, _ = q.get_position('apple') # pop_key is None here
-    assert position == 1
+    pos1, key1 = q.get_position('mpc')
+    assert pos1 == 0 and key1 is not None
+    pos2, key2 = q.get_position('apple')
+    assert pos2 == 1 and key2 is None
 
-    # pop 2 users
-    assert q.pop_user(pop_key_1) == True
-    position, pop_key_2 = q.get_position('apple')
-    # trying to pop w/ invalid key should fail
-    assert q.pop_user(pop_key_1) == False
-    # popping w/ valid key should succed
-    assert q.pop_user(pop_key_2) == True
+    # validate user1 computaion
+    assert q.validate_computation_key(key1) == True
 
-def test_get_position_2_users_invalid_pop():
-    q = get_queue()
-    position, pop_key_1 = q.get_position('mpc')
-    assert position == 0
-    position, pop_key_2 = q.get_position('apple')
-    assert position == 1
-    assert q.pop_user(pop_key_2) == False
+    # invalid key should be considered invalid
+    assert q.validate_computation_key(None) == False
+    assert q.validate_computation_key(key1 + 'abc') == False
+
+    # finish user1 computation
+    assert q.finish_computation(key1) == True
+
+    # after finishing computation, key1 should no longer be valid
+    assert q.validate_computation_key(key1) == False
+
+    # let user2 get the computation key
+    pos2, key2 = q.get_position('apple')
+
+    # user1 key should no longer be valid
+    assert q.validate_computation_key(key1) == False
+
+    # user1 cannot finish computation either
+    assert q.finish_computation(key1) == False
+
+    # user2 should be able to validate its computation
+    assert q.validate_computation_key(key2) == True
+
+    # user2 finishes computation
+    assert q.finish_computation(key2) == True
+
+    # user2 key should no longer be valid
+    assert q.validate_computation_key(key2) == False
 
 def test_queue_head_timeout():
+    # set the timeout to 1 second
     q = get_queue(queue_head_timeout=1)
-    position, pop_key_1 = q.get_position('mpc')
-    position, _ = q.get_position('apple')
+
+    pos1, key1 = q.get_position('mpc')
+    _, _ = q.get_position('apple')
+    _, _ = q.get_position('orange')
 
     time.sleep(2)
 
-    # popping mpc should fail since apple should be at the top
-    position, pop_key_1_2 = q.get_position('mpc')
-    assert position == 1
-    assert pop_key_1_2 is None
-    assert q.pop_user(pop_key_1) == False
+    # user1 should have been moved from the front to the end of the queue
+    pos1, key1 = q.get_position('mpc')
+    assert pos1 == 2 and key1 is None
+    assert q.validate_computation_key(key1) == False
 
-    position, pop_key_2  = q.get_position('apple')
-    assert q.pop_user(pop_key_2) == True
+    # user2 should be at the front of the queue
+    pos2, key2  = q.get_position('apple')
+    assert pos2 == 0 and key2 is not None
+    assert q.validate_computation_key(key2) == True
 
-def test_pop_user_empty_queue_after_pops():
+def test_finish_computation_twice():
     q = get_queue()
 
     # add 2 users
-    position, pop_key_1 = q.get_position('mpc')
-    assert position == 0
-    position, _ = q.get_position('apple') # pop_key is None here
-    assert position == 1
+    pos1, key1 = q.get_position('mpc')
+    assert pos1 == 0 and key1 is not None
+    pos2, key2 = q.get_position('apple')
+    assert pos2 == 1 and key2 is None
 
-    # pop 2 users
-    assert q.pop_user(pop_key_1) == True
-    position, pop_key_2 = q.get_position('apple')
-    assert q.pop_user(pop_key_2) == True
+    # finish computation of both users
+    # each user should finish computation only once
+    assert q.finish_computation(key1) == True
+    assert q.finish_computation(key1) == False
 
-    # should not be able to pop anymore
-    assert q.pop_user(pop_key_1) == False
-    assert q.pop_user(pop_key_2) == False
-
-def test_pop_user_twice():
-    q = get_queue()
-
-    # add user
-    position, pop_key_1 = q.get_position('mpc')
-    assert position == 0
-
-    # pop user
-    assert q.pop_user(pop_key_1) == True
-
-    # popping user again should fail
-    assert q.pop_user(pop_key_1) == False
+    _, key2 = q.get_position('apple')
+    assert q.finish_computation(key2) == True
+    assert q.finish_computation(key2) == False
 

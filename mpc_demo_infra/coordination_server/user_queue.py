@@ -7,7 +7,7 @@ import time
 @dataclass
 class User:
     voucher_code: str
-    pop_key: Optional[str] = None
+    computation_key: Optional[str] = None
     _time_at_queue_head: Optional[int] = None
 
 class UserQueue:
@@ -25,20 +25,24 @@ class UserQueue:
         if len(self.users) > 0 and self.users[0]._time_at_queue_head is None:
             user = self.users[0]
             user._time_at_queue_head = int(time.time())
-            user.pop_key = secrets.token_urlsafe(16)
+            user.computation_key = secrets.token_urlsafe(16)
 
     # for debugging
     def _get_users(self) -> list[User]:
         return self.users
 
-    def pop_user(self, pop_key: str) -> bool:
+    def validate_computation_key(self, computation_key: str) -> bool:
         with self.lock:
-            if len(self.users) == 0 or self.users[0].pop_key != pop_key:
-                return False
-            else:
+            return len(self.users) > 0 and self.users[0].computation_key == computation_key
+
+    def finish_computation(self, computation_key: str) -> bool:
+        with self.lock:
+            if len(self.users) > 0 and self.users[0].computation_key == computation_key:
                 user = self.users.pop(0)
                 self._set_queue_head_data_if_needed()
                 return True
+            else:
+                return False
 
     def get_position(self, voucher_code: str) -> Tuple[int, Optional[str]]:
         with self.lock:
@@ -48,19 +52,18 @@ class UserQueue:
                 self.users.append(user)
                 self._set_queue_head_data_if_needed() # can be the first user
 
+            queue_head_time = UserQueue._get_time() - self.users[0]._time_at_queue_head
             # if user at queue head times out, move the user to the end
-            now = UserQueue._get_time()
-            if now - self.users[0]._time_at_queue_head > self.queue_head_timeout:
-                # move the user at the queue head to the end of the queue
+            if queue_head_time > self.queue_head_timeout:
                 user = self.users.pop(0)
                 user._time_at_queue_head = None
-                user.pop_key = None
+                user.computation_key = None
                 self.users.append(user)
 
                 self._set_queue_head_data_if_needed()
 
-            # return the position and pop_key of the user with the voucher
+            # return the position and computation_key of the user with the voucher
             for i, user in enumerate(self.users):
                 if user.voucher_code == voucher_code:
-                    return i, user.pop_key
+                    return i, user.computation_key
 

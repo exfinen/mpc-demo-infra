@@ -146,34 +146,31 @@ async def share_data(
             "client_id": client_id,
             "computation_key": computation_key,
         }) as response:
+            await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
             if response.status != 200:
                 text = await response.text()
                 raise Exception(f"Failed to share data with voucher {voucher_code}. Response: {response.status} {response.reason}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 
-    async def handle_exception(loop, context) -> None:
-        asyncio.create_task(shutdown(loop=loop))
-        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
-
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
-    event_loop = asyncio.get_event_loop()
-    event_loop.set_exception_handler(handle_exception)
-    result = await event_loop.run_in_executor(
-        None,
-        run_data_sharing_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        value,
-        nonce
-    )
-    await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
-    return result
+    try:
+        result = await asyncio.get_eveny_loop().run_in_executor(
+            None,
+            run_data_sharing_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            value,
+            nonce
+        )
+        return result
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
 
 
 async def query_computation(
@@ -197,28 +194,23 @@ async def query_computation(
             data = await response.json()
             client_port_base = data["client_port_base"]
 
-    async def handle_exception(loop, context) -> None:
-        asyncio.create_task(shutdown(loop=loop))
+    try:
+        results, commitments = await asyncio.get_event_loop().run_in_executor(
+            None,
+            run_computation_query_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            MAX_DATA_PROVIDERS,
+            computation_index
+        )
+        # TODO: Verify commitments with tlsn proofs
+        return results
+    finally:
         await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
-
-    event_loop = asyncio.get_event_loop()
-    event_loop.set_exception_handler(handle_exception)
-    results, commitments = await event_loop.run_in_executor(
-        None,
-        run_computation_query_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        MAX_DATA_PROVIDERS,
-        computation_index
-    )
-    # TODO: Verify commitments with tlsn proofs
-    await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
-
-    return results
 
 
 async def fetch_parties_certs(

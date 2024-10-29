@@ -11,7 +11,6 @@ class User:
     _time_at_queue_head: Optional[int] = None
 
 class UserQueue:
-
     def __init__(self, max_size: int, queue_head_timeout: int):
         self.users: list[User] = []
         self.max_size = max_size

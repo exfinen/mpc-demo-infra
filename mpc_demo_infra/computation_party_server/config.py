@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     party_ports: list[int] = [8006, 8007, 8008]
     mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
 
+    fullchain_pem_path: str = "ssl_certs/fullchain.pem"
+    privkey_pem_path: str = "ssl_certs/privkey.pem"
+
     class Config:
         env_file = ".env.party"
 

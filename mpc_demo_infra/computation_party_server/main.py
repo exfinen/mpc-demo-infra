@@ -55,9 +55,19 @@ async def shutdown_event():
 
 def run():
     import uvicorn
-    uvicorn.run(
-        "mpc_demo_infra.computation_party_server.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        # reload=True
-    )
+    if settings.party_web_protocol == 'https':
+        uvicorn.run(
+            "mpc_demo_infra.computation_party_server.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            ssl_keyfile=settings.privkey_pem_path,
+            ssl_certfile=settings.fullchain_pem_path,
+            # reload=True
+        )
+    else:
+        uvicorn.run(
+            "mpc_demo_infra.computation_party_server.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            # reload=True
+        )

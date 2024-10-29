@@ -55,12 +55,22 @@ async def shutdown_event():
 def run():
     import uvicorn
     print(f"Running coordination server on port {settings.port}")
-    uvicorn.run(
-        "mpc_demo_infra.coordination_server.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        log_level="debug"
-    )
+    if settings.party_web_protocol == 'https':
+        uvicorn.run(
+            "mpc_demo_infra.coordination_server.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            ssl_keyfile=settings.privkey_pem_path,
+            ssl_certfile=settings.fullchain_pem_path,
+            log_level="debug"
+        )
+    else:
+        uvicorn.run(
+            "mpc_demo_infra.coordination_server.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            log_level="debug"
+        )
 
 
 def gen_vouchers():

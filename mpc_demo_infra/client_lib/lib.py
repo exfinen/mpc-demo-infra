@@ -152,9 +152,15 @@ async def share_data(
             data = await response.json()
             client_port_base = data["client_port_base"]
 
+    async def handle_exception(loop, context) -> None:
+        asyncio.create_task(shutdown(loop=loop))
+        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
+
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
-    result = await asyncio.get_event_loop().run_in_executor(
+    event_loop = asyncio.get_event_loop()
+    event_loop.set_exception_handler(handle_exception)
+    result = await event_loop.run_in_executor(
         None,
         run_data_sharing_client,
         computation_party_hosts,
@@ -191,7 +197,13 @@ async def query_computation(
             data = await response.json()
             client_port_base = data["client_port_base"]
 
-    results, commitments = await asyncio.get_event_loop().run_in_executor(
+    async def handle_exception(loop, context) -> None:
+        asyncio.create_task(shutdown(loop=loop))
+        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
+
+    event_loop = asyncio.get_event_loop()
+    event_loop.set_exception_handler(handle_exception)
+    results, commitments = await event_loop.run_in_executor(
         None,
         run_computation_query_client,
         computation_party_hosts,

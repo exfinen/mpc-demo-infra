@@ -50,17 +50,17 @@ class UserQueue:
             if not any(user.voucher_code == voucher_code for user in self.users):
                 user = User(voucher_code=voucher_code)
                 self.users.append(user)
-                self._set_queue_head_data_if_needed() # can be the first user
 
-            queue_head_time = UserQueue._get_time() - self.users[0]._time_at_queue_head
             # if user at queue head times out, move the user to the end
-            if queue_head_time > self.queue_head_timeout:
-                user = self.users.pop(0)
-                user._time_at_queue_head = None
-                user.computation_key = None
-                self.users.append(user)
+            if self.users[0]._time_at_queue_head is not None:
+                queue_head_time = UserQueue._get_time() - self.users[0]._time_at_queue_head
+                if queue_head_time > self.queue_head_timeout:
+                    user = self.users.pop(0)
+                    user._time_at_queue_head = None
+                    user.computation_key = None
+                    self.users.append(user)
 
-                self._set_queue_head_data_if_needed()
+            self._set_queue_head_data_if_needed()
 
             # return the position and computation_key of the user with the voucher
             for i, user in enumerate(self.users):

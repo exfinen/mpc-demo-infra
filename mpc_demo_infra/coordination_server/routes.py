@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
+    RequestGetPositionRequest, RequestGetPositionResponse,
 )
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
-from .user_queue import user_queue
+from .user_queue import UserQueue
 
 router = APIRouter()
 
@@ -31,10 +32,10 @@ sharing_data_lock = asyncio.Lock()
 
 user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
-@router.post("/queue_position", response_model=RequestQueuePositionResponse)
-async def queue_position(request: RequestQueuePositionRequest):
-    position, pop_key = user_queue.get_position(request.voucher_code)
-    return RequestQueuePositionResponse(position=position, pop_key=pop_key)
+@router.post("/get_position", response_model=RequestGetPositionResponse)
+async def get_position(request: RequestGetPositionRequest):
+    position, computation_key = user_queue.get_position(request.voucher_code)
+    return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
@@ -42,13 +43,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
-    pop_key = request.pop_key
+    computation_key = request.computation_key
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
 
-    logger.debug(f"Verifying if the pop key ({pop_key}) is valid")
-    if not user_queue.pop_user(pop_key):
-        logger.error(f"Computation party servers cannot be used with invalid pop_key")
-        raise HTTPException(status_code=400, detail="Computation party servers cannot be used with invalid pop_key")
+    # Check if computation key is valid
+    if not user_queue.validate_computation_key(computation_key):
+        logger.error(f"Invalid computation key {computaiton_key}")
+        raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
+    logger.error(f"Computation key {computation_key} is valid")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
@@ -186,12 +188,13 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
 async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
-    pop_key = request.pop_key
+    computation_key = request.computation_key
 
-    logger.debug(f"Verifying if the pop key ({pop_key}) is valid")
-    if not user_queue.pop_user(pop_key):
-        logger.error(f"Computation party servers cannot be used with invalid pop_key")
-        raise HTTPException(status_code=400, detail="Computation party servers cannot be used with invalid pop_key")
+    # Check if computation key is valid
+    if not user_queue.validate_computation_key(computation_key):
+        logger.error(f"Invalid computation key ({computation_key})")
+        raise HTTPException(status_code=400, detail=f"Invlid computation key {computation_key}")
+    logger.debug(f"Computation key ({computation_key}) is valid")
 
     logger.debug(f"Querying computation for client {client_id}")
     if client_id >= MAX_CLIENT_ID:

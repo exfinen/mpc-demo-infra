@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
     party_ports: list[int] = [8006, 8007, 8008]
 
+    fullchain_pem_path: str = "/etc/letsencrypt/live/mpcstats.org/fullchain.pem"
+    privkey_pem_path: str = "/etc/letsencrypt/live/mpcstats.org/privkey.pem"
+
     class Config:
         env_file = ".env.consumer_api"
 

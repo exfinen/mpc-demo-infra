@@ -1,5 +1,4 @@
 import logging
-import ssl
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -60,9 +59,20 @@ async def shutdown_event():
 def run():
     import uvicorn
     print(f"Running data consumer API server on port {settings.port}")
-    uvicorn.run(
-        "mpc_demo_infra.data_consumer_api.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        log_level="debug"
-    )
+
+    if settings.party_web_protocol == 'https':
+        uvicorn.run(
+            "mpc_demo_infra.data_consumer_api.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            ssl_keyfile=settings.privkey_pem_path,
+            ssl_certfile=settings.fullchain_pem_path,
+            log_level="debug"
+        )
+    else:
+        uvicorn.run(
+            "mpc_demo_infra.data_consumer_api.main:app",
+            host="0.0.0.0",
+            port=settings.port,
+            log_level="debug"
+        )

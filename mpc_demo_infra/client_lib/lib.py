@@ -100,12 +100,28 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     return client_id, cert_path, key_path
 
 
-async def validate_computation_key(computation_key: str) -> None:
-    pass
+async def validate_computation_key(coordination_server_url: str, computation_key: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/validate_computation_key", json={
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to validate computation key {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_valid"]
 
 
-async def mark_queue_computation_finished(computation_key: str) -> None:
-    pass
+async def mark_queue_computation_to_be_finished(coordination_server_url: str, computation_key: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/finish_computation", json={
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to finish computation with {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_finished"]
 
 
 async def share_data(
@@ -118,7 +134,7 @@ async def share_data(
     nonce: str,
     computation_key: str,
 ):
-    await validate_computation_key(computation_key) 
+    await validate_computation_key(coordination_server_url, computation_key) 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -150,7 +166,7 @@ async def share_data(
         value,
         nonce
     )
-    await mark_queue_computation_finished(computation_key)
+    await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
     return result
 
 
@@ -161,7 +177,7 @@ async def query_computation(
     computation_index: int,
     computation_key: str,
 ):
-    await validate_computation_key(computation_key) 
+    await validate_computation_key(coordination_server_url, computation_key) 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -188,7 +204,7 @@ async def query_computation(
         computation_index
     )
     # TODO: Verify commitments with tlsn proofs
-    await mark_queue_computation_finished(computation_key)
+    await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
 
     return results
 

@@ -26,3 +26,15 @@ class RequestGetPositionRequest(BaseModel):
 class RequestGetPositionResponse(BaseModel):
     position: int
     computation_key: Optional[str]
+
+class RequestValidateComputationKeyRequest(BaseModel):
+    computation_key: str
+
+class RequestValidateComputationKeyResponse(BaseModel):
+    is_valid: bool
+
+class RequestFinishComputationRequest(BaseModel):
+    computation_key: str
+
+class RequestFinishComputationResponse(BaseModel):
+    is_finished: bool

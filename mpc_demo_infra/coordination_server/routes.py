@@ -15,6 +15,8 @@ from .schemas import (
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
     RequestGetPositionRequest, RequestGetPositionResponse,
+    RequestValidateComputationKeyRequest, RequestValidateComputationKeyResponse,
+    RequestFinishComputationRequest, RequestFinishComputationResponse,
 )
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
@@ -31,6 +33,16 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 sharing_data_lock = asyncio.Lock()
 
 user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+
+@router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
+async def validate_computation_key(request: RequestValidateComputationKeyRequest):
+    is_valid = user_queue.validate_computation_key(request.computation_key)
+    return RequestValidateComputationKeyResponse(is_valid=is_valid)
+
+@router.post("/finish_computation", response_model=RequestFinishComputationResponse)
+async def finish_computation(request: RequestFinishComputationRequest):
+    is_finished = user_queue.finish_computation(request.computation_key)
+    return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/get_position", response_model=RequestGetPositionResponse)
 async def get_position(request: RequestGetPositionRequest):

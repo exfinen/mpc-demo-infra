@@ -32,7 +32,6 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
             async with session.post(f"{coordination_server_url}/get_position", json={
                 "voucher_code": voucher_code,
             }) as response:
-                print(f'----> {response}')
                 if response.status == 200:
                     data = await response.json()
                     position = int(data["position"])

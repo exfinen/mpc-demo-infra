@@ -243,7 +243,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     assert voucher_1_after_sharing == voucher_1, "Voucher 1 should not change"
     assert is_used_1_after_sharing, "Voucher 1 should be used"
 
-    # Add user to queue and get position to get the computation key
+    # get the computation key again
     computation_key_2 = await get_position_from_queue(voucher_1, coordination_server_url)
 
     # Query computation concurrently
@@ -263,6 +263,8 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     results_0 = res_queries[0]
     print(f"{results_0=}")
 
+    # get the computation key again
+    computation_key_3 = await get_position_from_queue(voucher_1, coordination_server_url)
 
     # Query data consumer api
     data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"
@@ -270,7 +272,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{data_consumer_api_url}/query-computation",
-                json={"computation_index": computation_index},
+                json={"computation_index": computation_index, "computation_key": computation_key_3},
             ) as resp:
                 return await resp.json()
 

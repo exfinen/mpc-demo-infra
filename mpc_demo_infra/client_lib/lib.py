@@ -156,7 +156,7 @@ async def share_data(
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
     try:
-        result = await asyncio.get_eveny_loop().run_in_executor(
+        result = await asyncio.get_event_loop().run_in_executor(
             None,
             run_data_sharing_client,
             computation_party_hosts,

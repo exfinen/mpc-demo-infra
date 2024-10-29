@@ -24,7 +24,7 @@ class RequestGetPositionRequest(BaseModel):
     voucher_code: str
 
 class RequestGetPositionResponse(BaseModel):
-    position: int
+    position: Optional[int]
     computation_key: Optional[str]
 
 class RequestValidateComputationKeyRequest(BaseModel):

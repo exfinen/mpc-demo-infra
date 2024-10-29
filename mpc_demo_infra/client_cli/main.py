@@ -34,14 +34,17 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
             }) as response:
                 if response.status == 200:
                     data = await response.json()
-                    position = int(data["position"])
-                    if position == 0:
-                       print(f"\rComputation servers are ready")
-                       return data["computation_key"]
+                    if data["position"] is None:
+                        print("The queue is currently full. Please wait for your turn.")
                     else:
-                        ord_suffix = get_ordinal_suffix(position)
-                        print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
-                    await asyncio.sleep(1)
+                        position = int(data["position"])    
+                        if position == 0:
+                            print(f"\rComputation servers are ready")
+                            return data["computation_key"]
+                        else:
+                            ord_suffix = get_ordinal_suffix(position)
+                            print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
+            await asyncio.sleep(settings.poll_duration)
 
 
 async def notarize_and_share_data(voucher_code: str):

@@ -100,3 +100,13 @@ def test_finish_computation_twice():
     assert q.finish_computation(key2) == True
     assert q.finish_computation(key2) == False
 
+def test_full_queue():
+    q = get_queue(max_size=1)
+
+    pos1, key1 = q.get_position('mpc')
+    assert pos1 == 0 and key1 is not None
+
+    pos2, key2 = q.get_position('apple')
+    assert pos2 is None and key2 is None
+
+

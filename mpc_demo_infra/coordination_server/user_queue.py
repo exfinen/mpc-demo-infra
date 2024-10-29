@@ -43,8 +43,12 @@ class UserQueue:
             else:
                 return False
 
-    def get_position(self, voucher_code: str) -> Tuple[int, Optional[str]]:
+    def get_position(self, voucher_code: str) -> Tuple[Optional[int], Optional[str]]:
         with self.lock:
+            # reject if max_size has been reached
+            if len(self.users) == self.max_size:
+                return None, None
+
             # if the user with voucher is not in the queue, add the user
             if not any(user.voucher_code == voucher_code for user in self.users):
                 user = User(voucher_code=voucher_code)

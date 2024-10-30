@@ -3,6 +3,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 import logging
+import secrets
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,10 +14,14 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
+    RequestGetPositionRequest, RequestGetPositionResponse,
+    RequestValidateComputationKeyRequest, RequestValidateComputationKeyResponse,
+    RequestFinishComputationRequest, RequestFinishComputationResponse,
 )
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
+from .user_queue import UserQueue
 
 router = APIRouter()
 
@@ -27,6 +32,22 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
+user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+
+@router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
+async def validate_computation_key(request: RequestValidateComputationKeyRequest):
+    is_valid = user_queue.validate_computation_key(request.computation_key)
+    return RequestValidateComputationKeyResponse(is_valid=is_valid)
+
+@router.post("/finish_computation", response_model=RequestFinishComputationResponse)
+async def finish_computation(request: RequestFinishComputationRequest):
+    is_finished = user_queue.finish_computation(request.computation_key)
+    return RequestFinishComputationResponse(is_finished=is_finished)
+
+@router.post("/get_position", response_model=RequestGetPositionResponse)
+async def get_position(request: RequestGetPositionRequest):
+    position, computation_key = user_queue.get_position(request.voucher_code)
+    return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
@@ -34,7 +55,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
+    computation_key = request.computation_key
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
+
+    # Check if computation key is valid
+    if not user_queue.validate_computation_key(computation_key):
+        logger.error(f"Invalid computation key {computaiton_key}")
+        raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
+    logger.error(f"Computation key {computation_key} is valid")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
@@ -172,6 +200,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
 async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
+    computation_key = request.computation_key
+
+    # Check if computation key is valid
+    if not user_queue.validate_computation_key(computation_key):
+        logger.error(f"Invalid computation key ({computation_key})")
+        raise HTTPException(status_code=400, detail=f"Invlid computation key {computation_key}")
+    logger.debug(f"Computation key ({computation_key}) is valid")
+
     logger.debug(f"Querying computation for client {client_id}")
     if client_id >= MAX_CLIENT_ID:
         logger.error(f"Client ID is out of range: {client_id}")

@@ -100,6 +100,30 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     return client_id, cert_path, key_path
 
 
+async def validate_computation_key(coordination_server_url: str, computation_key: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/validate_computation_key", json={
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to validate computation key {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_valid"]
+
+
+async def mark_queue_computation_to_be_finished(coordination_server_url: str, computation_key: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/finish_computation", json={
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to finish computation with {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_finished"]
+
+
 async def share_data(
     all_certs_path: Path,
     coordination_server_url: str,
@@ -108,7 +132,9 @@ async def share_data(
     tlsn_proof: str,
     value: int,
     nonce: str,
+    computation_key: str,
 ):
+    await validate_computation_key(coordination_server_url, computation_key) 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -118,7 +144,9 @@ async def share_data(
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
+            "computation_key": computation_key,
         }) as response:
+            await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
             if response.status != 200:
                 text = await response.text()
                 raise Exception(f"Failed to share data with voucher {voucher_code}. Response: {response.status} {response.reason}")
@@ -127,18 +155,22 @@ async def share_data(
 
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_data_sharing_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        value,
-        nonce
-    )
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            run_data_sharing_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            value,
+            nonce
+        )
+        return result
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
 
 
 async def query_computation(
@@ -146,7 +178,9 @@ async def query_computation(
     coordination_server_url: str,
     computation_party_hosts: list[str],
     computation_index: int,
+    computation_key: str,
 ):
+    await validate_computation_key(coordination_server_url, computation_key) 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -154,26 +188,29 @@ async def query_computation(
         async with session.post(f"{coordination_server_url}/query_computation", json={
             "client_id": client_id,
             "client_cert_file": cert_file_content,
+            "computation_key": computation_key,
         }) as response:
             assert response.status == 200
             data = await response.json()
             client_port_base = data["client_port_base"]
 
-    results, commitments = await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_computation_query_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        MAX_DATA_PROVIDERS,
-        computation_index
-    )
-    # TODO: Verify commitments with tlsn proofs
-
-    return results
+    try:
+        results, commitments = await asyncio.get_event_loop().run_in_executor(
+            None,
+            run_computation_query_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            MAX_DATA_PROVIDERS,
+            computation_index
+        )
+        # TODO: Verify commitments with tlsn proofs
+        return results
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, computation_key)
 
 
 async def fetch_parties_certs(

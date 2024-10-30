@@ -7,6 +7,7 @@ import asyncio
 from pathlib import Path
 
 from mpc_demo_infra.coordination_server.config import settings
+from mpc_demo_infra.coordination_server.user_queue import UserQueue
 from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation
 
 from .common import (
@@ -174,6 +175,20 @@ async def get_vouchers():
     ]
 
 
+async def get_position_from_queue(voucher: str, coordination_server_url: str) -> str:
+    async def f():
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{coordination_server_url}/get_position",
+                json={"voucher_code": voucher},
+            ) as resp:
+                return await resp.json()
+    resp = await f() 
+    position = resp["position"]
+    computation_key = resp["computation_key"]
+    assert position == 0 and computation_key is not None
+    return computation_key
+
 
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
@@ -193,9 +208,13 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     voucher_1, _ = vouchers[0]
     voucher_2, _ = vouchers[1]
 
+    coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
+
+    # Add user to queue and get position to get the comptation_key
+    computation_key_1 = await get_position_from_queue(voucher_1, coordination_server_url)
+
     await asyncio.sleep(1)
 
-    coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
     await asyncio.gather(
         share_data(
             CERTS_PATH,
@@ -205,6 +224,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             TLSN_PROOF_1,
             value_1,
             nonce_1,
+            computation_key_1,
         ),
         # share_data(
         #     CERTS_PATH,
@@ -223,6 +243,9 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     assert voucher_1_after_sharing == voucher_1, "Voucher 1 should not change"
     assert is_used_1_after_sharing, "Voucher 1 should be used"
 
+    # get the computation key again
+    computation_key_2 = await get_position_from_queue(voucher_1, coordination_server_url)
+
     # Query computation concurrently
     num_queries = 2
     computation_index = 0
@@ -232,11 +255,16 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             coordination_server_url,
             COMPUTATION_HOSTS,
             computation_index,
+            computation_key_2,
         ) for _ in range(num_queries)
     ])
+
     assert len(res_queries) == num_queries
     results_0 = res_queries[0]
     print(f"{results_0=}")
+
+    # get the computation key again
+    computation_key_3 = await get_position_from_queue(voucher_1, coordination_server_url)
 
     # Query data consumer api
     data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"
@@ -244,7 +272,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{data_consumer_api_url}/query-computation",
-                json={"computation_index": computation_index},
+                json={"computation_index": computation_index, "computation_key": computation_key_3},
             ) as resp:
                 return await resp.json()
 

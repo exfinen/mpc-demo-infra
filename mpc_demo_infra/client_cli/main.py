@@ -28,7 +28,7 @@ def get_ordinal_suffix(i: int) -> str:
 async def poll_queue_until_ready(voucher_code: str) -> str:
     while True:
         async with aiohttp.ClientSession() as session:
-            async with session.post(f"{coordination_server_url}/get_position", json={
+            async with session.post(f"{settings.coordination_server_url}/get_position", json={
                 "voucher_code": voucher_code,
             }) as response:
                 if response.status == 200:

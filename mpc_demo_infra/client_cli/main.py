@@ -15,7 +15,7 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(i: int) -> str {
+def get_ordinal_suffix(i: int) -> str:
     ord_suffixes = ["st", "nd", "rd", "th"]
 
     if 10 <= (position % 100) <= 13:
@@ -24,7 +24,6 @@ def get_ordinal_suffix(i: int) -> str {
         ord_index = position % 10
         ord_index = ord_index if ord_index < 4 else 3
     return ord_suffixes[ord_index]
-}
 
 async def poll_queue_until_ready(voucher_code: str) -> str:
     while True:

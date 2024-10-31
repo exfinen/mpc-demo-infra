@@ -28,8 +28,8 @@ QUERY_COMPUTATION_ENDPOINT = "/request_querying_computation_mpc"
 router = APIRouter()
 
 # TLSN
-CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
-TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
+TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
 
 # MP-SPDZ
 MP_SPDZ_PROJECT_ROOT = Path(settings.mpspdz_project_root)
@@ -83,6 +83,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to verify TLSN proof: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+        
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
     print(f"!@# backup_shares_path: {backup_shares_path}")

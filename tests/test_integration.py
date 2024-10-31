@@ -4,20 +4,42 @@ import pytest
 import asyncio
 
 from pathlib import Path
+import json
 
 from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.client_lib.lib import get_parties_certs, share_data, query_computation
 
-from .common import (
-    TLSN_PROOF_1,
-    value_1,
-    data_commitment_hash_1,
-    nonce_1,
-    TLSN_PROOF_2,
-    value_2,
-    data_commitment_hash_2,
-    nonce_2,
-)
+FILE_DIR = Path(__file__).parent
+proof_file_1 = FILE_DIR / f"proof_1.json"
+proof_file_2 = FILE_DIR / f"proof_2.json"
+secret_file_1 = FILE_DIR / f"secret_1.json"
+secret_file_2 = FILE_DIR / f"secret_2.json"
+with open(proof_file_1, "r") as f_1:
+    TLSN_PROOF_1 = f_1.read()
+    tlsn_proof = json.loads(TLSN_PROOF_1)
+    private_openings = tlsn_proof["substrings"]["private_openings"]
+    if len(private_openings) != 1:
+        raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
+    commitment_index, openings = list(private_openings.items())[0]
+    commitment_info, commitment = openings
+    data_commitment_hash_1 = bytes(commitment["hash"]).hex()
+with open(proof_file_2, "r") as f_2:
+    TLSN_PROOF_2 = f_2.read()
+    tlsn_proof = json.loads(TLSN_PROOF_2)
+    private_openings = tlsn_proof["substrings"]["private_openings"]
+    if len(private_openings) != 1:
+        raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
+    commitment_index, openings = list(private_openings.items())[0]
+    commitment_info, commitment = openings
+    data_commitment_hash_2 = bytes(commitment["hash"]).hex()
+with open(secret_file_1, "r") as f_secret_1:
+    secret_data_1 = json.load(f_secret_1)
+    value_1 = float(secret_data_1["eth_free"])
+    nonce_1 = bytes(secret_data_1["nonce"]).hex()
+with open(secret_file_2, "r") as f_secret_2:
+    secret_data_2 = json.load(f_secret_2)
+    value_2 = float(secret_data_2["eth_free"])
+    nonce_2 = bytes(secret_data_2["nonce"]).hex()
 
 
 PROTOCOL = "http"
@@ -178,20 +200,20 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             value_1,
             nonce_1,
         ),
-        # share_data(
-        #     CERTS_PATH,
-        #     coordination_server_url,
-        #     COMPUTATION_HOSTS,
-        #     voucher_2,
-        #     TLSN_PROOF_2,
-        #     value_2,
-        #     nonce_2,
-        # ),
+        share_data(
+            CERTS_PATH,
+            coordination_server_url,
+            COMPUTATION_HOSTS,
+            voucher_2,
+            TLSN_PROOF_2,
+            value_2,
+            nonce_2,
+        ),
     )
 
     # Query computation concurrently
     num_queries = 2
-    computation_index = 0
+    computation_index = 1
     res_queries = await asyncio.gather(*[
         query_computation(
             CERTS_PATH,
@@ -201,8 +223,12 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         ) for _ in range(num_queries)
     ])
     assert len(res_queries) == num_queries
-    results_0 = res_queries[0]
+    results_0, commitments = res_queries[0]
+    # Verify commitments with tlsn proofs
+    assert data_commitment_hash_1 == commitments[1]
+    assert data_commitment_hash_2 == commitments[2]
     print(f"{results_0=}")
+    print(f"{commitments=}")
 
 
     # async def wait_until_request_fulfilled():

@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 from pathlib import Path
+import json
 
 from ..client_lib.lib import get_parties_certs, get_party_cert_path, share_data, query_computation
 from .config import settings
@@ -8,13 +9,12 @@ from .config import settings
 # project_root/certs
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CERTS_PATH = Path(settings.certs_path)
-TLSN_EXECUTABLE_DIR = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
+TLSN_EXECUTABLE_DIR = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
 
-CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
-CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
+CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 DATA_TYPE = 0
-
 
 async def notarize_and_share_data(voucher_code: str):
     num_parties = len(settings.party_hosts)
@@ -32,35 +32,22 @@ async def notarize_and_share_data(voucher_code: str):
 
     # Gen tlsn proofs
     proof_file = PROJECT_ROOT / f"proof.json"
+    secret_file = PROJECT_ROOT/ f"secret.json"
     process = await asyncio.create_subprocess_shell(
-        f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {DATA_TYPE} {str(proof_file.resolve())}",
+        f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {str(proof_file.resolve())} {str(secret_file.resolve())}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
         raise Exception(f"TLSN proof generation failed with return code {process.returncode}, {stdout=}, {stderr=}")
-    secret_input_line = next((line for line in stdout.decode().splitlines() if line.startswith(f"Party {DATA_TYPE} has ")), None)
-    if not secret_input_line:
-        raise ValueError(f"Could not find line for secret input")
-    secret_input = int(secret_input_line.split()[3])
     with open(proof_file, "r") as f:
         tlsn_proof = f.read()
+    with open(secret_file, "r") as f_secret:
+        secret_data = json.load(f_secret)
+        secret_input = float(secret_data["eth_free"])
+        nonce = bytes(secret_data["nonce"]).hex()
 
-    # FIXME: `nonce` shouldn't be included in the proof
-    # Should be changed when we're using newer version of tlsn
-    def get_nonce_from_tlsn_proof(tlsn_proof: str):
-        import json
-        tlsn_proof = json.loads(tlsn_proof)
-        private_openings = tlsn_proof["substrings"]["private_openings"]
-        if len(private_openings) != 1:
-            raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
-        commitment_index, openings = list(private_openings.items())[0]
-        commitment_info, commitment = openings
-        data_commitment_hash = bytes(commitment["hash"]).hex()
-        data_commitment_nonce = bytes(commitment["nonce"]).hex()
-        return data_commitment_hash, data_commitment_nonce
-    _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
     # Share data
     await share_data(
         CERTS_PATH,

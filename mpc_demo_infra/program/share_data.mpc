@@ -36,14 +36,18 @@ def client_input(t: Type[sint], client_socket_id: regint):
 def calculate_data_commitment(num_bytes_followers: int, followers: sint, delta: sbitvec, encoding: list[sbitvec], nonce: sbitvec):
     # Adjust based on data_type
     ASCII_BASE = 48
+    DOT_ASCII = 46
     followers_bits_list = []
     number = followers
-    for i in range(num_bytes_followers):
-        divisor = sint(10**(num_bytes_followers-1-i))
+    divisors = [sint(10 ** (num_bytes_followers - 1 - i)) for i in range(num_bytes_followers)]
+    for divisor in divisors:
         curr_digit = number.int_div(divisor, 4*num_bytes_followers)
-        followers_bits_list += [sbit(ele) for ele in sbitvec(curr_digit+ASCII_BASE, 8).v]
+        followers_bits_list.extend(sbit(ele) for ele in sbitvec(curr_digit+ASCII_BASE, 8).v)
         number = number.int_mod(divisor, 4*num_bytes_followers)
-
+    dot_sbit_vec = sbitvec(sint(46),8).v
+    insert_index = (num_bytes_followers - 2) * 8
+    for ele in [sbit(ele) for ele in dot_sbit_vec][::-1]:
+        followers_bits_list.insert(insert_index, ele)
     active_encoding:list[sbitvec] = []
     for i in range(len(encoding)):
         filtered_delta = []
@@ -52,7 +56,7 @@ def calculate_data_commitment(num_bytes_followers: int, followers: sint, delta: 
         filtered_delta = sbitvec.from_vec(filtered_delta)
         active_encoding.append(encoding[i].bit_xor(filtered_delta))
 
-    concat = nonce.bit_decompose() + sbitvec(sint(num_bytes_followers), 8).bit_decompose()
+    concat = nonce.bit_decompose() + sbitvec(sint(num_bytes_followers+1), 8).bit_decompose()
     for i in range(len(encoding)):
         if i%8 ==0:
             concat = concat + sbitvec(sint(1), 8).bit_decompose()
@@ -87,10 +91,7 @@ def main():
     input_zero_encodings = [sbitvec.from_hex(e) for e in ZERO_ENCODINGS]
 
     # nonce must be secret_shared
-    # Hardcode 1 as byte of this input
-    input_commitment = calculate_data_commitment(INPUT_BYTES, input_value, input_delta, input_zero_encodings, input_nonce)
-    # input_commitment = sbitvec.from_hex("a7fb749820e5a4439a7eff67c76598f1db507a3d1513370a0c0efe7cbaa47beb")
-    # input_commitment.reveal_print_hex()
+    input_commitment = calculate_data_commitment(INPUT_BYTES-1, input_value, input_delta, input_zero_encodings, input_nonce)
     input_commitment.reveal_print_hex()
 
     # commitment of input i is stored in commitment_values[i-1]
@@ -99,7 +100,7 @@ def main():
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
     sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX-1]])
     print_ln('Now closing this connection')
-    print_ln('num data providers: %s', client_values[0].reveal())
+    print_ln('Num data providers: %s', client_values[0].reveal())
 
     closeclientconnection(client_socket_id)
 

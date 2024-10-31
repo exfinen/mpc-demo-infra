@@ -8,7 +8,7 @@ from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
 
 EMPTY_COMMITMENT = '0'
-
+BINANCE_DECIMAL_SCALE = 100.0
 def hex_to_int(hex):
     return int(hex, 16)
 
@@ -73,6 +73,7 @@ def run_computation_query_client(
     output_list = client.receive_outputs(1 + max_data_providers)
     # TODO: Need to change the following line if computation returns more than one value.
     results = output_list[0:1]
+    results = [results[0]/BINANCE_DECIMAL_SCALE]
     print('Computation index',computation_index, "is", results)
 
     # return {index -> commitment}
@@ -106,7 +107,7 @@ async def share_data(
     computation_party_hosts: list[str],
     voucher_code: str,
     tlsn_proof: str,
-    value: int,
+    value: float,
     nonce: str,
 ):
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
@@ -134,7 +135,7 @@ async def share_data(
         client_id,
         str(cert_path),
         str(key_path),
-        value,
+        int(value*BINANCE_DECIMAL_SCALE),
         nonce
     )
 
@@ -169,9 +170,8 @@ async def query_computation(
         MAX_DATA_PROVIDERS,
         computation_index
     )
-    # TODO: Verify commitments with tlsn proofs
 
-    return results
+    return results, commitments
 
 
 def get_party_cert_path(certs_path: Path, party_id: int) -> Path:
@@ -188,7 +188,7 @@ async def get_parties_certs(
         async with session.get(f"{party_web_protocol}://{host}:{port}/get_party_cert") as response:
             assert response.status == 200
             data = await response.json()
-            assert data["party_id"] == party_id
+            assert data["party_id"] == party_id, f'{data["party_id"]=}, {party_id=}'
             return data["cert_file"]
     # Get party certs concurrently
     async with aiohttp.ClientSession() as session:

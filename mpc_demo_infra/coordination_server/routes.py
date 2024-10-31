@@ -20,8 +20,8 @@ from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 
 router = APIRouter()
 
-CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
-TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
+TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
 
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.

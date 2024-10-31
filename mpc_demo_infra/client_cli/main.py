@@ -43,6 +43,8 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
                         else:
                             ord_suffix = get_ordinal_suffix(position)
                             print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
+                else:
+                    print("\r--")
             await asyncio.sleep(settings.poll_duration)
 
 

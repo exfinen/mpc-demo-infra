@@ -15,7 +15,7 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(i: int) -> str {
+def get_ordinal_suffix(i: int) -> str:
     ord_suffixes = ["st", "nd", "rd", "th"]
 
     if 10 <= (position % 100) <= 13:
@@ -24,12 +24,11 @@ def get_ordinal_suffix(i: int) -> str {
         ord_index = position % 10
         ord_index = ord_index if ord_index < 4 else 3
     return ord_suffixes[ord_index]
-}
 
 async def poll_queue_until_ready(voucher_code: str) -> str:
     while True:
         async with aiohttp.ClientSession() as session:
-            async with session.post(f"{coordination_server_url}/get_position", json={
+            async with session.post(f"{settings.coordination_server_url}/get_position", json={
                 "voucher_code": voucher_code,
             }) as response:
                 if response.status == 200:
@@ -44,6 +43,8 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
                         else:
                             ord_suffix = get_ordinal_suffix(position)
                             print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
+                else:
+                    print("\r--")
             await asyncio.sleep(settings.poll_duration)
 
 

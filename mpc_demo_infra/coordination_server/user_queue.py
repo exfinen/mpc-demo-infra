@@ -6,7 +6,7 @@ import time
 
 @dataclass
 class User:
-    voucher_code: str
+    access_key: str
     computation_key: Optional[str] = None
     _time_at_queue_head: Optional[int] = None
 
@@ -43,15 +43,15 @@ class UserQueue:
             else:
                 return False
 
-    def get_position(self, voucher_code: str) -> Tuple[Optional[int], Optional[str]]:
+    def get_position(self, access_key: str) -> Tuple[Optional[int], Optional[str]]:
         with self.lock:
             # reject if max_size has been reached
             if len(self.users) == self.max_size:
                 return None, None
 
-            # if the user with voucher is not in the queue, add the user
-            if not any(user.voucher_code == voucher_code for user in self.users):
-                user = User(voucher_code=voucher_code)
+            # if the user with access_key is not in the queue, add the user
+            if not any(user.access_key == access_key for user in self.users):
+                user = User(access_key=access_key)
                 self.users.append(user)
 
             # if user at queue head times out, move the user to the end
@@ -67,6 +67,6 @@ class UserQueue:
 
             # return the position and computation_key of the user with the voucher
             for i, user in enumerate(self.users):
-                if user.voucher_code == voucher_code:
+                if user.access_key == access_key:
                     return i, user.computation_key
 

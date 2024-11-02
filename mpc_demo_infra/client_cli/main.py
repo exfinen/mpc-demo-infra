@@ -1,6 +1,8 @@
 import argparse
 import asyncio
 from pathlib import Path
+import aiohttp
+import secrets
 
 from ..client_lib.lib import fetch_parties_certs, share_data, query_computation
 from .config import settings
@@ -116,7 +118,8 @@ async def query_computation_and_verify(
         settings.party_ports
     )
 
-    computation_key = await poll_queue_until_ready(voucher_code)
+    access_key = secrets.token_urlsafe(16)
+    computation_key = await poll_queue_until_ready(access_key)
 
     print("Party certificates have been fetched and saved.")
     results = await query_computation(

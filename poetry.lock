@@ -1063,6 +1063,20 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "readerwriterlock"
+version = "1.0.9"
+description = "A python implementation of the three Reader-Writer problems."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "readerwriterlock-1.0.9-py3-none-any.whl", hash = "sha256:8c4b704e60d15991462081a27ef46762fea49b478aa4426644f2146754759ca7"},
+    {file = "readerwriterlock-1.0.9.tar.gz", hash = "sha256:b7c4cc003435d7a8ff15b312b0a62a88d9800ba6164af88991f87f8b748f9bea"},
+]
+
+[package.dependencies]
+typing-extensions = "*"
+
+[[package]]
 name = "requests"
 version = "2.32.3"
 description = "Python HTTP for Humans."
@@ -1476,4 +1490,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "5dd39a35913c87e05898d15ee78d2f3a7a6908f37d9ee612058b0e2b3bfdf611"
+content-hash = "7fc5f471061e3a298528a2a06561b93bfa745a02964ae6cc33e48ca001788dd5"

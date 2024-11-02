@@ -3,7 +3,6 @@ import csv
 import logging
 import secrets
 import sys
-import fastapi
 
 from fastapi import FastAPI
 from slowapi.middleware import SlowAPIMiddleware

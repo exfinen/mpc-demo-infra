@@ -68,5 +68,5 @@ class UserQueue:
             # return the position and computation_key of the user with the voucher
             for i, user in enumerate(self.users):
                 if user.access_key == access_key:
-                    Return i, user.computation_key
+                    return i, user.computation_key
 

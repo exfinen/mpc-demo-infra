@@ -88,7 +88,7 @@ def gen_vouchers():
         for voucher_code in vouchers:
             while True:
                 new_voucher = Voucher(code=voucher_code)
-                if not str(new_voucher).startswith('-'):
+                if not new_voucher.code.startswith('-'):
                     db.add(new_voucher)
                     break
         db.commit()  # Add this line to commit the changes

@@ -142,6 +142,5 @@ def notarize_and_share_data_cli():
 def query_computation_and_verify_cli():
     parser = argparse.ArgumentParser(description="Query computation and verify results")
     parser.add_argument("computation_index", type=int, help="The computation index")
-    parser.add_argument("voucher_code", type=str, help="The voucher code")
     args = parser.parse_args()
     asyncio.run(query_computation_and_verify(args.computation_index))

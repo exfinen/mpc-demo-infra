@@ -72,7 +72,7 @@ def test_queue_head_timeout():
 
     time.sleep(2)
 
-    # user1 should have been moved from the front to the end of the queue
+    # user1 should have been removed from the the queue
     pos1, key1 = q.get_position('mpc')
     assert pos1 == 2 and key1 is None
     assert q.validate_computation_key(key1) == False

@@ -17,6 +17,7 @@ from .schemas import (
     RequestGetPositionRequest, RequestGetPositionResponse,
     RequestValidateComputationKeyRequest, RequestValidateComputationKeyResponse,
     RequestFinishComputationRequest, RequestFinishComputationResponse,
+    RequestAddUserToQueueRequest, RequestAddUserToQueueResponse,
 )
 from .database import Voucher, get_db, SessionLocal
 from .config import settings

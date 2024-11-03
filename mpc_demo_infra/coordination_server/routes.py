@@ -6,7 +6,7 @@ import logging
 import secrets
 
 import aiohttp
-from fastapi import FastAPI, APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,12 @@ from .schemas import (
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
-from .user_queue import UserQueue, AddResult
+from .user_queue import AddResult
 
-router = FastAPI()
+router = APIRouter()
 
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "simple"
-
-router.state.user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.

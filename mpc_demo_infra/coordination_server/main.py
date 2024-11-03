@@ -13,6 +13,7 @@ from .routes import router
 from .database import engine, Base, SessionLocal, Voucher
 from .config import settings
 from .limiter import limiter
+from .user_queue import UserQueue
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +41,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 # Include API routes
 app.include_router(router)
+
+app.state.user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
 # Event handlers
 @app.on_event("startup")

@@ -49,7 +49,7 @@ async def add_user_to_queue(request: RequestAddUserToQueueRequest):
 async def get_position(request: RequestGetPositionRequest):
     position = user_queue.get_position(request.access_key)
     computation_key = user_queue.get_computation_key(request.access_key)
-    print(f"position = {position}, computation key = {computationKey} {request.access_key}")
+    print(f"position = {position}, computation key = {computation_key} {request.access_key}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)

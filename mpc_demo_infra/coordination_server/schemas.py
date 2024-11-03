@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from .user_queue import AddResult
 
 
 class RequestSharingDataRequest(BaseModel):
@@ -24,7 +25,7 @@ class RequestAddUserToQueueRequest(BaseModel):
     access_key: str
 
 class RequestAddUserToQueueResponse(BaseModel):
-    result: int
+    result: AddResult
 
 class RequestGetPositionRequest(BaseModel):
     access_key: str

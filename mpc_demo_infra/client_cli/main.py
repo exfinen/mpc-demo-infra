@@ -53,15 +53,15 @@ async def poll_queue_until_ready(access_key: str) -> str:
                     data = await response.json()
                     position = data["position"] 
                     if position is None:
-                        print("\n{access_key}: The queue is currently full. Please wait for your turn.")
+                        print("{access_key}: The queue is currently full. Please wait for your turn.")
                     else:
-                        print(f'position is {position}')
+                        print(f'{access_key}: position is {position}')
                         if position == 0:
-                            print(f"\r{access_key}: Computation servers are ready")
+                            print(f"{access_key}: Computation servers are ready")
                             return data["computation_key"]
                         else:
                             ord_suffix = get_ordinal_suffix(position)
-                            print(f"\r{access_key}: You are currently {position + 1}{ord_suffix} in line. Estimated wait time: X seconds.")
+                            print(f"{access_key}: You are currently {position + 1}{ord_suffix} in line. Estimated wait time: X seconds.")
                 else:
                     print("\r--")
         await asyncio.sleep(settings.poll_duration)

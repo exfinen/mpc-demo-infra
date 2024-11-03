@@ -6,7 +6,7 @@ import logging
 import secrets
 
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -34,8 +34,8 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 sharing_data_lock = asyncio.Lock()
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
-async def add_user_to_queue(request: RequestAddUserToQueueRequest):
-    result = request.user_queue.add_user(request.access_key)
+async def add_user_to_queue(request: RequestAddUserToQueueRequest, state: Request):
+    result = state.user_queue.add_user(request.access_key)
     request.user_queue._print_queue()
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.debug(f"{request.access_key} not added. Already in the queue")

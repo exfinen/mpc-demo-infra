@@ -115,5 +115,11 @@ def list_vouchers():
             writer.writerow([voucher.id, voucher.code, voucher.is_used])
 
 
+def list_valid_vouchers():
+    with SessionLocal() as db:
+        vouchers = db.query(Voucher).filter(Voucher.is_used == True).all()
+        codes = [voucher.code for voucher in vouchers]
+        print(" ".join(codes))
+
 def gen_party_api_key():
     print(secrets.token_hex(16))

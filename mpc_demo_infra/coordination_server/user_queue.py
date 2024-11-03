@@ -34,7 +34,7 @@ class UserQueue:
             while user is not None:
                 users.append(user.access_key)
                 user = user.next
-            return ' ,'.join(users)
+            return ', '.join(users)
     
     def _add_user(self, user: User) -> None:
         if self.users_head == None:

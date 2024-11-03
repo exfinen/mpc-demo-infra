@@ -33,11 +33,18 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
-user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+class State:
+    def __init__(self):
+        self.user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+
+state = State()
+
+def get_state():
+    return state
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
-async def add_user_to_queue(request: RequestAddUserToQueueRequest):
-    result = user_queue.add_user(request.access_key)
+async def add_user_to_queue(request: RequestAddUserToQueueRequest, state: State = Depends(get_state)):
+    result = state.user_queue.add_user(request.access_key)
     user_queue._print_queue()
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.debug(f"{request.access_key} not added. Already in the queue")
@@ -50,25 +57,25 @@ async def add_user_to_queue(request: RequestAddUserToQueueRequest):
         return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
 
 @router.post("/get_position", response_model=RequestGetPositionResponse)
-async def get_position(request: RequestGetPositionRequest):
-    user_queue._print_queue()
-    position = user_queue.get_position(request.access_key)
-    computation_key = user_queue.get_computation_key(request.access_key)
+async def get_position(request: RequestGetPositionRequest, state: State = Depends(get_state)):
+    state.user_queue._print_queue()
+    position = state.user_queue.get_position(request.access_key)
+    computation_key = state.user_queue.get_computation_key(request.access_key)
     logger.debug(f"position={position}, computation_key={computation_key}, access_key={request.access_key}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
-async def validate_computation_key(request: RequestValidateComputationKeyRequest):
-    is_valid = user_queue.validate_computation_key(request.access_key, request.computation_key)
+async def validate_computation_key(request: RequestValidateComputationKeyRequest, state: State = Depends(get_state)):
+    is_valid = state.user_queue.validate_computation_key(request.access_key, request.computation_key)
     return RequestValidateComputationKeyResponse(is_valid=is_valid)
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
-async def finish_computation(request: RequestFinishComputationRequest):
-    is_finished = user_queue.finish_computation(request.access_key, request.computation_key)
+async def finish_computation(request: RequestFinishComputationRequest, state: State = Depends(get_state)):
+    is_finished = state.user_queue.finish_computation(request.access_key, request.computation_key)
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
-async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
+async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db), state: State = Depends(get_state)):
     voucher_code = request.voucher_code
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
@@ -77,7 +84,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
 
     # Check if computation key is valid
-    if not user_queue.validate_computation_key(voucher_code, computation_key):
+    if not state.user_queue.validate_computation_key(voucher_code, computation_key):
         logger.error(f"Invalid computation key {computaiton_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
     logger.error(f"Computation key {computation_key} is valid")
@@ -215,14 +222,14 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         raise HTTPException(status_code=400, detail="Failed to share data")
 
 @router.post("/query_computation", response_model=RequestQueryComputationResponse)
-async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
+async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db), state: State = Depends(get_state)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
     computation_key = request.computation_key
     access_key = request.access_key
 
     # Check if computation key is valid
-    if not user_queue.validate_computation_key(access_key, computation_key):
+    if not state.user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key ({computation_key})")
         raise HTTPException(status_code=400, detail=f"Invlid computation key {computation_key}")
     logger.debug(f"Computation key ({computation_key}) is valid")

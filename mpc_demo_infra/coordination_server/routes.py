@@ -36,7 +36,7 @@ sharing_data_lock = asyncio.Lock()
 user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
-async def get_position(request: RequestAddUserToQueueRequest):
+async def add_user_to_queue(request: RequestAddUserToQueueRequest):
     result = user_queue.add_user(request.access_key)
     if result == AddResult.ALREADY_IN_QUEUE:
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)

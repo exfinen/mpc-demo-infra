@@ -17,7 +17,7 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(i: int) -> str:
+def get_ordinal_suffix(position: int) -> str:
     ord_suffixes = ["st", "nd", "rd", "th"]
 
     if 10 <= (position % 100) <= 13:
@@ -51,16 +51,17 @@ async def poll_queue_until_ready(access_key: str) -> str:
             }) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if data["position"] is None:
+                    position = data["position"] 
+                    if position is None:
                         print("\nThe queue is currently full. Please wait for your turn.")
                     else:
-                        position = int(data["position"])    
+                        print(f'position is {position}')
                         if position == 0:
                             print(f"\rComputation servers are ready")
                             return data["computation_key"]
                         else:
                             ord_suffix = get_ordinal_suffix(position)
-                            print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
+                            print(f"\rYou are currently {position + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
                 else:
                     print("\r--")
         await asyncio.sleep(settings.poll_duration)

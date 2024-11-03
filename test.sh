@@ -1,6 +1,6 @@
 #/bin/bash
 
-for k in _Cu1YqC4f7HynDdJ6nHFEA _Cxq4gfbSs9s8s05QBBX_A o-PipYAC349zapLlzBWG7g UYvULAaqGMj7II-Tc6LgQg RBQ-vY0TlIcSwRQ7NEp7mw yb2Fyih9oeQhhrZZ9VO1_Q CKGf569D4iWKAM_xVzc22A sae5tPzWMvJdKs9R0bbeMg wOd0CR7IJXR32lvMHCeoJA; do
+for k in xSv2ea7pS6agQuO7RwPu3Q UlfhDcJ4EYld9Js1eqH06w UhBc4wmUe7RDk7m9VdgZiA 8cRtGAyqSEu5xPUVPNLuUg J026dXLPUhmM-QN20aFetg oAtOsw6i46X8cV08TZVM9A 40DssDXcYNp_pZujOLRVFA t8g0XteDCiTtRKRDVG0x_Q 2cv1fGSJ01hYZrjK_0JZjw tU7sFq1j5zbqXltd1h_TZA; do 
   poetry run client-share-data $k &
 done
 

@@ -35,9 +35,9 @@ sharing_data_lock = asyncio.Lock()
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
-    logger.debug(f"add_user_to_queue (before): {request.access_key} {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"add_user_to_queue (bef): {request.access_key} {x.state.user_queue._queue_to_str()}")
     result = x.state.user_queue.add_user(request.access_key)
-    logger.debug(f"add_user_to_queue (after): {request.access_key} {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"add_user_to_queue (aft): {request.access_key} {x.state.user_queue._queue_to_str()}")
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.debug(f"{request.access_key} not added. Already in the queue")
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
@@ -63,9 +63,9 @@ async def validate_computation_key(request: RequestValidateComputationKeyRequest
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
-    logger.debug(f"finish_computation (before): {request.access_key} {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"finish_computation (bef): {request.access_key} {x.state.user_queue._queue_to_str()}")
     is_finished = x.state.user_queue.finish_computation(request.access_key, request.computation_key)
-    logger.debug(f"finish_computation (after): {request.access_key} {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"finish_computation (aft): {request.access_key} {x.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)

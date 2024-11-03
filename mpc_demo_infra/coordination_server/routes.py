@@ -222,7 +222,7 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
     access_key = request.access_key
 
     # Check if computation key is valid
-    if not request.w user_queue.validate_computation_key(access_key, computation_key):
+    if not request.user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key ({computation_key})")
         raise HTTPException(status_code=400, detail=f"Invlid computation key {computation_key}")
     logger.debug(f"Computation key ({computation_key}) is valid")

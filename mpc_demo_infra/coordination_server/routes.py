@@ -34,9 +34,9 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "s
 sharing_data_lock = asyncio.Lock()
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
-async def add_user_to_queue(request: RequestAddUserToQueueRequest, state: Request):
-    result = state.user_queue.add_user(request.access_key)
-    state.user_queue._print_queue()
+async def add_user_to_queue(request: RequestAddUserToQueueRequest, r: Request):
+    result = r.state.user_queue.add_user(request.access_key)
+    r.state.user_queue._print_queue()
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.debug(f"{request.access_key} not added. Already in the queue")
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)

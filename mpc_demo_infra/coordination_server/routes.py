@@ -40,7 +40,7 @@ async def add_user_to_queue(request: RequestAddUserToQueueRequest):
     result = user_queue.add_user(request.access_key)
     if result == AddResult.ALREADY_IN_QUEUE:
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
-    elif result == AddResult().QUEUE_IS_FULL: 
+    elif result == AddResult.QUEUE_IS_FULL: 
         return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
     else:
         return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)

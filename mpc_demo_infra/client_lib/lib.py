@@ -153,8 +153,8 @@ async def share_data(
             await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
 
             if response.status != 200:
-                text = await response.text()
-                raise Exception(f"Failed to share data with voucher {voucher_code}. Response: {response.status} {response.reason}")
+                json = await response.json()
+                raise Exception(f"Error: {json['detail']}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 
@@ -187,7 +187,7 @@ async def query_computation(
     computation_key: str,
 ):
     if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
-        raise Exception(f"Computation key is invalid")
+        raise Exception(f"Error: Computation key is invalid")
 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:

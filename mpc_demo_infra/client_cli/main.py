@@ -155,11 +155,17 @@ def notarize_and_share_data_cli():
     parser = argparse.ArgumentParser(description="Notarize and share data")
     parser.add_argument("voucher_code", type=str, help="The voucher code")
     args = parser.parse_args()
-    asyncio.run(notarize_and_share_data(args.voucher_code))
+    try:
+        asyncio.run(notarize_and_share_data(args.voucher_code))
+    except Exception as e:
+        print(e)
 
 
 def query_computation_and_verify_cli():
     parser = argparse.ArgumentParser(description="Query computation and verify results")
     parser.add_argument("computation_index", type=int, help="The computation index")
     args = parser.parse_args()
-    asyncio.run(query_computation_and_verify(args.computation_index))
+    try:
+        asyncio.run(query_computation_and_verify(args.computation_index))
+    except Exception as e:
+        print(e)

@@ -39,17 +39,20 @@ user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeou
 async def add_user_to_queue(request: RequestAddUserToQueueRequest):
     result = user_queue.add_user(request.access_key)
     if result == AddResult.ALREADY_IN_QUEUE:
+        logger.debug(f"{request.access_key} not added. Already in the queue")
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
     elif result == AddResult.QUEUE_IS_FULL: 
+        logger.debug(f"{request.access_key} not added. The queue is full")
         return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
     else:
+        logger.debug(f"Added {request.access_key}")
         return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
 
 @router.post("/get_position", response_model=RequestGetPositionResponse)
 async def get_position(request: RequestGetPositionRequest):
     position = user_queue.get_position(request.access_key)
     computation_key = user_queue.get_computation_key(request.access_key)
-    print(f"position = {position}, computation key = {computation_key} {request.access_key}")
+    logger.debug(f"position = {position}, computation key = {computation_key}, access_key = {request.access_key}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)

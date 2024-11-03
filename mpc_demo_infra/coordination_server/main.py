@@ -117,7 +117,7 @@ def list_vouchers():
 
 def list_valid_vouchers():
     with SessionLocal() as db:
-        vouchers = db.query(Voucher).filter(Voucher.is_used == True).all()
+        vouchers = db.query(Voucher).filter(Voucher.is_used == False).all()
         codes = [voucher.code for voucher in vouchers]
         print(" ".join(codes))
 

@@ -27,16 +27,32 @@ def get_ordinal_suffix(i: int) -> str:
         ord_index = ord_index if ord_index < 4 else 3
     return ord_suffixes[ord_index]
 
-async def poll_queue_until_ready(voucher_code: str) -> str:
+
+async def add_user_to_queue(access_key: str) -> None:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["result"] == 'QUEUE_IS_FULL':
+                        print("\nThe queue is currently full. Please wait for your turn.")
+                    else:
+                        return
+        await asyncio.sleep(settings.poll_duration)
+
+
+async def poll_queue_until_ready(access_key: str) -> str:
     while True:
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{settings.coordination_server_url}/get_position", json={
-                "voucher_code": voucher_code,
+                "access_key": access_key,
             }) as response:
                 if response.status == 200:
                     data = await response.json()
                     if data["position"] is None:
-                        print("The queue is currently full. Please wait for your turn.")
+                        print("\nThe queue is currently full. Please wait for your turn.")
                     else:
                         position = int(data["position"])    
                         if position == 0:
@@ -47,7 +63,7 @@ async def poll_queue_until_ready(voucher_code: str) -> str:
                             print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
                 else:
                     print("\r--")
-            await asyncio.sleep(settings.poll_duration)
+        await asyncio.sleep(settings.poll_duration)
 
 
 async def notarize_and_share_data(voucher_code: str):
@@ -92,6 +108,7 @@ async def notarize_and_share_data(voucher_code: str):
         return data_commitment_hash, data_commitment_nonce
     _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
 
+    await add_user_to_queue(voucher_code)
     computation_key = await poll_queue_until_ready(voucher_code)
 
     # Share data
@@ -119,6 +136,7 @@ async def query_computation_and_verify(
     )
 
     access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(access_key)
     computation_key = await poll_queue_until_ready(access_key)
 
     print("Party certificates have been fetched and saved.")
@@ -126,6 +144,7 @@ async def query_computation_and_verify(
         CERTS_PATH,
         settings.coordination_server_url,
         settings.party_hosts,
+        access_key,
         computation_index,
         computation_key,
     )

@@ -21,7 +21,7 @@ from .schemas import (
 from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
-from .user_queue import UserQueue
+from .user_queue import UserQueue, AddResult
 
 router = APIRouter()
 
@@ -34,20 +34,31 @@ sharing_data_lock = asyncio.Lock()
 
 user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
+@router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
+async def get_position(request: RequestAddUserToQueueRequest):
+    result = user_queue.add_user(request.access_key)
+    if result == AddResult.ALREADY_IN_QUEUE:
+        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
+    elif result == AddResult().QUEUE_IS_FULL: 
+        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
+    else:
+        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
+
+@router.post("/get_position", response_model=RequestGetPositionResponse)
+async def get_position(request: RequestGetPositionRequest):
+    position = user_queue.get_position(request.access_key)
+    computation_key = user_queue.get_computation_key(request.access_key)
+    return RequestGetPositionResponse(position=position, computation_key=computation_key)
+
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
 async def validate_computation_key(request: RequestValidateComputationKeyRequest):
-    is_valid = user_queue.validate_computation_key(request.computation_key)
+    is_valid = user_queue.validate_computation_key(request.access_key, request.computation_key)
     return RequestValidateComputationKeyResponse(is_valid=is_valid)
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest):
-    is_finished = user_queue.finish_computation(request.computation_key)
+    is_finished = user_queue.finish_computation(request.access_key, request.computation_key)
     return RequestFinishComputationResponse(is_finished=is_finished)
-
-@router.post("/get_position", response_model=RequestGetPositionResponse)
-async def get_position(request: RequestGetPositionRequest):
-    position, computation_key = user_queue.get_position(request.voucher_code)
-    return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):

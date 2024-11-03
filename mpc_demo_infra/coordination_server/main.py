@@ -14,6 +14,7 @@ from .database import engine, Base, SessionLocal, Voucher
 from .config import settings
 from .limiter import limiter
 from .user_queue import UserQueue
+from contextlib import asynccontextmanager
 
 # Configure logging
 logging.basicConfig(
@@ -26,10 +27,17 @@ logging.basicConfig(
 
 logger = logging.getLogger("coordination_server")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+    yield {'user_queue': user_queue}
+    print("shutting down")
+
 app = FastAPI(
     title="Coordination Server",
     description="API for MPC Coordination",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Create database tables
@@ -41,8 +49,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 # Include API routes
 app.include_router(router)
-
-app.state.user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
 
 # Event handlers
 @app.on_event("startup")

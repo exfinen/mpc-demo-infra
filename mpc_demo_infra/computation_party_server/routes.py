@@ -70,8 +70,8 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
-    if secret_index >= MAX_DATA_PROVIDERS:
-        raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
+    # if secret_index >= MAX_DATA_PROVIDERS:
+    #     raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.

@@ -27,13 +27,13 @@ class UserQueue:
         self.user_positions = {}
         self.locker = rwlock.RWLockWrite()
 
-    def _print_queue(self) -> None:
+    def _queue_to_str(self) -> str:
         users = []
         user = self.users_head
         while user is not None:
             users.append(user.access_key)
             user = user.next
-        print(users)
+        return ', '.join(users)
     
     def _add_user(self, user: User) -> None:
         if self.users_head == None:

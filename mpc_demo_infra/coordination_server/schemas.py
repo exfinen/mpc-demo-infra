@@ -17,6 +17,7 @@ class RequestQueryComputationRequest(BaseModel):
     client_id: int
     client_cert_file: str
     computation_key: str
+    access_key: str
 
 class RequestQueryComputationResponse(BaseModel):
     client_port_base: int

@@ -197,6 +197,7 @@ async def query_computation(
             "client_id": client_id,
             "client_cert_file": cert_file_content,
             "computation_key": computation_key,
+            "access_key": access_key,
         }) as response:
             assert response.status == 200
             data = await response.json()

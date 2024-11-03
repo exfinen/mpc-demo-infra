@@ -71,7 +71,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
 
     # Check if computation key is valid
-    if not user_queue.validate_computation_key(computation_key):
+    if not user_queue.validate_computation_key(voucher_code, computation_key):
         logger.error(f"Invalid computation key {computaiton_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
     logger.error(f"Computation key {computation_key} is valid")
@@ -213,9 +213,10 @@ async def query_computation(request: RequestQueryComputationRequest, db: Session
     client_id = request.client_id
     client_cert_file = request.client_cert_file
     computation_key = request.computation_key
+    access_key = request.access_key
 
     # Check if computation key is valid
-    if not user_queue.validate_computation_key(computation_key):
+    if not user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key ({computation_key})")
         raise HTTPException(status_code=400, detail=f"Invlid computation key {computation_key}")
     logger.debug(f"Computation key ({computation_key}) is valid")

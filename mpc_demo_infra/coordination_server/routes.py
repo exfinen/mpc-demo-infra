@@ -35,6 +35,7 @@ sharing_data_lock = asyncio.Lock()
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
+    x.state.user_queue._print_queue()
     result = x.state.user_queue.add_user(request.access_key)
     x.state.user_queue._print_queue()
     if result == AddResult.ALREADY_IN_QUEUE:
@@ -57,12 +58,15 @@ async def get_position(request: RequestGetPositionRequest, x: Request):
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
 async def validate_computation_key(request: RequestValidateComputationKeyRequest, x: Request):
+    x.state.user_queue._print_queue()
     is_valid = x.state.user_queue.validate_computation_key(request.access_key, request.computation_key)
     return RequestValidateComputationKeyResponse(is_valid=is_valid)
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
+    x.state.user_queue._print_queue()
     is_finished = x.state.user_queue.finish_computation(request.access_key, request.computation_key)
+    x.state.user_queue._print_queue()
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)

@@ -17,7 +17,7 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(i: int) -> str:
+def get_ordinal_suffix(position: int) -> str:
     ord_suffixes = ["st", "nd", "rd", "th"]
 
     if 10 <= (position % 100) <= 13:
@@ -27,27 +27,44 @@ def get_ordinal_suffix(i: int) -> str:
         ord_index = ord_index if ord_index < 4 else 3
     return ord_suffixes[ord_index]
 
-async def poll_queue_until_ready(voucher_code: str) -> str:
+
+async def add_user_to_queue(access_key: str) -> None:
     while True:
         async with aiohttp.ClientSession() as session:
-            async with session.post(f"{settings.coordination_server_url}/get_position", json={
-                "voucher_code": voucher_code,
+            async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
+                "access_key": access_key,
             }) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if data["position"] is None:
-                        print("The queue is currently full. Please wait for your turn.")
+                    if data["result"] == 'QUEUE_IS_FULL':
+                        print("\nThe queue is currently full. Please wait for your turn.")
                     else:
-                        position = int(data["position"])    
+                        return
+        await asyncio.sleep(settings.poll_duration)
+
+
+async def poll_queue_until_ready(access_key: str) -> str:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{settings.coordination_server_url}/get_position", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    position = data["position"] 
+                    if position is None:
+                        print("{access_key}: The queue is currently full. Please wait for your turn.")
+                    else:
+                        print(f'{access_key}: position is {position}')
                         if position == 0:
-                            print(f"\rComputation servers are ready")
+                            print(f"{access_key}: Computation servers are ready")
                             return data["computation_key"]
                         else:
                             ord_suffix = get_ordinal_suffix(position)
-                            print(f"\rYou are currently {int(position) + 1}{ord_siffix} in line. Estimated wait time: X seconds.")
+                            print(f"{access_key}: You are currently {position + 1}{ord_suffix} in line. Estimated wait time: X seconds.")
                 else:
                     print("\r--")
-            await asyncio.sleep(settings.poll_duration)
+        await asyncio.sleep(settings.poll_duration)
 
 
 async def notarize_and_share_data(voucher_code: str):
@@ -92,6 +109,7 @@ async def notarize_and_share_data(voucher_code: str):
         return data_commitment_hash, data_commitment_nonce
     _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
 
+    await add_user_to_queue(voucher_code)
     computation_key = await poll_queue_until_ready(voucher_code)
 
     # Share data
@@ -119,6 +137,7 @@ async def query_computation_and_verify(
     )
 
     access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(access_key)
     computation_key = await poll_queue_until_ready(access_key)
 
     print("Party certificates have been fetched and saved.")
@@ -126,6 +145,7 @@ async def query_computation_and_verify(
         CERTS_PATH,
         settings.coordination_server_url,
         settings.party_hosts,
+        access_key,
         computation_index,
         computation_key,
     )
@@ -136,11 +156,17 @@ def notarize_and_share_data_cli():
     parser = argparse.ArgumentParser(description="Notarize and share data")
     parser.add_argument("voucher_code", type=str, help="The voucher code")
     args = parser.parse_args()
-    asyncio.run(notarize_and_share_data(args.voucher_code))
+    try:
+        asyncio.run(notarize_and_share_data(args.voucher_code))
+    except Exception as e:
+        print(e)
 
 
 def query_computation_and_verify_cli():
     parser = argparse.ArgumentParser(description="Query computation and verify results")
     parser.add_argument("computation_index", type=int, help="The computation index")
     args = parser.parse_args()
-    asyncio.run(query_computation_and_verify(args.computation_index))
+    try:
+        asyncio.run(query_computation_and_verify(args.computation_index))
+    except Exception as e:
+        print(e)

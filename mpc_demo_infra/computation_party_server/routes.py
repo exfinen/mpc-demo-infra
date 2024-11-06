@@ -304,8 +304,6 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
-    print(f"---> {cmd_run_mpc}")
-    exit(0)
     # Run the MPC program
     try:
         process = subprocess.run(
@@ -315,6 +313,7 @@ def run_program(circuit_name: str, ip_file_path: str):
             text=True
         )
     except subprocess.CalledProcessError as e:
+
         raise e
     if process.returncode != 0:
         raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")

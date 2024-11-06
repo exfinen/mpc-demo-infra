@@ -1,6 +1,6 @@
 #/bin/bash
 
-for k in xSv2ea7pS6agQuO7RwPu3Q UlfhDcJ4EYld9Js1eqH06w UhBc4wmUe7RDk7m9VdgZiA 8cRtGAyqSEu5xPUVPNLuUg J026dXLPUhmM-QN20aFetg oAtOsw6i46X8cV08TZVM9A 40DssDXcYNp_pZujOLRVFA t8g0XteDCiTtRKRDVG0x_Q 2cv1fGSJ01hYZrjK_0JZjw tU7sFq1j5zbqXltd1h_TZA; do 
+for k in t8g0XteDCiTtRKRDVG0x_Q 2cv1fGSJ01hYZrjK_0JZjw iiTLLKD3F0URpcGCwoAhkg lNLEuDWX_6a2x-0FDt_ZSQ LaRmO8cjxB1JxsXkeD6Buw LMYGAD7srWbFuFjsdwj9fQ FQ_H-eji76N-Eq53cNfBNA ftZ8B9TvOwMd0b2E1nfqUQ u9pLKVjqMI1W6RU_Xc-OEg Wz-oo0TIBTaNDFQw8M1yHg u2V_U2RAkJWNDjxgtKN-3w ssufvUSQAKsYpqA0WC5M-w taUUx3woKEVNf-FJdebOVw IrhtoPV4BDtzUIc3c0DFxA xjJfLf6zVpikZGa7ih9QMw EAAL0Pn1QVCiosSs8dEeQA zB4XGJh6VNYVhcMo9YC07Q E42fwhf9NiTEa-8zVdFQdg k_GGBgooTAvd6PRV3FlISA _D_x8Gyl8RSA9Vvynqn6bQ mkDX_mk8L9YKk02ppiAeOA JmJUPw1vlyLUCGB3AVzA_w; do
   poetry run client-share-data $k &
 done
 

@@ -62,8 +62,6 @@ async def poll_queue_until_ready(access_key: str) -> str:
                         else:
                             ord_suffix = get_ordinal_suffix(position)
                             print(f"{access_key}: You are currently {position + 1}{ord_suffix} in line. Estimated wait time: X seconds.")
-                else:
-                    print("\r--")
         await asyncio.sleep(settings.poll_duration)
 
 

@@ -48,7 +48,7 @@ class Client:
                     break
                 except ConnectionRefusedError:
                     if j < 60:
-                        time.sleep(1)
+                       asyncio.sleep(1)
                     else:
                         raise
 

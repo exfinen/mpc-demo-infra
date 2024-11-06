@@ -3,6 +3,7 @@ import platform
 import socket, ssl
 import struct
 import time
+import asyncio
 
 from .domains import *
 

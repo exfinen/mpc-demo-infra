@@ -154,7 +154,7 @@ async def share_data(
 
             if response.status != 200:
                 json = await response.json()
-                raise Exception(f"Error: {json['detail']}")
+                raise Exception(f"{json['detail']}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 

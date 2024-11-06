@@ -79,7 +79,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     if not x.state.user_queue.validate_computation_key(voucher_code, computation_key):
         logger.error(f"Invalid computation key {computaiton_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
-    logger.error(f"Computation key {computation_key} is valid")
+    logger.error(f"{voucher_code}: Computation key {computation_key} is valid")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:

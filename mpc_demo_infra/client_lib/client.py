@@ -3,7 +3,6 @@ import platform
 import socket, ssl
 import struct
 import time
-import asyncio
 
 from .domains import *
 
@@ -49,7 +48,7 @@ class Client:
                     break
                 except ConnectionRefusedError:
                     if j < 60:
-                       asyncio.sleep(1)
+                       time.sleep(1)
                     else:
                         raise
 

@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 import shutil
 from datetime import datetime
+import asyncio
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -312,6 +313,7 @@ def run_program(circuit_name: str, ip_file_path: str):
             text=True
         )
     except subprocess.CalledProcessError as e:
+
         raise e
     if process.returncode != 0:
         raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")

@@ -17,17 +17,6 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(position: int) -> str:
-    ord_suffixes = ["st", "nd", "rd", "th"]
-
-    if 10 <= (position % 100) <= 13:
-        ord_suffix = 3
-    else:
-        ord_index = position % 10
-        ord_index = ord_index if ord_index < 4 else 3
-    return ord_suffixes[ord_index]
-
-
 async def add_user_to_queue(access_key: str) -> None:
     while True:
         async with aiohttp.ClientSession() as session:
@@ -57,26 +46,16 @@ async def poll_queue_until_ready(access_key: str) -> str:
                     else:
                         print(f'{access_key}: position is {position}')
                         if position == 0:
-                            print(f"{access_key}: Computation servers are ready")
+                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
-                            ord_suffix = get_ordinal_suffix(position)
-                            print(f"{access_key}: You are currently {position + 1}{ord_suffix} in line. Estimated wait time: X seconds.")
+                            print(f"{access_key}: You are currently #{position} in line.")
                 else:
-                    print("\r--")
+                    print("Server error")
         await asyncio.sleep(settings.poll_duration)
 
 
 async def notarize_and_share_data(voucher_code: str):
-    print("Fetching party certificates...")
-    await fetch_parties_certs(
-        settings.party_web_protocol,
-        CERTS_PATH,
-        settings.party_hosts,
-        settings.party_ports
-    )
-    print("Party certificates have been fetched and saved.")
-
     # Gen tlsn proofs
     proof_file = PROJECT_ROOT / f"proof.json"
     process = await asyncio.create_subprocess_shell(
@@ -112,6 +91,15 @@ async def notarize_and_share_data(voucher_code: str):
     await add_user_to_queue(voucher_code)
     computation_key = await poll_queue_until_ready(voucher_code)
 
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+    print("Party certificates have been fetched and saved.")
+
     # Share data
     await share_data(
         CERTS_PATH,
@@ -128,6 +116,10 @@ async def notarize_and_share_data(voucher_code: str):
 async def query_computation_and_verify(
     computation_index: int,
 ):
+    access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(access_key)
+    computation_key = await poll_queue_until_ready(access_key)
+
     print("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
@@ -135,10 +127,6 @@ async def query_computation_and_verify(
         settings.party_hosts,
         settings.party_ports
     )
-
-    access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(access_key)
-    computation_key = await poll_queue_until_ready(access_key)
 
     print("Party certificates have been fetched and saved.")
     results = await query_computation(

@@ -35,9 +35,8 @@ sharing_data_lock = asyncio.Lock()
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
-    logger.debug(f"add_user_to_queue (bef): {request.access_key}; {x.state.user_queue._queue_to_str()}")
     result = x.state.user_queue.add_user(request.access_key)
-    logger.debug(f"add_user_to_queue (aft): {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"add_user_to_queue: {request.access_key}; {x.state.user_queue._queue_to_str()}")
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.debug(f"{request.access_key} not added. Already in the queue")
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
@@ -63,9 +62,8 @@ async def validate_computation_key(request: RequestValidateComputationKeyRequest
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
-    logger.debug(f"finish_computation (bef): {request.access_key}; {x.state.user_queue._queue_to_str()}")
     is_finished = x.state.user_queue.finish_computation(request.access_key, request.computation_key)
-    logger.debug(f"finish_computation (aft): {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    logger.debug(f"finish_computation: {request.access_key}; {x.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
@@ -81,20 +79,20 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     if not x.state.user_queue.validate_computation_key(voucher_code, computation_key):
         logger.error(f"Invalid computation key {computaiton_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
-    logger.error(f"Computation key {computation_key} is valid")
+    logger.error(f"{voucher_code}: Computation key {computation_key} is valid")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
-        logger.error(f"Client ID is out of range: {client_id}")
-        raise HTTPException(status_code=400, detail="Client ID is out of range")
+        logger.error(f"{voucher_code}: Client ID is out of range: {client_id}")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Client ID is out of range")
     # Check if voucher exists
     voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == voucher_code).first()
     if not voucher:
         logger.error(f"Voucher code not found: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code not found")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code not found")
     if voucher.is_used:
         logger.error(f"Voucher code already used: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code already used")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code already used")
     secret_index = voucher.id
 
     logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")

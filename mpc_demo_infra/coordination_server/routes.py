@@ -83,16 +83,16 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
-        logger.error(f"Client ID is out of range: {client_id}")
-        raise HTTPException(status_code=400, detail="Client ID is out of range")
+        logger.error(f"{voucher_code}: Client ID is out of range: {client_id}")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Client ID is out of range")
     # Check if voucher exists
     voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == voucher_code).first()
     if not voucher:
         logger.error(f"Voucher code not found: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code not found")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code not found")
     if voucher.is_used:
         logger.error(f"Voucher code already used: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code already used")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code already used")
     secret_index = voucher.id
 
     logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")

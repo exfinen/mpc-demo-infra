@@ -44,9 +44,9 @@ app = FastAPI(
 Base.metadata.create_all(bind=engine)
 
 # Set up limiter
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
+# app.state.limiter = limiter
+# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# app.add_middleware(SlowAPIMiddleware)
 # Include API routes
 app.include_router(router)
 

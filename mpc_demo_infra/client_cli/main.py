@@ -17,17 +17,6 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
 
-def get_ordinal_suffix(position: int) -> str:
-    ord_suffixes = ["st", "nd", "rd", "th"]
-
-    if 10 <= (position % 100) <= 13:
-        ord_suffix = 3
-    else:
-        ord_index = position % 10
-        ord_index = ord_index if ord_index < 4 else 3
-    return ord_suffixes[ord_index]
-
-
 async def add_user_to_queue(access_key: str) -> None:
     while True:
         async with aiohttp.ClientSession() as session:
@@ -60,8 +49,7 @@ async def poll_queue_until_ready(access_key: str) -> str:
                             print(f"{access_key}: Computation servers are ready")
                             return data["computation_key"]
                         else:
-                            ord_suffix = get_ordinal_suffix(position)
-                            print(f"{access_key}: You are currently {position + 1}{ord_suffix} in line.")
+                            print(f"{access_key}: You are currently #{position} in line.")
                 else:
                     print("Server error")
         await asyncio.sleep(settings.poll_duration)

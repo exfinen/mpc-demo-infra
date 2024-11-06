@@ -116,8 +116,13 @@ def list_vouchers():
 
 
 def list_valid_vouchers():
+    parser = argparse.ArgumentParser(description="List valid vouchers for testing")
+    parser.add_argument("num_vouchers", type=int, help="Number of vouchers to output")
+    args = parser.parse_args()
+
     with SessionLocal() as db:
         vouchers = db.query(Voucher).filter(Voucher.is_used == False).all()
+        vouchers = vouchers[:args.num_vouchers]
         codes = [voucher.code for voucher in vouchers]
         print(" ".join(codes))
 

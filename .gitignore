@@ -169,3 +169,4 @@ cython_debug/
 *.db
 proof.json
 certs/
+sim-demo.sh

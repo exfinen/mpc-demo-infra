@@ -46,7 +46,7 @@ async def poll_queue_until_ready(access_key: str) -> str:
                     else:
                         print(f'{access_key}: position is {position}')
                         if position == 0:
-                            print(f"{access_key}: Computation servers are ready")
+                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
                             print(f"{access_key}: You are currently #{position} in line.")

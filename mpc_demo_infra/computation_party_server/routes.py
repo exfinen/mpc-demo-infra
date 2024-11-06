@@ -71,8 +71,8 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
-    # if secret_index >= MAX_DATA_PROVIDERS:
-    #     raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
+    if secret_index >= MAX_DATA_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.
@@ -304,6 +304,8 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
+    print(f"---> {cmd_run_mpc}")
+    exit(0)
     # Run the MPC program
     try:
         process = subprocess.run(

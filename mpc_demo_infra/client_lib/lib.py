@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 import random
 from pathlib import Path
+import secrets
 
 from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT

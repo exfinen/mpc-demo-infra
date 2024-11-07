@@ -50,8 +50,8 @@ async def notarize_and_share_data(voucher_code: str):
         return data_commitment_hash, data_commitment_nonce
     _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
 
-    await add_user_to_queue(voucher_code, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(voucher_code, settings.poll_duration)
+    await add_user_to_queue(settings.coordination_server_url, voucher_code, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, voucher_code, settings.poll_duration)
 
     print("Fetching party certificates...")
     await fetch_parties_certs(
@@ -79,8 +79,8 @@ async def query_computation_and_verify(
     computation_index: int,
 ):
     access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(access_key, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(access_key, settings.poll_duration)
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
 
     print("Fetching party certificates...")
     await fetch_parties_certs(

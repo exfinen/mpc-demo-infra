@@ -179,6 +179,44 @@ async def share_data(
         await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
 
 
+async def add_user_to_queue(access_key: str) -> None:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["result"] == 'QUEUE_IS_FULL':
+                        print("\nThe queue is currently full. Please wait for your turn.")
+                    else:
+                        return
+        await asyncio.sleep(settings.poll_duration)
+
+
+async def poll_queue_until_ready(access_key: str) -> str:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{settings.coordination_server_url}/get_position", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    position = data["position"] 
+                    if position is None:
+                        print("{access_key}: The queue is currently full. Please wait for your turn.")
+                    else:
+                        print(f'{access_key}: position is {position}')
+                        if position == 0:
+                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
+                            return data["computation_key"]
+                        else:
+                            print(f"{access_key}: You are currently #{position} in line.")
+                else:
+                    print("Server error")
+        await asyncio.sleep(settings.poll_duration)
+
+
 async def query_computation_from_data_consumer_api(
     all_certs_path: Path,
     coordination_server_url: str,

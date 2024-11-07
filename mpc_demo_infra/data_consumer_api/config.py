@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"
 
+    poll_duration: int = 30
+
     class Config:
         env_file = ".env.consumer_api"
 

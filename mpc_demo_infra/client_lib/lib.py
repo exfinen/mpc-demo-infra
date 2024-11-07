@@ -179,7 +179,7 @@ async def share_data(
         await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
 
 
-async def add_user_to_queue(access_key: str) -> None:
+async def add_user_to_queue(access_key: str, poll_duration: int) -> None:
     while True:
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
@@ -191,10 +191,10 @@ async def add_user_to_queue(access_key: str) -> None:
                         print("\nThe queue is currently full. Please wait for your turn.")
                     else:
                         return
-        await asyncio.sleep(settings.poll_duration)
+        await asyncio.sleep(poll_duration)
 
 
-async def poll_queue_until_ready(access_key: str) -> str:
+async def poll_queue_until_ready(access_key: str, poll_duration: int) -> str:
     while True:
         async with aiohttp.ClientSession() as session:
             async with session.post(f"{settings.coordination_server_url}/get_position", json={
@@ -214,7 +214,7 @@ async def poll_queue_until_ready(access_key: str) -> str:
                             print(f"{access_key}: You are currently #{position} in line.")
                 else:
                     print("Server error")
-        await asyncio.sleep(settings.poll_duration)
+        await asyncio.sleep(poll_duration)
 
 
 async def query_computation_from_data_consumer_api(
@@ -223,10 +223,11 @@ async def query_computation_from_data_consumer_api(
     computation_party_hosts: list[str],
     access_key: str,
     computation_index: int,
+    poll_duration: int,
 ):
     access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(access_key)
-    computation_key = await poll_queue_until_ready(access_key)
+    await add_user_to_queue(access_key, poll_duration)
+    computation_key = await poll_queue_until_ready(access_key, poll_duration)
 
     return await query_computation(
         all_certs_path,
@@ -287,13 +288,14 @@ async def query_computation_from_data_consumer_api(
     coordination_server_url: str,
     computation_party_hosts: list[str],
     computation_index: int,
+    poll_duration: int,
 ):
     print("called")
     access_key = secrets.token_urlsafe(16)
     print("created access_key. adding user to the queue")
-    await add_user_to_queue(access_key)
+    await add_user_to_queue(access_key, poll_duration)
     print("added user to the queue")
-    computation_key = await poll_queue_until_ready(access_key)
+    computation_key = await poll_queue_until_ready(access_key, poll_duration)
     print(f"calling query_computation: {access_key}, {computation_key}")
 
     return await query_computation(

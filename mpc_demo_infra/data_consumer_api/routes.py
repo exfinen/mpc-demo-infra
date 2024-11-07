@@ -37,7 +37,7 @@ async def query_computation(request: QueryComputationRequest):
             coordination_server_url=settings.coordination_server_url,
             computation_party_hosts=settings.party_hosts,
             computation_index=request.computation_index,
-            settings.poll_duration,
+            poll_duration=settings.poll_duration,
         )
         logger.debug(f"Finished computation. Results={results}")
         return QueryComputationResponse(results=results)

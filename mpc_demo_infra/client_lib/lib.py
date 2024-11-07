@@ -182,9 +182,11 @@ async def share_data(
 async def add_user_to_queue(access_key: str, poll_duration: int) -> None:
     while True:
         async with aiohttp.ClientSession() as session:
+            print(f"calling add_user_to_queue end-point: {access_key}, {poll_duration}")
             async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
                 "access_key": access_key,
             }) as response:
+                print(f"repsponse: {response}")
                 if response.status == 200:
                     data = await response.json()
                     if data["result"] == 'QUEUE_IS_FULL':

@@ -298,6 +298,7 @@ async def query_computation_from_data_consumer_api(
         all_certs_path,
         coordination_server_url,
         computation_party_hosts,
+        access_key,
         computation_index,
         computation_key,
     )

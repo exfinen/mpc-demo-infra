@@ -18,6 +18,7 @@ router = APIRouter()
 @router.post("/query-computation")
 async def query_computation(request: QueryComputationRequest):
     try:
+        print("aa")
         # TODO: add cache for different computation index
         await client_lib.fetch_parties_certs(
             party_web_protocol=settings.party_web_protocol,
@@ -25,6 +26,7 @@ async def query_computation(request: QueryComputationRequest):
             party_hosts=settings.party_hosts,
             party_ports=settings.party_ports,
         )
+        print("bb")
         
         results = await client_lib.query_computation_from_data_consumer_api(
             all_certs_path=Path(settings.certs_path),
@@ -34,4 +36,4 @@ async def query_computation(request: QueryComputationRequest):
         )
         return QueryComputationResponse(results=results)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=501, detail=f"An error occurred: {str(e)}")

@@ -32,7 +32,7 @@ async def query_computation(request: QueryComputationRequest):
         )
         logger.debug(f"Feched party certs. Kicking off computation")
         
-        results = await client_lib.query_computation_from_data_consumer_api(
+        results = client_lib.query_computation_from_data_consumer_api(
             all_certs_path=Path(settings.certs_path),
             coordination_server_url=settings.coordination_server_url,
             computation_party_hosts=settings.party_hosts,

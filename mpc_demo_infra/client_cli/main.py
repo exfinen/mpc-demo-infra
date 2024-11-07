@@ -4,7 +4,7 @@ from pathlib import Path
 import aiohttp
 import secrets
 
-from ..client_lib.lib import fetch_parties_certs, share_data, query_computation
+from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
 from .config import settings
 
 # project_root/certs
@@ -16,44 +16,6 @@ CMD_VERIFY_TLSN_PROOF = "cargo run --release --example simple_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example simple_prover"
 
 DATA_TYPE = 0
-
-async def add_user_to_queue(access_key: str) -> None:
-    while True:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{settings.coordination_server_url}/add_user_to_queue", json={
-                "access_key": access_key,
-            }) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data["result"] == 'QUEUE_IS_FULL':
-                        print("\nThe queue is currently full. Please wait for your turn.")
-                    else:
-                        return
-        await asyncio.sleep(settings.poll_duration)
-
-
-async def poll_queue_until_ready(access_key: str) -> str:
-    while True:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{settings.coordination_server_url}/get_position", json={
-                "access_key": access_key,
-            }) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    position = data["position"] 
-                    if position is None:
-                        print("{access_key}: The queue is currently full. Please wait for your turn.")
-                    else:
-                        print(f'{access_key}: position is {position}')
-                        if position == 0:
-                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
-                            return data["computation_key"]
-                        else:
-                            print(f"{access_key}: You are currently #{position} in line.")
-                else:
-                    print("Server error")
-        await asyncio.sleep(settings.poll_duration)
-
 
 async def notarize_and_share_data(voucher_code: str):
     # Gen tlsn proofs
@@ -88,8 +50,8 @@ async def notarize_and_share_data(voucher_code: str):
         return data_commitment_hash, data_commitment_nonce
     _, nonce = get_nonce_from_tlsn_proof(tlsn_proof)
 
-    await add_user_to_queue(voucher_code)
-    computation_key = await poll_queue_until_ready(voucher_code)
+    await add_user_to_queue(settings.coordination_server_url, voucher_code, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, voucher_code, settings.poll_duration)
 
     print("Fetching party certificates...")
     await fetch_parties_certs(
@@ -117,8 +79,8 @@ async def query_computation_and_verify(
     computation_index: int,
 ):
     access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(access_key)
-    computation_key = await poll_queue_until_ready(access_key)
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
 
     print("Fetching party certificates...")
     await fetch_parties_certs(

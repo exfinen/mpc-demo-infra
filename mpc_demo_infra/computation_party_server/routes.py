@@ -91,7 +91,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
-    logger.debud(f"!@# backup_shares_path: {backup_shares_path}")
+    logger.debug(f"!@# backup_shares_path: {backup_shares_path}")
     logger.debug(f"Backed up shares to {backup_shares_path}")
 
     # 3. Generate ip file

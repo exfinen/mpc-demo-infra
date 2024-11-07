@@ -146,6 +146,7 @@ def notarize_and_share_data_cli():
     args = parser.parse_args()
     try:
         asyncio.run(notarize_and_share_data(args.voucher_code))
+        print("Computation finished")
     except Exception as e:
         print(e)
 
@@ -156,5 +157,6 @@ def query_computation_and_verify_cli():
     args = parser.parse_args()
     try:
         asyncio.run(query_computation_and_verify(args.computation_index))
+        print("Computation finished")
     except Exception as e:
         print(e)

@@ -91,7 +91,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
-    print(f"!@# backup_shares_path: {backup_shares_path}")
+    logger.debug(f"!@# backup_shares_path: {backup_shares_path}")
     logger.debug(f"Backed up shares to {backup_shares_path}")
 
     # 3. Generate ip file
@@ -118,10 +118,10 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
-        logger.debug(f"Running program {circuit_name}")
+        logger.debug(f"Started computaion: {circuit_name}")
         mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file_path)
     except Exception as e:
-        logger.error(f"Failed to run program {circuit_name}: {str(e)}")
+        logger.error(f"Computation {circuit_name} failed: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -164,11 +164,11 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
 
     logger.debug(f"Compiling computation query program {circuit_name}")
     compile_program(circuit_name)
-    logger.debug(f"Running program {circuit_name}")
+    logger.debug(f"Started computation: {circuit_name}")
     try:
         mpc_computation_result = run_computation_query_program(circuit_name, ip_file_path)
     except Exception as e:
-        logger.error(f"Failed to run program {circuit_name}: {str(e)}")
+        logger.error(f"Computation {circuit_name} failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     logger.debug(f"MPC computation result: {mpc_computation_result}")
     return RequestQueryComputationMPCResponse()
@@ -304,6 +304,7 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
+    logger.debug(f"Executing a program with {MPC_VM_BINARY}")
     # Run the MPC program
     try:
         process = subprocess.run(
@@ -313,10 +314,12 @@ def run_program(circuit_name: str, ip_file_path: str):
             text=True
         )
     except subprocess.CalledProcessError as e:
-
         raise e
     if process.returncode != 0:
         raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")
+    else:
+        logger.debug(f"Successfully executed")
+
     return process
 
 

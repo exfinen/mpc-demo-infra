@@ -44,7 +44,7 @@ def run_data_sharing_client(
         os.Send(socket)
 
     client.send_private_inputs([input_value, reverse_bytes(hex_to_int(nonce))])
-    print("finish sending private inputs")
+    print("Finish sending private inputs")
     outputs = client.receive_outputs(1)
     print("!@# data_sharing_client.py outputs: ", outputs)
     commitment = outputs[0]

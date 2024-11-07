@@ -31,7 +31,7 @@ logger = logging.getLogger("coordination_server")
 async def lifespan(app: FastAPI):
     user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
     yield {'user_queue': user_queue}
-    print("shutting down")
+    logger.info("shutting down")
 
 app = FastAPI(
     title="Coordination Server",
@@ -63,7 +63,7 @@ async def shutdown_event():
 
 def run():
     import uvicorn
-    print(f"Running coordination server on port {settings.port}")
+    logger.info(f"Running coordination server on port {settings.port}")
     if settings.party_web_protocol == 'https':
         uvicorn.run(
             "mpc_demo_infra.coordination_server.main:app",
@@ -89,7 +89,7 @@ def gen_vouchers():
 
     num_vouchers = int(args.num_vouchers)
 
-    print(f"Generating {num_vouchers} vouchers...")
+    logger.info(f"Generating {num_vouchers} vouchers...")
 
     vouchers = [secrets.token_urlsafe(16) for _ in range(num_vouchers)]
     with SessionLocal() as db:
@@ -100,10 +100,10 @@ def gen_vouchers():
                     db.add(new_voucher)
                     break
         db.commit()  # Add this line to commit the changes
-    print(f"Successfully generated and committed {num_vouchers} vouchers.")
-    print(f"Generated vouchers:")
+    logger.info(f"Successfully generated and committed {num_vouchers} vouchers.")
+    logger.debug(f"Generated vouchers:")
     for voucher in vouchers:
-        print(voucher)
+        logger.debug(voucher)
 
 
 def list_vouchers():
@@ -128,3 +128,4 @@ def list_valid_vouchers():
 
 def gen_party_api_key():
     print(secrets.token_hex(16))
+

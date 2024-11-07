@@ -178,6 +178,27 @@ async def share_data(
         await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
 
 
+async def query_computation_from_data_consumer_api(
+    all_certs_path: Path,
+    coordination_server_url: str,
+    computation_party_hosts: list[str],
+    access_key: str,
+    computation_index: int,
+):
+    access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(access_key)
+    computation_key = await poll_queue_until_ready(access_key)
+
+    return await query_computation(
+        all_certs_path,
+        coordination_server_url,
+        computation_party_hosts,
+        access_key,
+        computation_index,
+        computation_key,
+    )
+
+
 async def query_computation(
     all_certs_path: Path,
     coordination_server_url: str,
@@ -220,6 +241,27 @@ async def query_computation(
         return results
     finally:
         await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)
+
+
+async def query_computation_from_data_consumer_api(
+    all_certs_path: Path,
+    coordination_server_url: str,
+    computation_party_hosts: list[str],
+    access_key: str,
+    computation_index: int,
+):
+    access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(access_key)
+    computation_key = await poll_queue_until_ready(access_key)
+
+    return await query_computation(
+        all_certs_path,
+        coordination_server_url,
+        computation_party_hosts,
+        access_key,
+        computation_index,
+        computation_key,
+    )
 
 
 async def fetch_parties_certs(

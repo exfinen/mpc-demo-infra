@@ -8,7 +8,6 @@ from .config import settings
 
 class QueryComputationRequest(BaseModel):
     computation_index: int = Field(..., ge=0)
-    computation_key: str
 
 class QueryComputationResponse(BaseModel):
     results: list[float]
@@ -26,12 +25,12 @@ async def query_computation(request: QueryComputationRequest):
             party_hosts=settings.party_hosts,
             party_ports=settings.party_ports,
         )
-        results = await client_lib.query_computation(
+        
+        results = await client_lib.query_computation_from_data_consumer_api(
             all_certs_path=Path(settings.certs_path),
             coordination_server_url=settings.coordination_server_url,
             computation_party_hosts=settings.party_hosts,
             computation_index=request.computation_index,
-            computation_key=request.computation_key,
         )
         return QueryComputationResponse(results=results)
     except Exception as e:

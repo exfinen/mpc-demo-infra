@@ -247,7 +247,6 @@ async def query_computation_from_data_consumer_api(
     all_certs_path: Path,
     coordination_server_url: str,
     computation_party_hosts: list[str],
-    access_key: str,
     computation_index: int,
 ):
     print("called")
@@ -260,7 +259,6 @@ async def query_computation_from_data_consumer_api(
         all_certs_path,
         coordination_server_url,
         computation_party_hosts,
-        access_key,
         computation_index,
         computation_key,
     )

@@ -252,6 +252,7 @@ async def query_computation_from_data_consumer_api(
     print("called")
     access_key = secrets.token_urlsafe(16)
     await add_user_to_queue(access_key)
+    print("added user to the queue")
     computation_key = await poll_queue_until_ready(access_key)
     print(f"calling query_computation: {access_key}, {computation_key}")
 

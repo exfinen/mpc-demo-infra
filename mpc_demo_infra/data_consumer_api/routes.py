@@ -41,4 +41,4 @@ async def query_computation(request: QueryComputationRequest):
         logger.debug(f"Finished computation. Results={results}")
         return QueryComputationResponse(results=results)
     except Exception as e:
-        raise HTTPException(status_code=501, detail=f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

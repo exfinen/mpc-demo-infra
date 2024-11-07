@@ -304,7 +304,7 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
-    logger.debug(f"Executing a program on {MPC_VM_BINARY}")
+    logger.debug(f"Executing a program with {MPC_VM_BINARY}")
     # Run the MPC program
     try:
         process = subprocess.run(

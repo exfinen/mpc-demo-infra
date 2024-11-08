@@ -12,34 +12,40 @@ from mpc_demo_infra.client_lib.lib import get_parties_certs, share_data, query_c
 FILE_DIR = Path(__file__).parent
 proof_file_1 = FILE_DIR / f"proof_1.json"
 proof_file_2 = FILE_DIR / f"proof_2.json"
+proof_file_3 = FILE_DIR / f"proof_3.json"
+proof_file_4 = FILE_DIR / f"proof_4.json"
 secret_file_1 = FILE_DIR / f"secret_1.json"
 secret_file_2 = FILE_DIR / f"secret_2.json"
-with open(proof_file_1, "r") as f_1:
-    TLSN_PROOF_1 = f_1.read()
-    tlsn_proof = json.loads(TLSN_PROOF_1)
-    private_openings = tlsn_proof["substrings"]["private_openings"]
-    if len(private_openings) != 1:
-        raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
-    commitment_index, openings = list(private_openings.items())[0]
-    commitment_info, commitment = openings
-    data_commitment_hash_1 = bytes(commitment["hash"]).hex()
-with open(proof_file_2, "r") as f_2:
-    TLSN_PROOF_2 = f_2.read()
-    tlsn_proof = json.loads(TLSN_PROOF_2)
-    private_openings = tlsn_proof["substrings"]["private_openings"]
-    if len(private_openings) != 1:
-        raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
-    commitment_index, openings = list(private_openings.items())[0]
-    commitment_info, commitment = openings
-    data_commitment_hash_2 = bytes(commitment["hash"]).hex()
-with open(secret_file_1, "r") as f_secret_1:
-    secret_data_1 = json.load(f_secret_1)
-    value_1 = float(secret_data_1["eth_free"])
-    nonce_1 = bytes(secret_data_1["nonce"]).hex()
-with open(secret_file_2, "r") as f_secret_2:
-    secret_data_2 = json.load(f_secret_2)
-    value_2 = float(secret_data_2["eth_free"])
-    nonce_2 = bytes(secret_data_2["nonce"]).hex()
+secret_file_3 = FILE_DIR / f"secret_3.json"
+secret_file_4 = FILE_DIR / f"secret_4.json"
+
+def process_proof_file(proof_file):
+    with open(proof_file, "r") as f:
+        TLSN_PROOF = f.read()
+        tlsn_proof = json.loads(TLSN_PROOF)
+        private_openings = tlsn_proof["substrings"]["private_openings"]
+        if len(private_openings) != 1:
+            raise Exception(f"Expected 1 private opening, got {len(private_openings)}")
+        commitment_index, openings = list(private_openings.items())[0]
+        commitment_info, commitment = openings
+        data_commitment_hash = bytes(commitment["hash"]).hex()
+    return (TLSN_PROOF, data_commitment_hash)
+
+def process_secret_file(secret_file):
+    with open(secret_file, "r") as f_secret:
+        secret_data = json.load(f_secret)
+        value = float(secret_data["eth_free"])
+        nonce = bytes(secret_data["nonce"]).hex()
+    return (secret_data, value, nonce)
+
+TLSN_PROOF_1, data_commitment_hash_1 = process_proof_file(proof_file_1)
+TLSN_PROOF_2, data_commitment_hash_2 = process_proof_file(proof_file_2)
+TLSN_PROOF_3, data_commitment_hash_3 = process_proof_file(proof_file_3)
+TLSN_PROOF_4, data_commitment_hash_4 = process_proof_file(proof_file_4)
+secret_data_1, value_1, nonce_1 = process_secret_file(secret_file_1)
+secret_data_2, value_2, nonce_2 = process_secret_file(secret_file_2)
+secret_data_3, value_3, nonce_3 = process_secret_file(secret_file_3)
+secret_data_4, value_4, nonce_4 = process_secret_file(secret_file_4)
 
 
 PROTOCOL = "http"
@@ -179,13 +185,13 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     await get_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
 
     # Gen vouchers
-    num_vouchers = 2
+    num_vouchers = 4
     await gen_vouchers(num_vouchers)
 
     # List vouchers
     vouchers = await get_vouchers()
     assert len(vouchers) == num_vouchers
-    voucher_1, voucher_2 = vouchers
+    voucher_1, voucher_2, voucher_3, voucher_4 = vouchers
 
     await asyncio.sleep(1)
 
@@ -209,25 +215,45 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             value_2,
             nonce_2,
         ),
+        share_data(
+            CERTS_PATH,
+            coordination_server_url,
+            COMPUTATION_HOSTS,
+            voucher_3,
+            TLSN_PROOF_3,
+            value_3,
+            nonce_3,
+        ),
+        share_data(
+            CERTS_PATH,
+            coordination_server_url,
+            COMPUTATION_HOSTS,
+            voucher_4,
+            TLSN_PROOF_4,
+            value_4,
+            nonce_4,
+        ),
     )
 
     # Query computation concurrently
     num_queries = 2
-    computation_index = 1
+    # computation_index = 1
     res_queries = await asyncio.gather(*[
         query_computation(
             CERTS_PATH,
             coordination_server_url,
             COMPUTATION_HOSTS,
-            computation_index,
+            # computation_index,
         ) for _ in range(num_queries)
     ])
     assert len(res_queries) == num_queries
-    results_0, commitments = res_queries[0]
+    results, commitments = res_queries[0]
     # Verify commitments with tlsn proofs
     assert data_commitment_hash_1 == commitments[1]
     assert data_commitment_hash_2 == commitments[2]
-    print(f"{results_0=}")
+    # assert data_commitment_hash_3 == commitments[3]
+    # assert data_commitment_hash_4 == commitments[4]
+    # print(f"{results=}")
     print(f"{commitments=}")
 
 

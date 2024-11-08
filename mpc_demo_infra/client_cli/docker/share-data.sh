@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker run client_cli client-share-data $1 
+docker run -it client_cli client-share-data $1 
 

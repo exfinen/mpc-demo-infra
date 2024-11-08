@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker run client_cli client-query 1
+docker run -it client_cli client-query 1
 

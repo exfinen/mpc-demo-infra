@@ -22,7 +22,7 @@ ZERO_ENCODINGS = {zero_encodings}
 
 def accept_client():
     client_socket_id = accept_client_connection(PORTNUM)
-    isInput = regint.read_from_socket(client_socket_id)
+    placeholder = regint.read_from_socket(client_socket_id)
     return client_socket_id
 
 
@@ -39,7 +39,7 @@ def calculate_data_commitment(num_bytes_followers: int, followers: sint, delta: 
     DOT_ASCII = 46
     followers_bits_list = []
     number = followers
-    divisors = [sint(10 ** (num_bytes_followers - 1 - i)) for i in range(num_bytes_followers)]
+    divisors = [sint(10 ** (num_bytes_followers - i)) for i in range(num_bytes_followers)]
     for divisor in divisors:
         curr_digit = number.int_div(divisor, 4*num_bytes_followers)
         followers_bits_list.extend(sbit(ele) for ele in sbitvec(curr_digit+ASCII_BASE, 8).v)
@@ -84,7 +84,6 @@ def main():
     client_values[SECRET_INDEX] = input_value
     client_values[0] = client_values[0] + 1
     client_values.write_to_file(0)
-    print_ln('client_values: after update: %s', [client_values[i].reveal() for i in range(MAX_DATA_PROVIDERS + 1)])
 
     # these are shared directly to each computation party so can just hardcode
     input_delta = sbitvec.from_hex(DELTA)
@@ -100,7 +99,7 @@ def main():
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
     sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX-1]])
     print_ln('Now closing this connection')
-    print_ln('Num data providers: %s', client_values[0].reveal())
+    #print_ln('Num data providers: %s', client_values[0].reveal())
 
     closeclientconnection(client_socket_id)
 

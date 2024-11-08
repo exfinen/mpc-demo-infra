@@ -8,7 +8,8 @@ from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
 
 EMPTY_COMMITMENT = '0'
-BINANCE_DECIMAL_SCALE = 100.0
+BINANCE_DECIMAL_PRECISION = 2
+BINANCE_DECIMAL_SCALE = 10**BINANCE_DECIMAL_PRECISION
 def hex_to_int(hex):
     return int(hex, 16)
 
@@ -59,7 +60,6 @@ def run_computation_query_client(
     cert_file: str,
     key_file: str,
     max_data_providers: int,
-    computation_index: int,
 ):
     # client id should be assigned by our server
     client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
@@ -67,17 +67,22 @@ def run_computation_query_client(
     for socket in client.sockets:
         os = octetStream()
         # computationIndex is public, not need to be secret shared.
-        os.store(computation_index)
+        os.store(0)
         os.Send(socket)
     # If computation returns more than one value, need to change the following line.
-    output_list = client.receive_outputs(1 + max_data_providers)
+    output_list = client.receive_outputs(5 + max_data_providers)
     # TODO: Need to change the following line if computation returns more than one value.
-    results = output_list[0:1]
-    results = [results[0]/BINANCE_DECIMAL_SCALE]
-    print('Computation index',computation_index, "is", results)
+    results = [ele/(10*BINANCE_DECIMAL_SCALE) for ele in output_list[0:5]]
+    print("Stats of Data")
+    num_data_providers = results[0]*10*BINANCE_DECIMAL_SCALE
+    print("Number of data providers: ", int(num_data_providers))
+    print("Max: ", results[1])
+    print("Mean: ", results[2]/ num_data_providers)
+    print("Median: ", results[3])
+    print("Gini Coefficient: ", (results[4]/(num_data_providers*results[2]))-1)
 
     # return {index -> commitment}
-    data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[1:]]
+    data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[5:]]
     commitments = {
         # index is 1-based, commitment is hex string without 0x prefix
         index + 1: commitment for index, commitment in enumerate(data_commitments) if commitment != EMPTY_COMMITMENT
@@ -135,7 +140,7 @@ async def share_data(
         client_id,
         str(cert_path),
         str(key_path),
-        int(value*BINANCE_DECIMAL_SCALE),
+        int(value*10*BINANCE_DECIMAL_SCALE),
         nonce
     )
 
@@ -144,7 +149,6 @@ async def query_computation(
     all_certs_path: Path,
     coordination_server_url: str,
     computation_party_hosts: list[str],
-    computation_index: int,
 ):
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
@@ -168,7 +172,6 @@ async def query_computation(
         str(cert_path),
         str(key_path),
         MAX_DATA_PROVIDERS,
-        computation_index
     )
 
     return results, commitments

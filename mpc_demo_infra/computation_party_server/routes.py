@@ -155,11 +155,11 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
     compile_program(circuit_name)
     logger.debug(f"Running program {circuit_name}")
     try:
-        mpc_computation_result = run_computation_query_program(circuit_name, ip_file_path)
+        run_computation_query_program(circuit_name, ip_file_path)
     except Exception as e:
         logger.error(f"Failed to run program {circuit_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-    logger.debug(f"MPC computation result: {mpc_computation_result}")
+    logger.debug("MPC query computation finished")
     return RequestQueryComputationMPCResponse()
 
 
@@ -270,6 +270,7 @@ def generate_computation_query_program(
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
     program_content = program_content.replace("{client_port_base}", str(client_port_base))
     program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
+    program_content = program_content.replace("{num_data_providers}", str(4))
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name, target_program_path
@@ -313,6 +314,7 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: Path) -> list[str]
 
     commitments = []
     for line in output_lines:
+        # Only get the commitments
         # Case for 'Reg[0] = 0x28059a08d116926177e4dfd87e72da4cd44966b61acc3f21870156b868b81e6a #'
         if line.startswith('Reg['):
             # 0xed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
@@ -330,16 +332,19 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: Path) -> list[str]
 
 
 def run_computation_query_program(circuit_name: str, ip_file_path: Path) -> list[str]:
-    process = run_program(circuit_name, ip_file_path)
-    # 'Result of computation 0: 10'
-    output_lines = process.stdout.split('\n')
-    outputs = []
-    for line in output_lines:
-        if line.startswith('Result of computation'):
-            outputs.append(line.split(':')[1].strip())
-    if len(outputs) != 1:
-        raise ValueError(f"Expected 1 output, got {len(outputs)}")
-    return outputs[0]
+    return run_program(circuit_name, ip_file_path)
+    # # 'Result of computation 0: 10'
+    # output_lines = process.stdout.split('\n')
+    # outputs = []
+    # for line in output_lines:
+    #     if line.startswith('Result of computation:'):
+    #         outputs.append(line.split(',')[0].strip()[-1])
+    #         outputs.append(line.split(',')[1].strip())
+    #         outputs.append(line.split(',')[2].strip())
+    #         outputs.append(line.split(',')[3].strip())
+    # if len(outputs) != 4:
+    #     raise ValueError(f"Expected 4 output, got {len(outputs)}")
+    # return outputs
 
 
 def extract_tlsn_proof_data(tlsn_proof: str):

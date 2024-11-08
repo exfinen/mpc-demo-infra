@@ -2,6 +2,7 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
+
 WORKDIR /root
 
 RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl pipx git automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool pkg-config libmpfr-dev libmpc-dev \
@@ -26,8 +27,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
  
 COPY .env.client_cli /root/mpc-demo-infra/
 
-COPY facade.sh /root/mpc-demo-infra/
-RUN chmod +x /root/mpc-demo-infra/facade.sh
+WORKDIR /root/mpc-demo-infra
 
-ENTRYPOINT ["/root/mpc-demo-infra/facade.sh"]
+ENTRYPOINT ["poetry", "run"]
 

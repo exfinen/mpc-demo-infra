@@ -14,9 +14,7 @@ TLSN_EXECUTABLE_DIR = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
-DATA_TYPE = 0
-
-async def notarize_and_share_data(voucher_code: str):
+async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: str):
     num_parties = len(settings.party_hosts)
     CERTS_PATH.mkdir(parents=True, exist_ok=True)
     all_certs_exist = all(get_party_cert_path(CERTS_PATH, party_id).exists() for party_id in range(num_parties))
@@ -33,8 +31,9 @@ async def notarize_and_share_data(voucher_code: str):
     # Gen tlsn proofs
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
+    print(f"Generating binance ETH balance TLSN proof...")
     process = await asyncio.create_subprocess_shell(
-        f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {str(proof_file.resolve())} {str(secret_file.resolve())}",
+        f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -48,6 +47,7 @@ async def notarize_and_share_data(voucher_code: str):
         secret_input = float(secret_data["eth_free"])
         nonce = bytes(secret_data["nonce"]).hex()
 
+    print(f"Sharing binance ETH balance data to MPC parties...")
     # Share data
     await share_data(
         CERTS_PATH,
@@ -58,6 +58,7 @@ async def notarize_and_share_data(voucher_code: str):
         secret_input,
         nonce,
     )
+    print(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
 async def query_computation_and_verify(
@@ -87,8 +88,10 @@ async def query_computation_and_verify(
 def notarize_and_share_data_cli():
     parser = argparse.ArgumentParser(description="Notarize and share data")
     parser.add_argument("voucher_code", type=str, help="The voucher code")
+    parser.add_argument("api_key", type=str, help="The API key")
+    parser.add_argument("api_secret", type=str, help="The API secret")
     args = parser.parse_args()
-    asyncio.run(notarize_and_share_data(args.voucher_code))
+    asyncio.run(notarize_and_share_data(args.voucher_code, args.api_key, args.api_secret))
 
 
 def query_computation_and_verify_cli():

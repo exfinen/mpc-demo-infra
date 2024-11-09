@@ -125,7 +125,8 @@ async def share_data(
             "client_cert_file": cert_file_content,
             "client_id": client_id,
         }) as response:
-            assert response.status == 200
+            if response.status != 200:
+                raise Exception(f"Failed to share data: {response.status=}, {await response.text()=}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 
@@ -158,7 +159,8 @@ async def query_computation(
             "client_id": client_id,
             "client_cert_file": cert_file_content,
         }) as response:
-            assert response.status == 200
+            if response.status != 200:
+                raise Exception(f"Failed to query computation: {response.status=}, {await response.text()=}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 
@@ -189,9 +191,11 @@ async def get_parties_certs(
 ):
     async def get_party_cert(session, host: str, port: int, party_id: int):
         async with session.get(f"{party_web_protocol}://{host}:{port}/get_party_cert") as response:
-            assert response.status == 200
+            if response.status != 200:
+                raise Exception(f"Failed to get party cert: {response.status=}, {await response.text()=}")
             data = await response.json()
-            assert data["party_id"] == party_id, f'{data["party_id"]=}, {party_id=}'
+            if data["party_id"] != party_id:
+                raise Exception(f'{data["party_id"]=}, {party_id=}')
             return data["cert_file"]
     # Get party certs concurrently
     async with aiohttp.ClientSession() as session:

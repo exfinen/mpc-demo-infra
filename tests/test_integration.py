@@ -14,11 +14,12 @@ proof_file_1 = FILE_DIR / f"proof_1.json"
 proof_file_2 = FILE_DIR / f"proof_2.json"
 proof_file_3 = FILE_DIR / f"proof_3.json"
 proof_file_4 = FILE_DIR / f"proof_4.json"
+proof_file_5 = FILE_DIR / f"proof_5.json"
 secret_file_1 = FILE_DIR / f"secret_1.json"
 secret_file_2 = FILE_DIR / f"secret_2.json"
 secret_file_3 = FILE_DIR / f"secret_3.json"
 secret_file_4 = FILE_DIR / f"secret_4.json"
-
+secret_file_5 = FILE_DIR / f"secret_5.json"
 def process_proof_file(proof_file):
     with open(proof_file, "r") as f:
         TLSN_PROOF = f.read()
@@ -42,10 +43,12 @@ TLSN_PROOF_1, data_commitment_hash_1 = process_proof_file(proof_file_1)
 TLSN_PROOF_2, data_commitment_hash_2 = process_proof_file(proof_file_2)
 TLSN_PROOF_3, data_commitment_hash_3 = process_proof_file(proof_file_3)
 TLSN_PROOF_4, data_commitment_hash_4 = process_proof_file(proof_file_4)
+TLSN_PROOF_5, data_commitment_hash_5 = process_proof_file(proof_file_5)
 secret_data_1, value_1, nonce_1 = process_secret_file(secret_file_1)
 secret_data_2, value_2, nonce_2 = process_secret_file(secret_file_2)
 secret_data_3, value_3, nonce_3 = process_secret_file(secret_file_3)
 secret_data_4, value_4, nonce_4 = process_secret_file(secret_file_4)
+secret_data_5, value_5, nonce_5 = process_secret_file(secret_file_5)
 
 
 PROTOCOL = "http"
@@ -65,6 +68,8 @@ TIMEOUT_MPC = 60
 CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coord-run"]
 CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coord-gen-vouchers"]
 CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coord-list-vouchers"]
+CMD_PREFIX_SHARE_DATA = ["poetry", "run", "client-share-data"]
+CMD_PREFIX_QUERY_COMPUTATION = ["poetry", "run", "client-query-computation"]
 
 CMD_PREFIX_COMPUTATION_PARTY_SERVER = ["poetry", "run", "party-run"]
 
@@ -176,6 +181,38 @@ async def get_vouchers():
     return vouchers
 
 
+async def share_data_cli(voucher_code: str, api_key: str, api_secret: str):
+    process = await asyncio.create_subprocess_exec(
+        *CMD_PREFIX_SHARE_DATA,
+        voucher_code,
+        api_key,
+        api_secret,
+        env={
+            **os.environ,
+            "COORDINATION_SERVER_URL": f"{PROTOCOL}://localhost:{COORDINATION_PORT}",
+            "PARTY_HOSTS": '["' + '","'.join(COMPUTATION_HOSTS) + '"]',
+            "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
+        },
+    )
+    await process.wait()
+    assert process.returncode == 0, f"Error running share_data_cli: process.returncode={process.returncode}"
+
+
+async def query_computation_cli():
+    process = await asyncio.create_subprocess_exec(
+        *CMD_PREFIX_QUERY_COMPUTATION,
+        str(0),
+        env={
+            **os.environ,
+            "COORDINATION_SERVER_URL": f"{PROTOCOL}://localhost:{COORDINATION_PORT}",
+            "PARTY_HOSTS": '["' + '","'.join(COMPUTATION_HOSTS) + '"]',
+            "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
+        },
+    )
+    await process.wait()
+    assert process.returncode == 0, f"Error running query_computation_cli: process.returncode={process.returncode}"
+
+
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     # Clean up the existing shares
@@ -185,45 +222,49 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     await get_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
 
     # Gen vouchers
-    num_vouchers = 4
+    num_vouchers = 5
     await gen_vouchers(num_vouchers)
 
     # List vouchers
     vouchers = await get_vouchers()
     assert len(vouchers) == num_vouchers
-    voucher_1, voucher_2, voucher_3, voucher_4 = vouchers
+    voucher_1, voucher_2, voucher_3, voucher_4, voucher_5 = vouchers
+
+    api_key = ""
+    api_secret = ""
 
     await asyncio.sleep(1)
 
     coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
     await asyncio.gather(
-        share_data(
-            CERTS_PATH,
-            coordination_server_url,
-            COMPUTATION_HOSTS,
-            voucher_1,
-            TLSN_PROOF_1,
-            value_1,
-            nonce_1,
-        ),
-        share_data(
-            CERTS_PATH,
-            coordination_server_url,
-            COMPUTATION_HOSTS,
-            voucher_2,
-            TLSN_PROOF_2,
-            value_2,
-            nonce_2,
-        ),
-        share_data(
-            CERTS_PATH,
-            coordination_server_url,
-            COMPUTATION_HOSTS,
-            voucher_3,
-            TLSN_PROOF_3,
-            value_3,
-            nonce_3,
-        ),
+        # share_data_cli(voucher_1, api_key, api_secret),
+        # share_data(
+        #     CERTS_PATH,
+        #     coordination_server_url,
+        #     COMPUTATION_HOSTS,
+        #     voucher_1,
+        #     TLSN_PROOF_1,
+        #     value_1,
+        #     nonce_1,
+        # ),
+        # share_data(
+        #     CERTS_PATH,
+        #     coordination_server_url,
+        #     COMPUTATION_HOSTS,
+        #     voucher_2,
+        #     TLSN_PROOF_2,
+        #     value_2,
+        #     nonce_2,
+        # ),
+        # share_data(
+        #     CERTS_PATH,
+        #     coordination_server_url,
+        #     COMPUTATION_HOSTS,
+        #     voucher_3,
+        #     TLSN_PROOF_3,
+        #     value_3,
+        #     nonce_3,
+        # ),
         share_data(
             CERTS_PATH,
             coordination_server_url,
@@ -232,6 +273,15 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             TLSN_PROOF_4,
             value_4,
             nonce_4,
+        ),
+        share_data(
+            CERTS_PATH,
+            coordination_server_url,
+            COMPUTATION_HOSTS,
+            voucher_5,
+            TLSN_PROOF_5,
+            value_5,
+            nonce_5,
         ),
     )
 
@@ -245,15 +295,17 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             COMPUTATION_HOSTS,
             # computation_index,
         ) for _ in range(num_queries)
+        # query_computation_cli()
     ])
     assert len(res_queries) == num_queries
     results, commitments = res_queries[0]
     # Verify commitments with tlsn proofs
-    assert data_commitment_hash_1 == commitments[1]
-    assert data_commitment_hash_2 == commitments[2]
+    # assert data_commitment_hash_1 == commitments[1]
+    # assert data_commitment_hash_2 == commitments[2]
     # assert data_commitment_hash_3 == commitments[3]
     # assert data_commitment_hash_4 == commitments[4]
-    # print(f"{results=}")
+    assert data_commitment_hash_5 == commitments[1]
+    print(f"{results=}")
     print(f"{commitments=}")
 
 

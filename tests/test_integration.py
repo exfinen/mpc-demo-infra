@@ -3,12 +3,13 @@ import os
 import aiohttp
 import pytest
 import asyncio
+import secrets
 
 from pathlib import Path
 
 from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.coordination_server.user_queue import UserQueue
-from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation
+from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
 
 from .common import (
     TLSN_PROOF_1,
@@ -20,6 +21,7 @@ from .common import (
     data_commitment_hash_2,
     nonce_2,
 )
+from mpc_demo_infra.coordination_server.user_queue import AddResult
 
 
 PROTOCOL = "http"
@@ -57,6 +59,7 @@ async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: 
             "FREE_PORTS_START": str(FREE_PORTS_START),
             "FREE_PORTS_END": str(FREE_PORTS_END),
             "TLSN_PROOFS_DIR": str(tlsn_proofs_dir),
+            "PARTY_WEB_PROTOCOL": "http",
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -76,6 +79,7 @@ async def start_computation_party_server(cmd: list[str], party_id: int, port: in
             "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
             "TLSN_PROJECT_ROOT": str(TLSN_PROJECT_ROOT),
             "MPSPDZ_PROJECT_ROOT": str(MPSPDZ_PROJECT_ROOT),
+            "PARTY_WEB_PROTOCOL": "http",
         },
         # stdout=asyncio.subprocess.PIPE,
         # stderr=asyncio.subprocess.PIPE
@@ -92,6 +96,7 @@ async def start_data_consumer_api_server(cmd: list[str], port: int):
             "TLSN_PROJECT_ROOT": str(TLSN_PROJECT_ROOT),
             "PARTY_HOSTS": '["' + '","'.join(COMPUTATION_HOSTS) + '"]',
             "PARTY_PORTS": '["' + '","'.join(map(str, COMPUTATION_PARTY_PORTS)) + '"]',
+            "PARTY_WEB_PROTOCOL": "http",
         },
     )
     return process
@@ -175,21 +180,6 @@ async def get_vouchers():
     ]
 
 
-async def get_position_from_queue(voucher: str, coordination_server_url: str) -> str:
-    async def f():
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{coordination_server_url}/get_position",
-                json={"voucher_code": voucher},
-            ) as resp:
-                return await resp.json()
-    resp = await f() 
-    position = resp["position"]
-    computation_key = resp["computation_key"]
-    assert position == 0 and computation_key is not None
-    return computation_key
-
-
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     # Clean up the existing shares
@@ -211,7 +201,8 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
 
     # Add user to queue and get position to get the comptation_key
-    computation_key_1 = await get_position_from_queue(voucher_1, coordination_server_url)
+    await add_user_to_queue(coordination_server_url, voucher_1, 1)
+    computation_key_1 = await poll_queue_until_ready(coordination_server_url, voucher_1, 1)
 
     await asyncio.sleep(1)
 
@@ -244,7 +235,9 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     assert is_used_1_after_sharing, "Voucher 1 should be used"
 
     # get the computation key again
-    computation_key_2 = await get_position_from_queue(voucher_1, coordination_server_url)
+    access_key_2 = secrets.token_urlsafe(16)
+    await add_user_to_queue(coordination_server_url, access_key_2, 1)
+    computation_key_2 = await poll_queue_until_ready(coordination_server_url, access_key_2, 1)
 
     # Query computation concurrently
     num_queries = 2
@@ -254,6 +247,7 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
             CERTS_PATH,
             coordination_server_url,
             COMPUTATION_HOSTS,
+            access_key_2,
             computation_index,
             computation_key_2,
         ) for _ in range(num_queries)
@@ -264,7 +258,9 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     print(f"{results_0=}")
 
     # get the computation key again
-    computation_key_3 = await get_position_from_queue(voucher_1, coordination_server_url)
+    access_key_3 = secrets.token_urlsafe(16)
+    await add_user_to_queue(coordination_server_url, access_key_3, 1)
+    computation_key_3 = await poll_queue_until_ready(coordination_server_url, access_key_3, 1)
 
     # Query data consumer api
     data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"

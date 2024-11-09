@@ -7,6 +7,7 @@ import secrets
 
 from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
+from mpc_demo_infra.coordination_server.user_queue import AddResult
 
 EMPTY_COMMITMENT = '0'
 
@@ -187,7 +188,7 @@ async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_
             }) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if data["result"] == 'QUEUE_IS_FULL':
+                    if data["result"] == AddResult.QUEUE_IS_FULL:
                         print("\nThe queue is currently full. Please wait for your turn.")
                     else:
                         return
@@ -213,7 +214,7 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                         else:
                             print(f"{access_key}: You are currently #{position} in line.")
                 else:
-                    print("Server error")
+                    print(f"Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)
 
 

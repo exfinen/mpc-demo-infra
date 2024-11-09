@@ -4,20 +4,6 @@ import time
 def get_queue(max_size: int = 10, queue_head_timeout: int=60) -> UserQueue:
     return UserQueue(max_size=max_size, queue_head_timeout=queue_head_timeout)
 
-# def test_validate_computation_key():
-#     q = get_queue()
-#  
-#     assert q.add_user('mpc') == AddResult.SUCCEEDED
-#     pos = q.get_position('mpc')
-#     assert pos == 0
-#     comp_key = q.get_computation_key('mpc')
-#     # bad computation key
-#     assert q.validate_computation_key('mpc', 'bad_key') == False
-#     # bad access key
-#     assert q.validate_computation_key('cpm', comp_key) == False
-#     # good computation/access keys
-#     assert q.validate_computation_key('mpc', comp_key) == True
-
 def test_get_position_empty_queue():
     q = get_queue()
     pos = q.get_position('mpc')

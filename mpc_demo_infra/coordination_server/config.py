@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     num_parties: int = 3
     port: int = 8005
 
+    # User queue
+    user_queue_size: int = 1000
+    user_queue_head_timeout: int = 120
+
     # Allowed IPs for access control
     allowed_ips: List[str] = ["192.168.1.100", "192.168.1.101"]
 
@@ -33,6 +37,9 @@ class Settings(BaseSettings):
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
     party_hosts: List[str] = ["localhost", "localhost", "localhost"]
     party_ports: List[int] = [8006, 8007, 8008]
+
+    fullchain_pem_path: str = "ssl_certs/fullchain.pem"
+    privkey_pem_path: str = "ssl_certs/privkey.pem"
 
     class Config:
         env_file = ".env.coord"

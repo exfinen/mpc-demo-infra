@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 import random
 from pathlib import Path
+import secrets
 
 from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
@@ -10,6 +11,7 @@ from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
 EMPTY_COMMITMENT = '0'
 BINANCE_DECIMAL_PRECISION = 2
 BINANCE_DECIMAL_SCALE = 10**BINANCE_DECIMAL_PRECISION
+
 def hex_to_int(hex):
     return int(hex, 16)
 
@@ -45,7 +47,7 @@ def run_data_sharing_client(
         os.Send(socket)
 
     client.send_private_inputs([input_value, reverse_bytes(hex_to_int(nonce))])
-    print("finish sending private inputs")
+    print("Finish sending private inputs")
     outputs = client.receive_outputs(1)
     print("!@# data_sharing_client.py outputs: ", outputs)
     commitment = outputs[0]
@@ -71,7 +73,6 @@ def run_computation_query_client(
         os.Send(socket)
     # If computation returns more than one value, need to change the following line.
     output_list = client.receive_outputs(5 + max_data_providers)
-    # TODO: Need to change the following line if computation returns more than one value.
     results = [ele/(10*BINANCE_DECIMAL_SCALE) for ele in output_list[0:5]]
     print("Stats of Data")
     num_data_providers = results[0]*10*BINANCE_DECIMAL_SCALE
@@ -106,6 +107,32 @@ async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[in
     return client_id, cert_path, key_path
 
 
+async def validate_computation_key(coordination_server_url: str, access_key: str, computation_key: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/validate_computation_key", json={
+            "access_key": access_key,
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to validate computation key {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_valid"]
+
+
+async def mark_queue_computation_to_be_finished(coordination_server_url: str, access_key: str, computation_key: str) -> bool:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(f"{coordination_server_url}/finish_computation", json={
+            "access_key": access_key,
+            "computation_key": computation_key,
+        }) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise Exception(f"Failed to finish computation with {computation_key}. Response: {response.status} {response.reason}")
+            data = await response.json()
+            return data["is_finished"]
+
+
 async def share_data(
     all_certs_path: Path,
     coordination_server_url: str,
@@ -114,7 +141,11 @@ async def share_data(
     tlsn_proof: str,
     value: float,
     nonce: str,
+    computation_key: str,
 ):
+    if await validate_computation_key(coordination_server_url, voucher_code, computation_key) == False:
+        raise Exception(f"Computation key is invalid")
+
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -124,25 +155,90 @@ async def share_data(
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
+            "computation_key": computation_key,
         }) as response:
+            await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
+
             if response.status != 200:
-                raise Exception(f"Failed to share data: {response.status=}, {await response.text()=}")
+                json = await response.json()
+                raise Exception(f"{json['detail']}")
             data = await response.json()
             client_port_base = data["client_port_base"]
 
     # Wait until all computation parties started their MPC servers.
     print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_data_sharing_client,
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(
+            None,
+            run_data_sharing_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            int(value*10*BINANCE_DECIMAL_SCALE),
+            nonce
+        )
+        return result
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
+
+
+async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_duration: int) -> None:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{coordination_server_url}/add_user_to_queue", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["result"] == 'QUEUE_IS_FULL':
+                        print("\nThe queue is currently full. Please wait for your turn.")
+                    else:
+                        return
+        await asyncio.sleep(poll_duration)
+
+
+async def poll_queue_until_ready(coordination_server_url: str, access_key: str, poll_duration: int) -> str:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{coordination_server_url}/get_position", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    position = data["position"]
+                    if position is None:
+                        print("{access_key}: The queue is currently full. Please wait for your turn.")
+                    else:
+                        print(f'{access_key}: position is {position}')
+                        if position == 0:
+                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
+                            return data["computation_key"]
+                        else:
+                            print(f"{access_key}: You are currently #{position} in line.")
+                else:
+                    print("Server error")
+        await asyncio.sleep(poll_duration)
+
+
+async def query_computation_from_data_consumer_api(
+    all_certs_path: Path,
+    coordination_server_url: str,
+    computation_party_hosts: list[str],
+    poll_duration: int,
+):
+    access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(coordination_server_url, access_key, poll_duration)
+    computation_key = await poll_queue_until_ready(coordination_server_url, access_key, poll_duration)
+
+    return await query_computation(
+        all_certs_path,
+        coordination_server_url,
         computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        int(value*10*BINANCE_DECIMAL_SCALE),
-        nonce
+        access_key,
+        computation_key,
     )
 
 
@@ -150,7 +246,12 @@ async def query_computation(
     all_certs_path: Path,
     coordination_server_url: str,
     computation_party_hosts: list[str],
+    access_key: str,
+    computation_key: str,
 ):
+    if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
+        raise Exception(f"Error: Computation key is invalid")
+
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
@@ -158,32 +259,32 @@ async def query_computation(
         async with session.post(f"{coordination_server_url}/query_computation", json={
             "client_id": client_id,
             "client_cert_file": cert_file_content,
+            "computation_key": computation_key,
+            "access_key": access_key,
         }) as response:
             if response.status != 200:
                 raise Exception(f"Failed to query computation: {response.status=}, {await response.text()=}")
             data = await response.json()
             client_port_base = data["client_port_base"]
-
-    results, commitments = await asyncio.get_event_loop().run_in_executor(
-        None,
-        run_computation_query_client,
-        computation_party_hosts,
-        client_port_base,
-        str(all_certs_path),
-        client_id,
-        str(cert_path),
-        str(key_path),
-        MAX_DATA_PROVIDERS,
-    )
-
-    return results, commitments
-
-
-def get_party_cert_path(certs_path: Path, party_id: int) -> Path:
-    return certs_path / f"P{party_id}.pem"
+    try:
+        results, commitments = await asyncio.get_event_loop().run_in_executor(
+            None,
+            run_computation_query_client,
+            computation_party_hosts,
+            client_port_base,
+            str(all_certs_path),
+            client_id,
+            str(cert_path),
+            str(key_path),
+            MAX_DATA_PROVIDERS,
+        )
+        # TODO: Verify commitments with tlsn proofs
+        return results
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)
 
 
-async def get_parties_certs(
+async def fetch_parties_certs(
     party_web_protocol: str,  # http or https
     certs_path: Path,
     party_hosts: list[str],
@@ -202,8 +303,7 @@ async def get_parties_certs(
         party_certs = await asyncio.gather(
             *[get_party_cert(session, host, port, party_id) for party_id, (host, port) in enumerate(zip(party_hosts, party_ports))]
         )
+    certs_path.mkdir(parents=True, exist_ok=True)
     # Write party certs to files
     for party_id, cert in enumerate(party_certs):
-        get_party_cert_path(certs_path, party_id).write_text(cert)
-
-
+        (certs_path / f"P{party_id}.pem").write_text(cert)

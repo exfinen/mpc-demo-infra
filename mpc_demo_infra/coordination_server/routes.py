@@ -5,7 +5,7 @@ from pathlib import Path
 import logging
 
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -13,10 +13,15 @@ logger = logging.getLogger(__name__)
 from .schemas import (
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
+    RequestGetPositionRequest, RequestGetPositionResponse,
+    RequestValidateComputationKeyRequest, RequestValidateComputationKeyResponse,
+    RequestFinishComputationRequest, RequestFinishComputationResponse,
+    RequestAddUserToQueueRequest, RequestAddUserToQueueResponse,
 )
-from .database import Voucher, get_db
+from .database import Voucher, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
+from .user_queue import AddResult
 
 router = APIRouter()
 
@@ -27,27 +32,68 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "b
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
 
+@router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
+async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
+    print(f"----- {request}")
+    result = x.state.user_queue.add_user(request.access_key)
+    print(f"----- {result}")
+    logger.debug(f"add_user_to_queue: {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    if result == AddResult.ALREADY_IN_QUEUE:
+        logger.debug(f"{request.access_key} not added. Already in the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
+    elif result == AddResult.QUEUE_IS_FULL:
+        logger.debug(f"{request.access_key} not added. The queue is full")
+        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
+    else:
+        logger.debug(f"Added {request.access_key} to the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
+
+@router.post("/get_position", response_model=RequestGetPositionResponse)
+async def get_position(request: RequestGetPositionRequest, x: Request):
+    position = x.state.user_queue.get_position(request.access_key)
+    computation_key = x.state.user_queue.get_computation_key(request.access_key)
+    logger.debug(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}")
+    return RequestGetPositionResponse(position=position, computation_key=computation_key)
+
+@router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
+async def validate_computation_key(request: RequestValidateComputationKeyRequest, x: Request):
+    is_valid = x.state.user_queue.validate_computation_key(request.access_key, request.computation_key)
+    logger.debug(f"validate_computation_key: {request.access_key}; {is_valid} {x.state.user_queue._queue_to_str()}")
+    return RequestValidateComputationKeyResponse(is_valid=is_valid)
+
+@router.post("/finish_computation", response_model=RequestFinishComputationResponse)
+async def finish_computation(request: RequestFinishComputationRequest, x: Request):
+    is_finished = x.state.user_queue.finish_computation(request.access_key, request.computation_key)
+    logger.debug(f"finish_computation: {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
-async def share_data(request: RequestSharingDataRequest, db: Session = Depends(get_db)):
+async def share_data(request: RequestSharingDataRequest, x: Request, db: Session = Depends(get_db)):
     voucher_code = request.voucher_code
     client_id = request.client_id
     tlsn_proof = request.tlsn_proof
     client_cert_file = request.client_cert_file
+    computation_key = request.computation_key
     logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
+
+    # Check if computation key is valid
+    if not x.state.user_queue.validate_computation_key(voucher_code, computation_key):
+        logger.error(f"Invalid computation key {computation_key}")
+        raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
+    logger.error(f"{voucher_code}: Computation key {computation_key} is valid")
 
     logger.debug(f"Verifying registration for voucher code: {voucher_code}")
     if client_id >= MAX_CLIENT_ID:
-        logger.error(f"Client ID is out of range: {client_id}")
-        raise HTTPException(status_code=400, detail="Client ID is out of range")
+        logger.error(f"{voucher_code}: Client ID is out of range: {client_id}")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Client ID is out of range")
     # Check if voucher exists
     voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == voucher_code).first()
     if not voucher:
         logger.error(f"Voucher code not found: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code not found")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code not found")
     if voucher.is_used:
         logger.error(f"Voucher code already used: {voucher_code}")
-        raise HTTPException(status_code=400, detail="Voucher code already used")
+        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code already used")
     secret_index = voucher.id
 
     logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")
@@ -104,6 +150,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
                     logger.debug(f"Received responses for sharing data MPC for {voucher_code=}")
+                    # Check if all responses are successful
                     for party_id, response in enumerate(responses):
                         if response.status != 200:
                             logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
@@ -125,7 +172,7 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                 # Proof is valid, copy to tlsn_proofs_dir, and delete the temp file.
                 tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)
                 tlsn_proofs_dir.mkdir(parents=True, exist_ok=True)
-                tlsn_proof_path = tlsn_proofs_dir / f"proof_{client_id}.json"
+                tlsn_proof_path = tlsn_proofs_dir / f"proof_{secret_index}.json"
                 tlsn_proof_path.write_text(request.tlsn_proof)
                 try:
                     temp_tlsn_proof_file.close()
@@ -133,10 +180,17 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
                     logger.warning(f"Failed to close temporary TLSN proof file: {e}")
                 Path(temp_tlsn_proof_file.name).unlink(missing_ok=True)
                 logger.debug(f"TLSN proof saved to {tlsn_proof_path}")
-                # Check if all responses are successful
-                voucher.is_used = True
-                db.commit()
-                logger.debug(f"Committed changes to database for {voucher_code=}")
+                # Mark the voucher as used. A new db session is used to avoid using
+                # `db`, which is possibly closed after we return.
+                with SessionLocal() as db_session:
+                    # Query for the voucher again in this new session
+                    voucher = db_session.query(Voucher).filter(Voucher.code == voucher_code).first()
+                    if voucher:
+                        voucher.is_used = True
+                        db_session.commit()
+                        logger.debug(f"Committed changes to database for {voucher_code=}")
+                    else:
+                        logger.error(f"Voucher not found for {voucher_code=} when trying to mark as used")
             finally:
                 sharing_data_lock.release()
                 logger.info(f"Released lock for sharing data for {voucher_code=}")
@@ -161,9 +215,18 @@ async def share_data(request: RequestSharingDataRequest, db: Session = Depends(g
         raise HTTPException(status_code=400, detail="Failed to share data")
 
 @router.post("/query_computation", response_model=RequestQueryComputationResponse)
-async def query_computation(request: RequestQueryComputationRequest, db: Session = Depends(get_db)):
+async def query_computation(request: RequestQueryComputationRequest, x: Request, db: Session = Depends(get_db)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
+    computation_key = request.computation_key
+    access_key = request.access_key
+
+    # Check if computation key is valid
+    if not x.state.user_queue.validate_computation_key(access_key, computation_key):
+        logger.error(f"Invalid computation key ({computation_key})")
+        raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
+    logger.debug(f"Computation key ({computation_key}) is valid")
+
     logger.debug(f"Querying computation for client {client_id}")
     if client_id >= MAX_CLIENT_ID:
         logger.error(f"Client ID is out of range: {client_id}")

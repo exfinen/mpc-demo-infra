@@ -2,8 +2,9 @@ import argparse
 import asyncio
 from pathlib import Path
 import json
+import secrets
 
-from ..client_lib.lib import get_parties_certs, get_party_cert_path, share_data, query_computation
+from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
 from .config import settings
 
 # project_root/certs
@@ -14,21 +15,19 @@ TLSN_EXECUTABLE_DIR = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
-async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: str):
-    num_parties = len(settings.party_hosts)
-    CERTS_PATH.mkdir(parents=True, exist_ok=True)
-    all_certs_exist = all(get_party_cert_path(CERTS_PATH, party_id).exists() for party_id in range(num_parties))
-    if not all_certs_exist:
-        print("Some party certificates are missing. Fetching them...")
-        await get_parties_certs(
-            settings.party_web_protocol,
-            CERTS_PATH,
-            settings.party_hosts,
-            settings.party_ports
-        )
-        print("Party certificates have been fetched and saved.")
+
+async def notarize_and_share_data(voucher_code: str):
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+    print("Party certificates have been fetched and saved.")
 
     # Gen tlsn proofs
+    print("Generating proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
     print(f"Generating binance ETH balance TLSN proof...")
@@ -48,6 +47,8 @@ async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: s
         nonce = bytes(secret_data["nonce"]).hex()
 
     print(f"Sharing binance ETH balance data to MPC parties...")
+    await add_user_to_queue(settings.coordination_server_url, voucher_code, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, voucher_code, settings.poll_duration)
     # Share data
     await share_data(
         CERTS_PATH,
@@ -57,30 +58,31 @@ async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: s
         tlsn_proof,
         secret_input,
         nonce,
+        computation_key,
     )
     print(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
-async def query_computation_and_verify(
-    computation_index: int,
-):
-    num_parties = len(settings.party_hosts)
-    CERTS_PATH.mkdir(parents=True, exist_ok=True)
-    all_certs_exist = all(get_party_cert_path(CERTS_PATH, party_id).exists() for party_id in range(num_parties))
-    if not all_certs_exist:
-        print("Some party certificates are missing. Fetching them...")
-        await get_parties_certs(
-            settings.party_web_protocol,
-            CERTS_PATH,
-            settings.party_hosts,
-            settings.party_ports
-        )
-        print("Party certificates have been fetched and saved.")
+async def query_computation_and_verify():
+    access_key = secrets.token_urlsafe(16)
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
+
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+
+    print("Party certificates have been fetched and saved.")
     results = await query_computation(
         CERTS_PATH,
         settings.coordination_server_url,
         settings.party_hosts,
-        computation_index,
+        access_key,
+        computation_key,
     )
     print(f"{results=}")
 
@@ -91,11 +93,16 @@ def notarize_and_share_data_cli():
     parser.add_argument("api_key", type=str, help="The API key")
     parser.add_argument("api_secret", type=str, help="The API secret")
     args = parser.parse_args()
-    asyncio.run(notarize_and_share_data(args.voucher_code, args.api_key, args.api_secret))
+    try:
+        asyncio.run(notarize_and_share_data(args.voucher_code, args.api_key, args.api_secret))
+        print("Computation finished")
+    except Exception as e:
+        print(e)
 
 
 def query_computation_and_verify_cli():
-    parser = argparse.ArgumentParser(description="Query computation and verify results")
-    parser.add_argument("computation_index", type=int, help="The computation index")
-    args = parser.parse_args()
-    asyncio.run(query_computation_and_verify(args.computation_index))
+    try:
+        asyncio.run(query_computation_and_verify())
+        print("Computation finished")
+    except Exception as e:
+        print(e)

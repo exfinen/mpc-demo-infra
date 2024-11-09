@@ -1,11 +1,24 @@
 #!/bin/bash
 
 MPC_PROTOCOL="replicated-ring"
+NUM_PARTIES=3
 
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
+
+# Function to detect OS
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
 
 # Default value for MP-SPDZ setup
 setup_mpspdz=false
@@ -20,8 +33,11 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Update system
-sudo apt update
-sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+if [ "$(detect_os)" == "linux" ]; then
+    sudo apt update
+else
+    brew update
+fi
 
 # Install Python 3 if not present
 if ! command_exists python3; then
@@ -34,7 +50,11 @@ fi
 # Install Poetry if not present
 if ! command_exists poetry; then
     echo "Installing Poetry..."
-    sudo apt install -y python3-poetry
+    if [ "$(detect_os)" == "linux" ]; then
+        sudo apt install -y python3-poetry
+    else
+        curl -sSL https://install.python-poetry.org | python3 -
+    fi
 else
     echo "Poetry is already installed."
 fi
@@ -48,9 +68,12 @@ else
     echo "Rust and Cargo are already installed."
 fi
 
+
 # Install pkg-config (used by TLSN)
-echo "Installing pkg-config..."
-sudo apt install -y pkg-config
+if [ "$(detect_os)" == "linux" ]; then
+    echo "Installing pkg-config..."
+    sudo apt install -y pkg-config
+fi
 
 # Clone TLSN repository if not present
 if [ ! -d "../tlsn" ]; then
@@ -70,6 +93,10 @@ fi
 if [ "$setup_mpspdz" = true ]; then
     echo "Setting up MP-SPDZ..."
     if [ ! -d "../MP-SPDZ" ]; then
+        if [ "$(detect_os)" == "linux" ]; then
+            sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+            sudo apt install -y libboost-all-dev
+        fi
         echo "Cloning MP-SPDZ repository..."
         cd ..
         git clone https://github.com/ZKStats/MP-SPDZ
@@ -78,8 +105,8 @@ if [ "$setup_mpspdz" = true ]; then
         git submodule update --init --recursive
 
         # Add MOD to CONFIG.mine if not already present
-        if ! grep -q "MOD = -DGFP_MOD_SZ=5" CONFIG.mine; then
-            echo "MOD = -DGFP_MOD_SZ=5" >> CONFIG.mine
+        if ! grep -q "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" CONFIG.mine; then
+            echo "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" >> CONFIG.mine
         fi
 
         # Install MP-SPDZ
@@ -87,6 +114,9 @@ if [ "$setup_mpspdz" = true ]; then
 
         # Build VM
         make "$MPC_PROTOCOL-party.x"
+
+        # Generate keys for all parties
+        ./Scripts/setup-ssl.sh $NUM_PARTIES
 
         cd ../mpc-demo-infra
     else
@@ -97,6 +127,8 @@ else
 fi
 
 # Set up Python virtual environment and install dependencies
-poetry install
+# setting PYTHON_KEYRING_BACKEND to avoid potential keyring
+# https://github.com/python-poetry/poetry/issues/1917#issuecomment-1235998997
+PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring  poetry install
 
 echo "Environment setup complete. Please ensure you have the correct versions of all dependencies."

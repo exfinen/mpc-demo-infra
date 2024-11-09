@@ -1,11 +1,15 @@
+import json
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import logging
 import subprocess
 from pathlib import Path
 import shutil
 from datetime import datetime
+import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+import requests
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -43,7 +47,9 @@ SHARES_DIR = MP_SPDZ_PROJECT_ROOT / "Persistence"
 SHARES_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_SHARES_ROOT = MP_SPDZ_PROJECT_ROOT / "Backup"
 BACKUP_SHARES_ROOT.mkdir(parents=True, exist_ok=True)
-CMD_COMPILE_MPC = f"./compile.py -F {settings.program_bits}"
+# To achieve program bits = 256, we need to use ring size = 257
+# Ref: https://github.com/data61/MP-SPDZ/blob/894d38c748ab06a6eae8381f6b8c385cf0b2f5fa/Compiler/program.py#L277
+CMD_COMPILE_MPC = f"./compile.py -R {settings.program_bits+1}"
 MPC_VM_BINARY = f"{settings.mpspdz_protocol}-party.x"
 
 @router.get("/get_party_cert", response_model=GetPartyCertResponse)
@@ -66,7 +72,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_cert_file = request.client_cert_file
     logger.info(f"Requesting sharing data MPC for {secret_index=}")
     if secret_index >= MAX_DATA_PROVIDERS:
-        raise HTTPException(status_code=400, detail="Secret index out of range")
+        raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.
@@ -86,7 +92,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
-    print(f"!@# backup_shares_path: {backup_shares_path}")
+    logger.debug(f"!@# backup_shares_path: {backup_shares_path}")
     logger.debug(f"Backed up shares to {backup_shares_path}")
 
     # 3. Generate ip file
@@ -94,6 +100,9 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
 
     # 4. Generate client cert file
     generate_client_cert_file(client_id, client_cert_file)
+
+    # 5. Fetch other parties' certs
+    fetch_other_parties_certs()
 
     logger.debug(f"Preparing data sharing program")
     num_bytes_input, tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
@@ -110,10 +119,10 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
-        logger.debug(f"Running program {circuit_name}")
+        logger.debug(f"Started computaion: {circuit_name}")
         mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file_path)
     except Exception as e:
-        logger.error(f"Failed to run program {circuit_name}: {str(e)}")
+        logger.error(f"Computation {circuit_name} failed: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -146,6 +155,9 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
     # Generate client cert file
     generate_client_cert_file(client_id, client_cert_file)
 
+    # Fetch other parties' certs
+    fetch_other_parties_certs()
+
     circuit_name, target_program_path = generate_computation_query_program(
         client_port_base,
         MAX_DATA_PROVIDERS,
@@ -153,11 +165,11 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
 
     logger.debug(f"Compiling computation query program {circuit_name}")
     compile_program(circuit_name)
-    logger.debug(f"Running program {circuit_name}")
+    logger.debug(f"Started computation: {circuit_name}")
     try:
         run_computation_query_program(circuit_name, ip_file_path)
     except Exception as e:
-        logger.error(f"Failed to run program {circuit_name}: {str(e)}")
+        logger.error(f"Computation {circuit_name} failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     logger.debug("MPC query computation finished")
     return RequestQueryComputationMPCResponse()
@@ -291,8 +303,10 @@ def run_program(circuit_name: str, ip_file_path: str):
         # Build the binary if not exists
         raise Exception(f"Binary {binary_path} not found. Build it by running `make {MPC_VM_BINARY}` under {settings.mpspdz_project_root}")
     # Run share_data_<client_id>.mpc
-    cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
-
+    # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
+    # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
+    cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
+    logger.debug(f"Executing a program with {MPC_VM_BINARY}")
     # Run the MPC program
     try:
         process = subprocess.run(
@@ -305,6 +319,9 @@ def run_program(circuit_name: str, ip_file_path: str):
         raise e
     if process.returncode != 0:
         raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")
+    else:
+        logger.debug(f"Successfully executed")
+
     return process
 
 
@@ -348,8 +365,6 @@ def run_computation_query_program(circuit_name: str, ip_file_path: Path) -> list
 
 
 def extract_tlsn_proof_data(tlsn_proof: str):
-    import json
-
     WORD_SIZE = 16
     WORDS_PER_LABEL = 8
 
@@ -387,3 +402,30 @@ def extract_tlsn_proof_data(tlsn_proof: str):
         raise Exception(f"Expected all deltas to be the same, got {deltas}")
     return num_bytes_input, data_commitment_hash, deltas[0], zero_encodings
 
+
+def fetch_other_parties_certs():
+    CERTS_PATH.mkdir(parents=True, exist_ok=True)
+
+    def get_party_cert(host: str, port: int, party_id: int):
+        url = f"{settings.party_web_protocol}://{host}:{port}/get_party_cert"
+        logger.debug(f"Fetching party cert from {host}:{port}")
+        response = requests.get(url)
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch party cert from {host}:{port}, text: {response.text}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch party cert from {host}:{port}, text: {response.text}")
+        data = response.json()
+        if data["party_id"] != party_id:
+            logger.error(f"party_id mismatch, expected {party_id}, got {data['party_id']}")
+            raise HTTPException(status_code=500, detail=f"Party ID mismatch, expected {party_id}, got {data['party_id']}")
+        logger.debug(f"Fetched party cert from {host}:{port}")
+        (CERTS_PATH / f"P{party_id}.pem").write_text(data["cert_file"])
+        logger.debug(f"Saved party cert to {CERTS_PATH / f'P{party_id}.pem'}")
+
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(get_party_cert, host, port, party_id)
+            for party_id, (host, port) in enumerate(zip(settings.party_hosts, settings.party_ports))
+            if party_id != settings.party_id
+        ]
+        for future in futures:
+            future.result()

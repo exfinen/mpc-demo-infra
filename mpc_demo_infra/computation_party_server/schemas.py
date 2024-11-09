@@ -16,6 +16,7 @@ class RequestSharingDataMPCResponse(BaseModel):
     data_commitment: str
 
 class RequestQueryComputationMPCRequest(BaseModel):
+    num_data_providers: int
     mpc_port_base: int
     client_id: int
     client_port_base: int

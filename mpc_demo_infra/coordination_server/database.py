@@ -35,14 +35,13 @@ class Voucher(Base):
     def __repr__(self):
         return f"Voucher(id={self.id}, code={self.code}, is_used={self.is_used})"
 
-
-class Session(Base):
-    __tablename__ = "sessions"
+# MPC Session
+class MPCSession(Base):
+    __tablename__ = "mpc_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    indicated_parties = Column(JSON, default=list)
-    completed_parties = Column(JSON, default=list)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    voucher_code = Column(String, unique=True, index=True, nullable=False)
+    tlsn_proof_path = Column(String, nullable=False)
 
 
 def create_tables():

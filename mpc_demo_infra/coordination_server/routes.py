@@ -18,7 +18,7 @@ from .schemas import (
     RequestFinishComputationRequest, RequestFinishComputationResponse,
     RequestAddUserToQueueRequest, RequestAddUserToQueueResponse,
 )
-from .database import Voucher, get_db, SessionLocal
+from .database import Voucher, MPCSession, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 from .user_queue import AddResult
@@ -94,7 +94,9 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     if voucher.is_used:
         logger.error(f"Voucher code already used: {voucher_code}")
         raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code already used")
-    secret_index = voucher.id
+    # Get secret index as number of MPC session
+    num_mpc_sessions = db.query(MPCSession).count()
+    secret_index = num_mpc_sessions + 1
 
     logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")
 
@@ -187,6 +189,12 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                     voucher = db_session.query(Voucher).filter(Voucher.code == voucher_code).first()
                     if voucher:
                         voucher.is_used = True
+                        # Add MPC session to database
+                        mpc_session = MPCSession(
+                            voucher_code=voucher_code,
+                            tlsn_proof_path=str(tlsn_proof_path),
+                        )
+                        db_session.add(mpc_session)
                         db_session.commit()
                         logger.debug(f"Committed changes to database for {voucher_code=}")
                     else:
@@ -236,6 +244,11 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
     mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
     logger.debug(f"Using computation query MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
+    num_data_providers = db.query(MPCSession).count()
+    if num_data_providers == 0:
+        logger.error(f"No MPC session found for {client_id=}")
+        raise HTTPException(status_code=400, detail="No MPC session found")
+
     l = asyncio.Event()
 
     async def request_querying_computation_all_parties():
@@ -246,6 +259,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
                 url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_querying_computation_mpc"
                 headers = {"X-API-Key": settings.party_api_key}
                 task = session.post(url, json={
+                    "num_data_providers": num_data_providers,
                     "mpc_port_base": mpc_server_port_base,
                     "client_id": client_id,
                     "client_port_base": mpc_client_port_base,

@@ -277,6 +277,20 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         computation_key_1,
     )
 
+    # Add user to queue and get position to get the computation key
+    await add_user_to_queue(coordination_server_url, voucher_2, 1)
+    computation_key_2 = await poll_queue_until_ready(coordination_server_url, voucher_2, 1)
+    await share_data(
+        CERTS_PATH,
+        coordination_server_url,
+        COMPUTATION_HOSTS,
+        voucher_2,
+        TLSN_PROOF_5,
+        value_5,
+        nonce_5,
+        computation_key_2,
+    )
+
     # Get the vouchers again, voucher 1 should be used
     vouchers_after_sharing = await get_vouchers()
     voucher_1_after_sharing, is_used_1_after_sharing = vouchers_after_sharing[0]
@@ -316,8 +330,13 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
                 return await resp.json()
 
     res_data_consumer_api = await query_data_consumer_api()
-    results_api = res_data_consumer_api["results"]
-    assert results_api == list(map(float, results_0)), f"result mismatch from api and from computation party: {results_0=}, {results_api=}"
+    assert res_data_consumer_api["num_data_providers"] == results_0.num_data_providers
+    assert res_data_consumer_api["max"] == results_0.max
+    assert res_data_consumer_api["mean"] == results_0.mean
+    assert res_data_consumer_api["median"] == results_0.median
+    assert res_data_consumer_api["gini_coefficient"] == results_0.gini_coefficient
+
+    print(f"!@# res_data_consumer_api: {res_data_consumer_api}")
 
     # async def wait_until_request_fulfilled():
     #     # Poll if tlsn_proof is saved, which means the background task running MPC finished.

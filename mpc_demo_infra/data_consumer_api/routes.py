@@ -8,7 +8,11 @@ from .config import settings
 
 
 class QueryComputationResponse(BaseModel):
-    results: list[float]
+    num_data_providers: int
+    max: float
+    mean: float
+    median: float
+    gini_coefficient: float
 
 router = APIRouter()
 
@@ -33,6 +37,12 @@ async def query_computation():
             poll_duration=settings.poll_duration,
         )
         logger.debug(f"Finished computation. Results={results}")
-        return QueryComputationResponse(results=results)
+        return QueryComputationResponse(
+            num_data_providers=results.num_data_providers,
+            max=results.max,
+            mean=results.mean,
+            median=results.median,
+            gini_coefficient=results.gini_coefficient,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

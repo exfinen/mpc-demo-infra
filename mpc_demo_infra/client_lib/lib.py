@@ -54,6 +54,17 @@ def run_data_sharing_client(
     print("!@# data_sharing_client.py commitment: ", hex(reverse_bytes(commitment)))
 
 
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class StatsResults:
+    num_data_providers: int
+    max: float
+    mean: float
+    median: float
+    gini_coefficient: float
+
+
 def run_computation_query_client(
     party_hosts: list[str],
     port_base: int,
@@ -73,14 +84,21 @@ def run_computation_query_client(
         os.Send(socket)
     # If computation returns more than one value, need to change the following line.
     output_list = client.receive_outputs(5 + max_data_providers)
-    results = [ele/(10*BINANCE_DECIMAL_SCALE) for ele in output_list[0:5]]
     print("Stats of Data")
-    num_data_providers = results[0]*10*BINANCE_DECIMAL_SCALE
-    print("Number of data providers: ", int(num_data_providers))
-    print("Max: ", results[1])
-    print("Mean: ", results[2]/ num_data_providers)
-    print("Median: ", results[3])
-    print("Gini Coefficient: ", (results[4]/(num_data_providers*results[2]))-1)
+    num_data_providers = int(output_list[0])
+
+    results = StatsResults(
+        num_data_providers=num_data_providers,
+        max=output_list[1]/(10*BINANCE_DECIMAL_SCALE),
+        mean=output_list[2]/(num_data_providers*10*BINANCE_DECIMAL_SCALE),
+        median=output_list[3]/(10*BINANCE_DECIMAL_SCALE),
+        gini_coefficient=(output_list[4]/(num_data_providers*output_list[2]*10*BINANCE_DECIMAL_SCALE))-1,
+    )
+    print("Number of data providers: ", results.num_data_providers)
+    print("Max: ", results.max)
+    print("Mean: ", results.mean)
+    print("Median: ", results.median)
+    print("Gini Coefficient: ", results.gini_coefficient)
 
     # return {index -> commitment}
     data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[5:]]

@@ -89,7 +89,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to verify TLSN proof: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
-        
+
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
     logger.debug(f"!@# backup_shares_path: {backup_shares_path}")
@@ -143,6 +143,7 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
     client_id = request.client_id
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
+    num_data_providers = request.num_data_providers
     logger.info(f"Querying computation")
 
     shares_path = SHARES_DIR / f"Transactions-P{settings.party_id}.data"
@@ -161,6 +162,7 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
     circuit_name, target_program_path = generate_computation_query_program(
         client_port_base,
         MAX_DATA_PROVIDERS,
+        num_data_providers,
     )
 
     logger.debug(f"Compiling computation query program {circuit_name}")
@@ -274,6 +276,7 @@ def generate_data_sharing_program(
 def generate_computation_query_program(
     client_port_base: int,
     max_data_providers: int,
+    num_data_providers: int,
 ) -> str:
     template_path = TEMPLATE_PROGRAM_DIR / "query_computation.mpc"
     with open(template_path, "r") as template_file:
@@ -282,7 +285,7 @@ def generate_computation_query_program(
     target_program_path = MPSPDZ_PROGRAM_DIR / f"{circuit_name}.mpc"
     program_content = program_content.replace("{client_port_base}", str(client_port_base))
     program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
-    program_content = program_content.replace("{num_data_providers}", str(4))
+    program_content = program_content.replace("{num_data_providers}", str(num_data_providers))
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name, target_program_path

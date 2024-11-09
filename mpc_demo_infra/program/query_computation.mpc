@@ -30,7 +30,10 @@ def computation(client_values: sint.Array):
     @for_range(num_data_providers)
     def _(i):
         data[i] = client_values[1+i]
-    data.sort()
+    # Only sort data if there are more than 1 data provider
+    # Otherwise, the program will fail to compile.
+    if num_data_providers > 1:
+        data.sort()
     # num_data_providers
     result[0]=sint(num_data_providers)
     # Max
@@ -47,7 +50,7 @@ def computation(client_values: sint.Array):
         area.update(area+(2*i+1)*data[i])
     # Median
     result[3] = (num_data_providers%2)*median_odd + (1-num_data_providers%2)*median_even
-    
+
     # Note that Gini coefficient = (area/(num_data_providers*result[1])) - 1
     # But we leave that to client side handling to optimize calculation in mpc
     result[4] = area

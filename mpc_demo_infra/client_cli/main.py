@@ -19,6 +19,7 @@ DATA_TYPE = 0
 
 async def notarize_and_share_data(voucher_code: str):
     # Gen tlsn proofs
+    print("Generating proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     process = await asyncio.create_subprocess_shell(
         f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {DATA_TYPE} {str(proof_file.resolve())}",
@@ -32,6 +33,7 @@ async def notarize_and_share_data(voucher_code: str):
     if not secret_input_line:
         raise ValueError(f"Could not find line for secret input")
     secret_input = int(secret_input_line.split()[3])
+
     with open(proof_file, "r") as f:
         tlsn_proof = f.read()
 

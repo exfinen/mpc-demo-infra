@@ -323,9 +323,8 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"
     async def query_data_consumer_api():
         async with aiohttp.ClientSession() as session:
-            async with session.post(
+            async with session.get(
                 f"{data_consumer_api_url}/query-computation",
-                json={},
             ) as resp:
                 return await resp.json()
 

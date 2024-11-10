@@ -19,7 +19,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/query-computation")
+@router.get("/query-computation")
 async def query_computation():
     try:
         # TODO: add cache for different computation index

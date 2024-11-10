@@ -16,7 +16,7 @@ CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
-async def notarize_and_share_data(voucher_code: str):
+async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: str):
     print("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,

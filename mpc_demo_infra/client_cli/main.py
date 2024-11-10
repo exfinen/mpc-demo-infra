@@ -16,7 +16,7 @@ CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
-async def notarize_and_share_data(voucher_code: str):
+async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: str):
     print("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
@@ -27,10 +27,9 @@ async def notarize_and_share_data(voucher_code: str):
     print("Party certificates have been fetched and saved.")
 
     # Gen tlsn proofs
-    print("Generating proof...")
+    print(f"Generating binance ETH balance TLSN proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
-    print(f"Generating binance ETH balance TLSN proof...")
     process = await asyncio.create_subprocess_shell(
         f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
         stdout=asyncio.subprocess.PIPE,

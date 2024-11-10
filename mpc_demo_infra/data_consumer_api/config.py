@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 from pathlib import Path
 
 this_file_path = Path(__file__).parent.resolve()
@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     privkey_pem_path: str = "ssl_certs/privkey.pem"
 
     poll_duration: int = 30
+
+    # cache expires every 3 minutes
+    cache_ttl_seconds: int = Field(default=180, description="Cache TTL in seconds for computation results")
 
     class Config:
         env_file = ".env.consumer_api"

@@ -23,7 +23,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \
     && cd tlsn \
-    && cargo build --release --example simple_prover
+    && cargo build --release --example binance_prover
  
 COPY .env.client_cli /root/mpc-demo-infra/
 

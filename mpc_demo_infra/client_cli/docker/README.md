@@ -16,18 +16,12 @@ You need to obtain a voucher to share your data
 
 ```
 cd mpc-demo-infra/client_cli/docker
-./share-data.sh [voucher]
+./share-data.sh <voucher> <api-key> <api-secret>
 ```
 
-## How to query the sum of the shared data
+## How to query the results of computation based on shared data
 ```
 cd mpc-demo-infra/client_cli/docker
-./query-sum.sh
-```
-
-## How to query the mean of the shared data
-```
-cd mpc-demo-infra/client_cli/docker
-./query-mean.sh
+./query-results.sh
 ```
 

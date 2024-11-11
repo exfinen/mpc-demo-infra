@@ -47,7 +47,7 @@ class Client:
                         (hostname, port_base + i), timeout=timeout)
                     break
                 except ConnectionRefusedError:
-                    if j < 60:
+                    if j < 600:
                        time.sleep(1)
                     else:
                         raise

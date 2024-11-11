@@ -170,3 +170,4 @@ cython_debug/
 proof.json
 certs/
 sim-demo.sh
+secret.json

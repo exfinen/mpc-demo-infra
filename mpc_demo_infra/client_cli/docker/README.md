@@ -11,23 +11,17 @@ cd mpc-demo-infra/client_cli/docker
 ./build.sh
 ```
 
-## How to share your data
-You need to obtain a voucher to share your data
+## How to Share Your Data
+To share your data, you need to obtain a voucher. You will also need to have your Binance API key and API Secret ready to allow the demo client to access your ETH balance on Binance.
 
 ```
 cd mpc-demo-infra/client_cli/docker
-./share-data.sh [voucher]
+./share-data.sh <voucher> <binance-api-key> <binance-api-secret>
 ```
 
-## How to query the sum of the shared data
+## How to query the results of computation based on data shared by participants
 ```
 cd mpc-demo-infra/client_cli/docker
-./query-sum.sh
-```
-
-## How to query the mean of the shared data
-```
-cd mpc-demo-infra/client_cli/docker
-./query-mean.sh
+./query-results.sh
 ```
 

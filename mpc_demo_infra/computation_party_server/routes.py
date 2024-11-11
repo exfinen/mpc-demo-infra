@@ -119,7 +119,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     logger.debug(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
-        logger.debug(f"Started computaion: {circuit_name}")
+        logger.debug(f"Started computation: {circuit_name}")
         mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file_path)
     except Exception as e:
         logger.error(f"Computation {circuit_name} failed: {str(e)}")

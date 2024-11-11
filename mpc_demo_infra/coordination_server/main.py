@@ -10,7 +10,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from .routes import router
-from .database import engine, Base, SessionLocal, Voucher
+from .database import engine, Base, SessionLocal, MPCSession
 from .config import settings
 from .limiter import limiter
 from .user_queue import UserQueue
@@ -82,50 +82,16 @@ def run():
         )
 
 
-def gen_vouchers():
-    parser = argparse.ArgumentParser(description="Generate vouchers for the MPC Coordination Server")
-    parser.add_argument("num_vouchers", type=int, help="Number of vouchers to generate")
-    args = parser.parse_args()
-
-    num_vouchers = int(args.num_vouchers)
-
-    logger.info(f"Generating {num_vouchers} vouchers...")
-
-    vouchers = [secrets.token_urlsafe(16) for _ in range(num_vouchers)]
-    with SessionLocal() as db:
-        for voucher_code in vouchers:
-            while True:
-                new_voucher = Voucher(code=voucher_code)
-                if not new_voucher.code.startswith('-'):
-                    db.add(new_voucher)
-                    break
-        db.commit()  # Add this line to commit the changes
-    logger.info(f"Successfully generated and committed {num_vouchers} vouchers.")
-    logger.debug(f"Generated vouchers:")
-    for voucher in vouchers:
-        logger.debug(voucher)
-
-
-def list_vouchers():
+def list_mpc_sessions():
     writer = csv.writer(sys.stdout)
-    writer.writerow(["id", "voucher_code", "is_used"])
     with SessionLocal() as db:
-        vouchers = db.query(Voucher).all()
-        for voucher in vouchers:
-            writer.writerow([voucher.id, voucher.code, voucher.is_used])
+        mpc_sessions = db.query(MPCSession).all()
+        number_of_sessions = len(mpc_sessions)
+        logger.info(f"Number of MPC sessions: {number_of_sessions}")
+        writer.writerow(["id", "eth_address", "uid", "tlsn_proof_path"])
+        for mpc_session in mpc_sessions:
+            writer.writerow([mpc_session.id, mpc_session.eth_address, mpc_session.uid, mpc_session.tlsn_proof_path])
 
-
-def list_valid_vouchers():
-    parser = argparse.ArgumentParser(description="List valid vouchers for testing")
-    parser.add_argument("num_vouchers", type=int, help="Number of vouchers to output")
-    args = parser.parse_args()
-
-    with SessionLocal() as db:
-        vouchers = db.query(Voucher).filter(Voucher.is_used == False).all()
-        vouchers = vouchers[:args.num_vouchers]
-        codes = [voucher.code for voucher in vouchers]
-        print(" ".join(codes))
 
 def gen_party_api_key():
     print(secrets.token_hex(16))
-

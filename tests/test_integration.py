@@ -12,16 +12,9 @@ from mpc_demo_infra.coordination_server.config import settings
 from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
 
 FILE_DIR = Path(__file__).parent
-proof_file_1 = FILE_DIR / f"proof_1.json"
-proof_file_2 = FILE_DIR / f"proof_2.json"
-proof_file_3 = FILE_DIR / f"proof_3.json"
-proof_file_4 = FILE_DIR / f"proof_4.json"
-proof_file_5 = FILE_DIR / f"proof_5.json"
-secret_file_1 = FILE_DIR / f"secret_1.json"
-secret_file_2 = FILE_DIR / f"secret_2.json"
-secret_file_3 = FILE_DIR / f"secret_3.json"
-secret_file_4 = FILE_DIR / f"secret_4.json"
-secret_file_5 = FILE_DIR / f"secret_5.json"
+proof_file_1 = FILE_DIR / f"proof.json"
+secret_file_1 = FILE_DIR / f"secret.json"
+
 def process_proof_file(proof_file):
     with open(proof_file, "r") as f:
         TLSN_PROOF = f.read()
@@ -41,16 +34,16 @@ def process_secret_file(secret_file):
         nonce = bytes(secret_data["nonce"]).hex()
     return (secret_data, value, nonce)
 
+# TLSN_PROOF_1, data_commitment_hash_1 = process_proof_file(proof_file_1)
+# TLSN_PROOF_2, data_commitment_hash_2 = process_proof_file(proof_file_2)
+# TLSN_PROOF_3, data_commitment_hash_3 = process_proof_file(proof_file_3)
+# TLSN_PROOF_4, data_commitment_hash_4 = process_proof_file(proof_file_4)
 TLSN_PROOF_1, data_commitment_hash_1 = process_proof_file(proof_file_1)
-TLSN_PROOF_2, data_commitment_hash_2 = process_proof_file(proof_file_2)
-TLSN_PROOF_3, data_commitment_hash_3 = process_proof_file(proof_file_3)
-TLSN_PROOF_4, data_commitment_hash_4 = process_proof_file(proof_file_4)
-TLSN_PROOF_5, data_commitment_hash_5 = process_proof_file(proof_file_5)
+# secret_data_1, value_1, nonce_1 = process_secret_file(secret_file_1)
+# secret_data_2, value_2, nonce_2 = process_secret_file(secret_file_2)
+# secret_data_3, value_3, nonce_3 = process_secret_file(secret_file_3)
+# secret_data_4, value_4, nonce_4 = process_secret_file(secret_file_4)
 secret_data_1, value_1, nonce_1 = process_secret_file(secret_file_1)
-secret_data_2, value_2, nonce_2 = process_secret_file(secret_file_2)
-secret_data_3, value_3, nonce_3 = process_secret_file(secret_file_3)
-secret_data_4, value_4, nonce_4 = process_secret_file(secret_file_4)
-secret_data_5, value_5, nonce_5 = process_secret_file(secret_file_5)
 
 
 PROTOCOL = "http"
@@ -70,8 +63,7 @@ CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 TIMEOUT_MPC = 60
 
 CMD_PREFIX_COORDINATION_SERVER = ["poetry", "run", "coord-run"]
-CMD_PREFIX_GEN_VOUCHERS = ["poetry", "run", "coord-gen-vouchers"]
-CMD_PREFIX_LIST_VOUCHERS = ["poetry", "run", "coord-list-vouchers"]
+CMD_PREFIX_LIST_MPC_SESSIONS = ["poetry", "run", "coord-list-shared-data"]
 CMD_PREFIX_SHARE_DATA = ["poetry", "run", "client-share-data"]
 CMD_PREFIX_QUERY_COMPUTATION = ["poetry", "run", "client-query-computation"]
 
@@ -185,15 +177,9 @@ async def servers(tlsn_proofs_dir):
     await asyncio.sleep(1)
 
 
-async def gen_vouchers(num_vouchers: int):
-    process = await asyncio.create_subprocess_exec(*CMD_PREFIX_GEN_VOUCHERS, str(num_vouchers))
-    await process.wait()
-    assert process.returncode == 0
-
-
-async def get_vouchers():
+async def get_mpc_sessions():
     process = await asyncio.create_subprocess_exec(
-        *CMD_PREFIX_LIST_VOUCHERS,
+        *CMD_PREFIX_LIST_MPC_SESSIONS,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -202,19 +188,16 @@ async def get_vouchers():
 
     # parse with csv
     reader = csv.reader(stdout.decode().splitlines())
-    # [['id', 'voucher_code', 'is_used'], ['1', 'PEF2tZ5gqX4UkC6XwJ5LuA', 'False'], ['2', 'gOAn9Wvo7pydmTZlJibAAQ', 'False']]
-    vouchers_rows = list(reader)
-    without_header = vouchers_rows[1:]
-    return [
-        (row[1], row[2] == "True")
-        for row in without_header
-    ]
+    # [['id', 'eth_address', 'uid', 'tlsn_proof_path'], ['1', '0x1234567890abcdef', '1234567890abcdef', 'path/to/tlsn_proof.json'], ['2', '0xabcdef1234567890', 'abcdef1234567890', 'path/to/tlsn_proof2.json']]
+    mpc_sessions_rows = list(reader)
+    without_header = mpc_sessions_rows[1:]
+    return without_header
 
 
-async def share_data_cli(voucher_code: str, api_key: str, api_secret: str):
+async def share_data_cli(eth_address: str, api_key: str, api_secret: str):
     process = await asyncio.create_subprocess_exec(
         *CMD_PREFIX_SHARE_DATA,
-        voucher_code,
+        eth_address,
         api_key,
         api_secret,
         env={
@@ -251,51 +234,38 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
 
     await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
 
-    # Gen vouchers
-    num_vouchers = 5
-    await gen_vouchers(num_vouchers)
-
-    # List vouchers
-    vouchers = await get_vouchers()
-    assert len(vouchers) == num_vouchers
-
-    voucher_1, voucher_2, voucher_3, voucher_4, voucher_5 = [voucher for voucher, _ in vouchers]
+    eth_address_1 = secrets.token_hex(20)
+    eth_address_2 = secrets.token_hex(20)
 
     coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
 
     # Add user to queue and get position to get the computation key
-    await add_user_to_queue(coordination_server_url, voucher_1, 1)
-    computation_key_1 = await poll_queue_until_ready(coordination_server_url, voucher_1, 1)
+    await add_user_to_queue(coordination_server_url, eth_address_1, 1)
+    computation_key_1 = await poll_queue_until_ready(coordination_server_url, eth_address_1, 1)
     await share_data(
         CERTS_PATH,
         coordination_server_url,
         COMPUTATION_HOSTS,
-        voucher_1,
-        TLSN_PROOF_5,
-        value_5,
-        nonce_5,
+        eth_address_1,
+        TLSN_PROOF_1,
+        value_1,
+        nonce_1,
         computation_key_1,
     )
 
-    # Add user to queue and get position to get the computation key
-    await add_user_to_queue(coordination_server_url, voucher_2, 1)
-    computation_key_2 = await poll_queue_until_ready(coordination_server_url, voucher_2, 1)
-    await share_data(
-        CERTS_PATH,
-        coordination_server_url,
-        COMPUTATION_HOSTS,
-        voucher_2,
-        TLSN_PROOF_5,
-        value_5,
-        nonce_5,
-        computation_key_2,
-    )
-
-    # Get the vouchers again, voucher 1 should be used
-    vouchers_after_sharing = await get_vouchers()
-    voucher_1_after_sharing, is_used_1_after_sharing = vouchers_after_sharing[0]
-    assert voucher_1_after_sharing == voucher_1, "Voucher 1 should not change"
-    assert is_used_1_after_sharing, "Voucher 1 should be used"
+    # # Add user to queue and get position to get the computation key
+    # await add_user_to_queue(coordination_server_url, eth_address_2, 1)
+    # computation_key_2 = await poll_queue_until_ready(coordination_server_url, eth_address_2, 1)
+    # await share_data(
+    #     CERTS_PATH,
+    #     coordination_server_url,
+    #     COMPUTATION_HOSTS,
+    #     eth_address_2,
+    #     TLSN_PROOF_5,
+    #     value_5,
+    #     nonce_5,
+    #     computation_key_2,
+    # )
 
     # get the computation key again
     access_key_3 = secrets.token_urlsafe(16)

@@ -102,7 +102,7 @@ fRL4vR42UsbVBAvALZ_l6w
 #### Data provider share data with a generated voucher.
 
 ```bash
-poetry run client-share-data <voucher_code>
+poetry run client-share-data <eth_address>
 ```
 
 #### Query computation result

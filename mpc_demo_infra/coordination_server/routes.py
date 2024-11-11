@@ -1,3 +1,4 @@
+import re
 import json
 import asyncio
 import tempfile
@@ -18,7 +19,7 @@ from .schemas import (
     RequestFinishComputationRequest, RequestFinishComputationResponse,
     RequestAddUserToQueueRequest, RequestAddUserToQueueResponse,
 )
-from .database import Voucher, MPCSession, get_db, SessionLocal
+from .database import MPCSession, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 from .user_queue import AddResult
@@ -67,36 +68,23 @@ async def finish_computation(request: RequestFinishComputationRequest, x: Reques
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, x: Request, db: Session = Depends(get_db)):
-    voucher_code = request.voucher_code
-    client_id = request.client_id
+    eth_address = request.eth_address
     tlsn_proof = request.tlsn_proof
+    client_id = request.client_id
     client_cert_file = request.client_cert_file
     computation_key = request.computation_key
-    logger.debug(f"Sharing data for {voucher_code=}, {client_id=}")
+    logger.debug(f"Sharing data for {eth_address=}, {client_id=}")
 
     # Check if computation key is valid
-    if not x.state.user_queue.validate_computation_key(voucher_code, computation_key):
+    if not x.state.user_queue.validate_computation_key(eth_address, computation_key):
         logger.error(f"Invalid computation key {computation_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
-    logger.error(f"{voucher_code}: Computation key {computation_key} is valid")
+    logger.error(f"{eth_address}: Computation key {computation_key} is valid")
 
-    logger.debug(f"Verifying registration for voucher code: {voucher_code}")
+    logger.debug(f"Verifying registration for voucher code: {eth_address}")
     if client_id >= MAX_CLIENT_ID:
-        logger.error(f"{voucher_code}: Client ID is out of range: {client_id}")
-        raise HTTPException(status_code=400, detail=f"{voucher_code}: Client ID is out of range")
-    # Check if voucher exists
-    voucher: Voucher | None = db.query(Voucher).filter(Voucher.code == voucher_code).first()
-    if not voucher:
-        logger.error(f"Voucher code not found: {voucher_code}")
-        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code not found")
-    if voucher.is_used:
-        logger.error(f"Voucher code already used: {voucher_code}")
-        raise HTTPException(status_code=400, detail=f"{voucher_code}: Voucher code already used")
-    # Get secret index as number of MPC session
-    num_mpc_sessions = db.query(MPCSession).count()
-    secret_index = num_mpc_sessions + 1
-
-    logger.debug(f"Registration verified for voucher code: {voucher_code}, {client_id=}")
+        logger.error(f"{eth_address}: Client ID is out of range: {client_id}")
+        raise HTTPException(status_code=400, detail=f"{eth_address}: Client ID is out of range")
 
     # Verify TLSN proof.
     with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
@@ -113,14 +101,31 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         )
         logger.debug(f"Getting TLSN proof verification result")
         stdout, stderr = await process.communicate()
+        try:
+            uid = get_uid_from_tlsn_proof_verifier(stdout.decode('utf-8'))
+            logger.debug(f"Got UID from TLSN proof verifier: {uid}")
+        except ValueError as e:
+            logger.error(f"Failed to get UID from TLSN proof verifier: {e}")
+            raise HTTPException(status_code=400, detail="Failed to get UID from TLSN proof verifier")
         if process.returncode != 0:
             logger.error(f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
             raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
         logger.debug(f"TLSN proof verification passed")
 
+    # Check if uid already in db. If so, raise an error.
+    if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+        logger.error(f"UID {uid} already in database")
+        raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+
     # Acquire lock to prevent concurrent sharing data requests
-    logger.debug(f"Acquiring lock for sharing data for {voucher_code=}")
+    logger.debug(f"Acquiring lock for sharing data for {eth_address=}")
     await sharing_data_lock.acquire()
+
+    # Get secret index as number of MPC session
+    num_mpc_sessions = db.query(MPCSession).count()
+    secret_index = num_mpc_sessions + 1
+
+    logger.debug(f"Registration verified for voucher code: {eth_address}, {client_id=}")
 
     mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
     logger.debug(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
@@ -130,7 +135,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
         async def request_sharing_data_all_parties():
             try:
-                logger.info(f"Requesting sharing data MPC for {voucher_code=}")
+                logger.info(f"Requesting sharing data MPC for {eth_address=}")
                 async with aiohttp.ClientSession() as session:
                     tasks = []
                     for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
@@ -149,7 +154,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                     logger.debug(f"Sending all requests concurrently")
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
-                    logger.debug(f"Received responses for sharing data MPC for {voucher_code=}")
+                    logger.debug(f"Received responses for sharing data MPC for {eth_address=}")
                     # Check if all responses are successful
                     for party_id, response in enumerate(responses):
                         if response.status != 200:
@@ -157,17 +162,17 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                             raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
                     # Check if all data commitments are the same
                     data_commitments = [(await response.json())["data_commitment"] for response in responses]
-                logger.debug(f"All responses for sharing data MPC for {voucher_code=} are successful. data_commitments={data_commitments}")
+                logger.debug(f"All responses for sharing data MPC for {eth_address=} are successful. data_commitments={data_commitments}")
                 if len(set(data_commitments)) != 1:
-                    logger.error(f"Data commitments mismatch for {voucher_code=}. Something is wrong with MPC. {data_commitments=}")
+                    logger.error(f"Data commitments mismatch for {eth_address=}. Something is wrong with MPC. {data_commitments=}")
                     raise HTTPException(status_code=400, detail="Data commitments mismatch")
-                logger.debug(f"Data commitments for {voucher_code=} are the same: {data_commitments=}")
+                logger.debug(f"Data commitments for {eth_address=} are the same: {data_commitments=}")
                 # Check if data commitment hash from TLSN proof and MPC matches
                 tlsn_data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
                 if tlsn_data_commitment_hash != data_commitments[0]:
-                    logger.error(f"Data commitment hash mismatch for {voucher_code=}. Something is wrong with TLSN proof. {tlsn_data_commitment_hash=} != {data_commitments[0]=}")
+                    logger.error(f"Data commitment hash mismatch for {eth_address=}. Something is wrong with TLSN proof. {tlsn_data_commitment_hash=} != {data_commitments[0]=}")
                     raise HTTPException(status_code=400, detail="Data commitment hash mismatch")
-                logger.debug(f"Data commitment hash from TLSN proof and MPC matches for {voucher_code=}")
+                logger.debug(f"Data commitment hash from TLSN proof and MPC matches for {eth_address=}")
 
                 # Proof is valid, copy to tlsn_proofs_dir, and delete the temp file.
                 tlsn_proofs_dir = Path(settings.tlsn_proofs_dir)
@@ -183,32 +188,27 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                 # Mark the voucher as used. A new db session is used to avoid using
                 # `db`, which is possibly closed after we return.
                 with SessionLocal() as db_session:
-                    # Query for the voucher again in this new session
-                    voucher = db_session.query(Voucher).filter(Voucher.code == voucher_code).first()
-                    if voucher:
-                        voucher.is_used = True
-                        # Add MPC session to database
-                        mpc_session = MPCSession(
-                            voucher_code=voucher_code,
-                            tlsn_proof_path=str(tlsn_proof_path),
-                        )
-                        db_session.add(mpc_session)
-                        db_session.commit()
-                        logger.debug(f"Committed changes to database for {voucher_code=}")
-                    else:
-                        logger.error(f"Voucher not found for {voucher_code=} when trying to mark as used")
+                    # Add MPC session to database
+                    mpc_session = MPCSession(
+                        eth_address=eth_address,
+                        uid=uid,
+                        tlsn_proof_path=str(tlsn_proof_path),
+                    )
+                    db_session.add(mpc_session)
+                    db_session.commit()
+                    logger.debug(f"Committed changes to database for {eth_address=}")
             finally:
                 sharing_data_lock.release()
-                logger.info(f"Released lock for sharing data for {voucher_code=}")
+                logger.info(f"Released lock for sharing data for {eth_address=}")
 
-        logger.debug(f"Creating task for sharing data MPC for {voucher_code=}")
+        logger.debug(f"Creating task for sharing data MPC for {eth_address=}")
         asyncio.create_task(request_sharing_data_all_parties())
-        logger.debug(f"Waiting for sharing data MPC for {voucher_code=}")
+        logger.debug(f"Waiting for sharing data MPC for {eth_address=}")
         # Wait until `gather` called, with a timeout
         try:
             await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
         except asyncio.TimeoutError as e:
-            logger.error(f"Timeout waiting for sharing data MPC for {voucher_code=}, {CLIENT_TIMEOUT=}")
+            logger.error(f"Timeout waiting for sharing data MPC for {eth_address=}, {CLIENT_TIMEOUT=}")
             raise e
         # Change the return statement
         return RequestSharingDataResponse(
@@ -217,7 +217,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     except Exception as e:
         logger.error(f"Failed to share data: {str(e)}")
         sharing_data_lock.release()
-        logger.info(f"Released lock for sharing data for {voucher_code=}")
+        logger.info(f"Released lock for sharing data for {eth_address=}")
         raise HTTPException(status_code=400, detail="Failed to share data")
 
 @router.post("/query_computation", response_model=RequestQueryComputationResponse)
@@ -289,6 +289,18 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
     return RequestQueryComputationResponse(
         client_port_base=mpc_client_port_base
     )
+
+
+def get_uid_from_tlsn_proof_verifier(stdout_from_tlsn_proof_verifier: str) -> int:
+    uid_match = re.search(r'"uid":(\d+)[,}]', stdout_from_tlsn_proof_verifier)
+    if uid_match:
+        uid = uid_match.group(1)
+        print(f"UID: {uid}")
+    else:
+        raise ValueError(
+            f"UID not found in stdout from TLSN proof verifier: {stdout_from_tlsn_proof_verifier}"
+        )
+    return int(uid)
 
 
 def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:

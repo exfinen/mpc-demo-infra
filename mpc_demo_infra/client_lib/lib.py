@@ -156,13 +156,13 @@ async def share_data(
     all_certs_path: Path,
     coordination_server_url: str,
     computation_party_hosts: list[str],
-    voucher_code: str,
+    eth_address: str,
     tlsn_proof: str,
     value: float,
     nonce: str,
     computation_key: str,
 ):
-    if await validate_computation_key(coordination_server_url, voucher_code, computation_key) == False:
+    if await validate_computation_key(coordination_server_url, eth_address, computation_key) == False:
         raise Exception(f"Computation key is invalid")
 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
@@ -170,13 +170,13 @@ async def share_data(
         cert_file_content = cert_file.read()
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{coordination_server_url}/share_data", json={
-            "voucher_code": voucher_code,
+            "eth_address": eth_address,
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
             "computation_key": computation_key,
         }) as response:
-            await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
+            await mark_queue_computation_to_be_finished(coordination_server_url, eth_address, computation_key)
 
             if response.status != 200:
                 json = await response.json()
@@ -185,7 +185,7 @@ async def share_data(
             client_port_base = data["client_port_base"]
 
     # Wait until all computation parties started their MPC servers.
-    print(f"!@# Running data sharing client for {voucher_code=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
+    print(f"!@# Running data sharing client for {eth_address=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
     try:
         result = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -201,7 +201,7 @@ async def share_data(
         )
         return result
     finally:
-        await mark_queue_computation_to_be_finished(coordination_server_url, voucher_code, computation_key)
+        await mark_queue_computation_to_be_finished(coordination_server_url, eth_address, computation_key)
 
 
 async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_duration: int) -> None:

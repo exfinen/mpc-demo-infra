@@ -4,7 +4,7 @@ from .user_queue import AddResult
 
 
 class RequestSharingDataRequest(BaseModel):
-    voucher_code: str
+    eth_address: str
     tlsn_proof: str
     client_id: int
     client_cert_file: str

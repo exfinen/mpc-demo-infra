@@ -16,7 +16,7 @@ CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
-async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: str):
+async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
     print("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
@@ -46,14 +46,14 @@ async def notarize_and_share_data(voucher_code: str, api_key: str, api_secret: s
         nonce = bytes(secret_data["nonce"]).hex()
 
     print(f"Sharing binance ETH balance data to MPC parties...")
-    await add_user_to_queue(settings.coordination_server_url, voucher_code, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(settings.coordination_server_url, voucher_code, settings.poll_duration)
+    await add_user_to_queue(settings.coordination_server_url, eth_address, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, eth_address, settings.poll_duration)
     # Share data
     await share_data(
         CERTS_PATH,
         settings.coordination_server_url,
         settings.party_hosts,
-        voucher_code,
+        eth_address,
         tlsn_proof,
         secret_input,
         nonce,
@@ -88,12 +88,12 @@ async def query_computation_and_verify():
 
 def notarize_and_share_data_cli():
     parser = argparse.ArgumentParser(description="Notarize and share data")
-    parser.add_argument("voucher_code", type=str, help="The voucher code")
+    parser.add_argument("eth_address", type=str, help="The voucher code")
     parser.add_argument("api_key", type=str, help="The API key")
     parser.add_argument("api_secret", type=str, help="The API secret")
     args = parser.parse_args()
     try:
-        asyncio.run(notarize_and_share_data(args.voucher_code, args.api_key, args.api_secret))
+        asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret))
         print("Computation finished")
     except Exception as e:
         print(e)

@@ -24,23 +24,13 @@ def get_db():
         db.close()
 
 
-# ORM
-class Voucher(Base):
-    __tablename__ = "vouchers"
-
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String, unique=True, index=True, nullable=False)
-    is_used = Column(Boolean, default=False)
-
-    def __repr__(self):
-        return f"Voucher(id={self.id}, code={self.code}, is_used={self.is_used})"
-
 # MPC Session
 class MPCSession(Base):
     __tablename__ = "mpc_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    voucher_code = Column(String, unique=True, index=True, nullable=False)
+    eth_address = Column(String, index=True, nullable=False)
+    uid = Column(Integer, index=True, nullable=False)
     tlsn_proof_path = Column(String, nullable=False)
 
 

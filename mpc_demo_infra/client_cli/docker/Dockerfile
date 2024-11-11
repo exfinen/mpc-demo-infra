@@ -8,7 +8,7 @@ WORKDIR /root
 RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl pipx git automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool pkg-config libmpfr-dev libmpc-dev \
     && apt-get clean \
     && pipx install poetry \
-    && pipx ensurepath 
+    && pipx ensurepath
 
 # install mpc-demo-infra
 RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
@@ -24,7 +24,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && git checkout mpspdz-compat \
     && cd tlsn \
     && cargo build --release --example binance_prover
- 
+
 COPY .env.client_cli /root/mpc-demo-infra/
 
 WORKDIR /root/mpc-demo-infra

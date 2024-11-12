@@ -106,3 +106,4 @@ Common issues:
 2. Script fails
     → Check your API key and secret are copied correctly.
     → Check if your ETH balance on Binance is not 0.
+    → If it's timeout, try it again. If it didn't

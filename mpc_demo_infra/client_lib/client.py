@@ -48,7 +48,7 @@ class Client:
                     break
                 except ConnectionRefusedError:
                     if j < 600:
-                       time.sleep(1)
+                       time.sleep(5)
                     else:
                         raise
 

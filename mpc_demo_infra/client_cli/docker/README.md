@@ -1,6 +1,8 @@
 # ETH Inequality @ DevCon 2024
 
-Welcome to the [ETH Inequality Demo @ DevCon 2024](https://demo.mpcstats.org/)! This guide will help you participate in our survey of ETH distribution across Binance users at DevCon 2024. Don't worry - your data stays private and secure through MPCStats and [TLSNotary](https://tlsnotary.org/).
+Welcome to the [ETH Inequality Demo @ DevCon 2024](https://demo.mpcstats.org/). Join us in the [Telegram](https://t.me/mpcstats) to stay tuned for more updates!
+
+This guide will help you participate in our survey of ETH distribution across Binance users at DevCon 2024. Don't worry - your data stays private and secure through [MPCStats](https://github.com/ZKStats/mpc-demo-infra) and [TLSNotary](https://tlsnotary.org/).
 
 ### Privacy & Security Details
 - Your exact balance remains private through secure multi-party computation (MPC)

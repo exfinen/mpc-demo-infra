@@ -36,9 +36,9 @@ sharing_data_lock = asyncio.Lock()
 
 
 @router.get("/has_address_shared_data", response_model=RequestHasAddressSharedDataResponse)
-async def has_address_shared_data(request: RequestHasAddressSharedDataRequest, db: Session = Depends(get_db)) -> bool:
-    res = db.query(MPCSession).filter(MPCSession.eth_address == request.eth_address).first() is not None
-    logger.debug(f"has_address_shared_data: {request.eth_address}; {res}")
+async def has_address_shared_data(eth_address: str, db: Session = Depends(get_db)) -> bool:
+    res = db.query(MPCSession).filter(MPCSession.eth_address == eth_address).first() is not None
+    logger.debug(f"has_address_shared_data: {eth_address}; {res}")
     return RequestHasAddressSharedDataResponse(has_shared_data=res)
 
 
@@ -121,6 +121,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
         logger.debug(f"TLSN proof verification passed")
 
+    # FIXME: prevent uid check for now
     # Check if uid already in db. If so, raise an error.
     if db.query(MPCSession).filter(MPCSession.uid == uid).first():
         logger.error(f"UID {uid} already in database")

@@ -231,12 +231,11 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                     if position is None:
                         print("{access_key}: The queue is currently full. Please wait for your turn.")
                     else:
-                        print(f'{access_key}: position is {position}')
                         if position == 0:
                             print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
-                            print(f"{access_key}: You are currently #{position} in line.")
+                            print(f"{access_key}: You are currently #{position + 1} in line.")
                 else:
                     print(f"Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)

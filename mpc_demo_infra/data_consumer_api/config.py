@@ -22,8 +22,8 @@ class Settings(BaseSettings):
 
     poll_duration: int = 30
 
-    # cache expires every 3 minutes
-    cache_ttl_seconds: int = Field(default=180, description="Cache TTL in seconds for computation results")
+    # cache expires every 10 minutes
+    cache_ttl_seconds: int = Field(default=600, description="Cache TTL in seconds for computation results")
 
     class Config:
         env_file = ".env.consumer_api"

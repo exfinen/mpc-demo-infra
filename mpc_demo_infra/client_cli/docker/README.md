@@ -63,10 +63,6 @@ cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
 ./build.sh
 ```
 
-If it takes too much time because of the network, you can try build it locally instead.
-```bash
-docker build -t client_cli .
-```
 
 Run the script with your details. The ETH address is **the one you want to receive the NFT and the lottery** if you win (**not the one you use for Binance**), so please double check if it's correct. It might take several minutes to run.
 ```bash
@@ -82,6 +78,12 @@ You'll see the following output:
 Binance ETH balance data has been shared secretly to MPC parties.
 ```
 
+If it took too much time because of the network to download the images, you can try build it locally instead.
+```bash
+docker build -t client_cli .
+docker run -it client_cli client-share-data <eth-address> <binance-api-key> <binance-api-secret>
+```
+
 > ⚠️ **Warning**
 > 1. Only 'Free' ETH in your spot account will be counted. This excludes:
 >     - ETH in open orders
@@ -94,11 +96,7 @@ Binance ETH balance data has been shared secretly to MPC parties.
 > 4.
 
 ### Step 3:Query the Results
-Visit https://demo.mpcstats.org/. It might take around 5 minutes for results to be updated.
-
-
-### Need Help?
-- Having trouble? Contact us on [Telegram](https://t.me/mpcstats)
+Visit https://demo.mpcstats.org/. It might take 5~10 minutes for results to be updated.
 
 ### Troubleshooting
 Common issues:
@@ -107,3 +105,6 @@ Common issues:
     → Check your API key and secret are copied correctly.
     → Check if your ETH balance on Binance is not 0.
     → If it's timeout, try it again. If it didn't
+
+### Need Help?
+- Having trouble? Contact us on [Telegram](https://t.me/mpcstats)

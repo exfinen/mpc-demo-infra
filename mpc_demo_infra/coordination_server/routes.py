@@ -122,10 +122,10 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         logger.debug(f"TLSN proof verification passed")
 
     # FIXME: prevent uid check for now
-    # Check if uid already in db. If so, raise an error.
-    if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-        logger.error(f"UID {uid} already in database")
-        raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+    # # Check if uid already in db. If so, raise an error.
+    # if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+    #     logger.error(f"UID {uid} already in database")
+    #     raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.debug(f"Acquiring lock for sharing data for {eth_address=}")
@@ -137,7 +137,8 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     logger.debug(f"Registration verified for voucher code: {eth_address}, {client_id=}")
 
-    mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
+    # FIXME: use rotated ports for now
+    mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
     logger.debug(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     try:

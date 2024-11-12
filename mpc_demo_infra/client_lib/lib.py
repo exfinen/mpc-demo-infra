@@ -296,7 +296,6 @@ async def query_computation(
             str(key_path),
             MAX_DATA_PROVIDERS,
         )
-        # TODO: Verify commitments with tlsn proofs
         return results
     finally:
         await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)

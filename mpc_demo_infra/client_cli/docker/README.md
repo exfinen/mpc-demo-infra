@@ -14,10 +14,10 @@ This guide will help you participate in our survey of ETH distribution across Bi
 
 
 ## Privacy & Security Details
-- Your exact balance remains private throughout the secure multi-party computation (MPC)
+- Your exact balance remains private throughout the whole data sharing process.
 - The computing parties **MAY** learn the number of digits of your balance, but not the exact balance
 - Security relies on the assumption that our 3 computing parties do not collude
-- Your API keys are only used once to fetch your balance and are not stored
+- Your API keys are only used once to fetch your balance and only stay in your laptop.
 
 ## Share Your Binance ETH Balance Privately
 
@@ -43,24 +43,29 @@ You'll need:
 
 3. Important Security Settings:
    - ✅ Make sure ONLY "Enable Reading" is selected
-   - ❌ Leave all other permissions disabled
+   - ❌ Please leave all other permissions disabled
    - Save both keys somewhere safe:
      - API Key (looks like: "aBc1234...")
      - Secret Key (looks like: "xYz5678...")
 ![alt text](pics/image-3.png)
 
-🔒 Security Note: Keep your Secret Key private! Our demo only needs read-only access to check your ETH balance, and we never store your keys.
+🔒 Security Note: Keep your Secret Key private! Our demo only needs read-only access to check your ETH balance, and it's only kept
 
-### Step 2: Run the Privacy-Preserving Script
+### Step 2: Run the script
 
 First, make sure Docker is running on your computer!
 
-Open a terminal/command prompt and run these commands:
+Open a terminal/command prompt and get the docker image from the docker hub.
 
 ```bash
 git clone https://github.com/ZKStats/mpc-demo-infra.git
 cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
 ./build.sh
+```
+
+If it takes too much time because of the network, you can try build it locally instead.
+```bash
+docker build -t client_cli .
 ```
 
 Run the script with your details. The ETH address is **the one you want to receive the NFT and the lottery** if you win (**not the one you use for Binance**), so please double check if it's correct. It might take several minutes to run.
@@ -85,6 +90,8 @@ Binance ETH balance data has been shared secretly to MPC parties.
 >     - ETH used as collateral
 >     - ETH in futures/margin accounts
 > 2. If you have exact **0 ETH** it will fail due to the limitation of our implementation. You need to have at least some dust ETH (e.g. 0.00001 ETH) in your spot account.
+> 3. We have only two decimals of precision. If you have less than 0.01 ETH, it will be rounded to 0.00 ETH.
+> 4.
 
 ### Step 3:Query the Results
 Visit https://demo.mpcstats.org/. It might take around 5 minutes for results to be updated.
@@ -96,4 +103,6 @@ Visit https://demo.mpcstats.org/. It might take around 5 minutes for results to 
 ### Troubleshooting
 Common issues:
 1. Docker not running → Start Docker Desktop or Docker daemon
-2. Script fails → Check your API key and secret are copied correctly
+2. Script fails
+    → Check your API key and secret are copied correctly.
+    → Check if your ETH balance on Binance is not 0.

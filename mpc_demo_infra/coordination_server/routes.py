@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger(__name__)
 
 from .schemas import (
+    RequestHasAddressSharedDataRequest, RequestHasAddressSharedDataResponse,
     RequestSharingDataRequest, RequestSharingDataResponse,
     RequestQueryComputationRequest, RequestQueryComputationResponse,
     RequestGetPositionRequest, RequestGetPositionResponse,
@@ -32,6 +33,14 @@ TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "b
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.
 sharing_data_lock = asyncio.Lock()
+
+
+@router.get("/has_address_shared_data", response_model=RequestHasAddressSharedDataResponse)
+async def has_address_shared_data(request: RequestHasAddressSharedDataRequest, db: Session = Depends(get_db)) -> bool:
+    res = db.query(MPCSession).filter(MPCSession.eth_address == request.eth_address).first() is not None
+    logger.debug(f"has_address_shared_data: {request.eth_address}; {res}")
+    return RequestHasAddressSharedDataResponse(has_shared_data=res)
+
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):

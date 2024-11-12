@@ -3,6 +3,12 @@ from typing import Optional
 from .user_queue import AddResult
 
 
+class RequestHasAddressSharedDataRequest(BaseModel):
+    eth_address: str
+
+class RequestHasAddressSharedDataResponse(BaseModel):
+    has_shared_data: bool
+
 class RequestSharingDataRequest(BaseModel):
     eth_address: str
     tlsn_proof: str

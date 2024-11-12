@@ -122,9 +122,9 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         logger.debug(f"TLSN proof verification passed")
 
     # Check if uid already in db. If so, raise an error.
-    # if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-    #     logger.error(f"UID {uid} already in database")
-    #     raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+    if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+        logger.error(f"UID {uid} already in database")
+        raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.debug(f"Acquiring lock for sharing data for {eth_address=}")

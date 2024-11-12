@@ -5,8 +5,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     TAG="latest-amd64"
 else
-    echo "Unsupported operating system: $OSTYPE"
-    exit 1
+    TAG="latest"
 fi
 
 docker run -it mpcstats/client_cli:$TAG client-query

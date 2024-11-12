@@ -23,7 +23,7 @@ This guide will help you participate in our survey of ETH distribution across Bi
 
 ### Before You Start
 You'll need:
-- Docker installed and running on your computer ([Get Docker here](https://docs.docker.com/get-docker/))
+- Docker **installed and running** on your computer ([Get Docker here](https://docs.docker.com/get-docker/))
 - A Binance account with some ETH holdings
 
 ### Step 1: Get Your Binance API Key
@@ -63,7 +63,7 @@ cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
 ./build.sh
 ```
 
-Run the script with your details. Please make sure the ETH address is correct to receive the prizes. It will take several minutes to run.
+Run the script with your details. The ETH address is **the one you want to receive the NFT and the lottery** if you win (**not the one you use for Binance**), so please double check if it's correct. It might take several minutes to run.
 ```bash
 ./share-data.sh <eth-address> <binance-api-key> <binance-api-secret>
 
@@ -77,18 +77,17 @@ You'll see the following output:
 Binance ETH balance data has been shared secretly to MPC parties.
 ```
 
+> ⚠️ **Warning**
+> 1. Only 'Free' ETH in your spot account will be counted. This excludes:
+>     - ETH in open orders
+>     - ETH in locked staking
+>     - ETH in savings products
+>     - ETH used as collateral
+>     - ETH in futures/margin accounts
+> 2. If you have exact **0 ETH** it will fail due to the limitation of our implementation. You need to have at least some dust ETH (e.g. 0.00001 ETH) in your spot account.
+
 ### Step 3:Query the Results
-Visit https://demo.mpcstats.org/ to see the results.
-
-(You can also run [query-results.sh](query-results.sh) to see the raw results but it takes a while to run.)
-
-### Important Notes
-Only 'Free' ETH in your spot account will be counted. This excludes:
-- ETH in open orders
-- ETH in locked staking
-- ETH in savings products
-- ETH used as collateral
-- ETH in futures/margin accounts
+Visit https://demo.mpcstats.org/. It might take around 5 minutes for results to be updated.
 
 
 ### Need Help?

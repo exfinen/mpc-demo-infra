@@ -2,27 +2,29 @@
 
 Welcome to the [ETH Inequality Demo @ DevCon 2024](https://demo.mpcstats.org/). Join us in the [Telegram](https://t.me/mpcstats) to stay tuned for more updates!
 
-This guide will help you participate in our survey of ETH distribution across Binance users at DevCon 2024. Don't worry - your data stays private and secure through [MPCStats](https://github.com/ZKStats/mpc-demo-infra) and [TLSNotary](https://tlsnotary.org/).
+This guide will help you participate in our survey of ETH distribution across Binance users at DevCon 2024. Don't worry - your data stays private and secure through [MPCStats](https://github.com/ZKStats/mpc-demo-infra) and [TLSNotary](https://tlsnotary.org/). You'll be eligible for an NFT from us and a chance to win $100 only if you complete the [share your balance](#share-your-binance-eth-balance-privately) step successfully.
 
-### Privacy & Security Details
-- Your exact balance remains private through secure multi-party computation (MPC)
-- The computing parties may learn the number of digits of your balance
+
+## Table of Contents
+- [Privacy & Security Details](#privacy--security-details)
+- [Share Your Binance ETH Balance Privately](#share-your-binance-eth-balance-privately)
+  - [Before You Start](#before-you-start)
+  - [Step 1: Get Your Binance API Key](#step-1-get-your-binance-api-key)
+  - [Step 2: Run the Privacy-Preserving Script](#step-2-run-the-privacy-preserving-script)
+
+
+## Privacy & Security Details
+- Your exact balance remains private throughout the secure multi-party computation (MPC)
+- The computing parties **MAY** learn the number of digits of your balance, but not the exact balance
 - Security relies on the assumption that our 3 computing parties do not collude
-- Your API keys are never stored and are only used once to fetch your balance
+- Your API keys are only used once to fetch your balance and are not stored
 
 ## Share Your Binance ETH Balance Privately
 
 ### Before You Start
 You'll need:
-- Docker installed on your computer ([Get Docker here](https://docs.docker.com/get-docker/))
+- Docker installed and running on your computer ([Get Docker here](https://docs.docker.com/get-docker/))
 - A Binance account with some ETH holdings
-
-⚠️ Important Note: Only 'Free' ETH in your spot account will be counted. This excludes:
-- ETH in open orders
-- ETH in locked staking
-- ETH in savings products
-- ETH used as collateral
-- ETH in futures/margin accounts
 
 ### Step 1: Get Your Binance API Key
 1. Log into [Binance.com](https://www.binance.com) and navigate to:
@@ -61,7 +63,7 @@ cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
 ./build.sh
 ```
 
-Run the script with your details:
+Run the script with your details. Please make sure the ETH address is correct to receive the prizes. It will take several minutes to run.
 ```bash
 ./share-data.sh <eth-address> <binance-api-key> <binance-api-secret>
 
@@ -75,12 +77,19 @@ You'll see the following output:
 Binance ETH balance data has been shared secretly to MPC parties.
 ```
 
-### Step 3: Query the Results
-Visit https://demo.mpcstats.org/ to see the results, or run:
-```bash
-cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
-./query-results.sh
-```
+### Step 3:Query the Results
+Visit https://demo.mpcstats.org/ to see the results.
+
+(You can also run [query-results.sh](query-results.sh) to see the raw results but it takes a while to run.)
+
+### Important Notes
+Only 'Free' ETH in your spot account will be counted. This excludes:
+- ETH in open orders
+- ETH in locked staking
+- ETH in savings products
+- ETH used as collateral
+- ETH in futures/margin accounts
+
 
 ### Need Help?
 - Having trouble? Contact us on [Telegram](https://t.me/mpcstats)

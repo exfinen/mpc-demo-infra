@@ -9,6 +9,11 @@ A demonstration infrastructure for Multi-Party Computation (MPC) using TLSN and 
 - [Configurations](#configurations)
 - [Troubleshooting](#troubleshooting)
 
+
+## DevCon 2024
+
+To participate in our demo [ETH Inequality @ DevCon 2024](https://demo.mpcstats.org/) and win some prizes, please refer to the [README](mpc_demo_infra/client_cli/docker/README.md) for the entire process.
+
 ## Dependencies
 
 - python 3
@@ -85,30 +90,16 @@ In another terminal, run party 2:
 PORT=8008 PARTY_ID=2 poetry run party-run
 ```
 
-#### Coordination server generate vouchers:
-
-```bash
-poetry run coord-gen-vouchers <num_vouchers>
-```
-
-```bash
-Successfully generated and committed 10 vouchers.
-Generated vouchers:
-2rp5SSLFxNsvmTa0dbHSWA
-fRL4vR42UsbVBAvALZ_l6w
-...
-```
-
 #### Data provider share data with a generated voucher.
 
 ```bash
-poetry run client-share-data <eth_address>
+poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
 ```
 
 #### Query computation result
 
 ```bash
-poetry run client-query <computation_index>
+poetry run client-query
 ```
 
 ## Configurations

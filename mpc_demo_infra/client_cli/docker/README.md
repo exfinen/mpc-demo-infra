@@ -78,6 +78,7 @@ Binance ETH balance data has been shared secretly to MPC parties.
 ### Step 3: Query the Results
 Visit https://demo.mpcstats.org/ to see the results, or run:
 ```bash
+cd mpc-demo-infra/mpc_demo_infra/client_cli/docker
 ./query-results.sh
 ```
 

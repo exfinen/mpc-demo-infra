@@ -27,7 +27,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
     print("Party certificates have been fetched and saved.")
 
     # Gen tlsn proofs
-    print(f"Generating binance ETH balance TLSN proof...")
+    print(f"Generating Binance ETH balance TLSN proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
     process = await asyncio.create_subprocess_shell(
@@ -45,7 +45,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
         secret_input = float(secret_data["eth_free"])
         nonce = bytes(secret_data["nonce"]).hex()
 
-    print(f"Sharing binance ETH balance data to MPC parties...")
+    print(f"Sharing Binance ETH balance data to MPC parties...")
     await add_user_to_queue(settings.coordination_server_url, eth_address, settings.poll_duration)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, eth_address, settings.poll_duration)
     # Share data

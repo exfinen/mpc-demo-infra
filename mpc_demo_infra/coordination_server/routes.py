@@ -121,11 +121,10 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
         logger.debug(f"TLSN proof verification passed")
 
-    # FIXME: prevent uid check for now
-    # # Check if uid already in db. If so, raise an error.
-    # if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-    #     logger.error(f"UID {uid} already in database")
-    #     raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+    # Check if uid already in db. If so, raise an error.
+    if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+        logger.error(f"UID {uid} already in database")
+        raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.debug(f"Acquiring lock for sharing data for {eth_address=}")
@@ -142,7 +141,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     logger.debug(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     try:
-        l = asyncio.Event()
+        # l = asyncio.Event()
 
         async def request_sharing_data_all_parties():
             try:
@@ -161,7 +160,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                             "client_cert_file": client_cert_file,
                         }, headers=headers)
                         tasks.append(task)
-                    l.set()
+                    # l.set()
                     logger.debug(f"Sending all requests concurrently")
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
@@ -180,6 +179,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                 logger.debug(f"Data commitments for {eth_address=} are the same: {data_commitments=}")
                 # Check if data commitment hash from TLSN proof and MPC matches
                 tlsn_data_commitment_hash = get_data_commitment_hash_from_tlsn_proof(tlsn_proof)
+                logger.debug(f"tlsn_data_commitment_hash={tlsn_data_commitment_hash}, data_commitments[0]={data_commitments[0]}")
                 # FIXME:
                 # if tlsn_data_commitment_hash != data_commitments[0]:
                 #     logger.error(f"Data commitment hash mismatch for {eth_address=}. Something is wrong with TLSN proof. {tlsn_data_commitment_hash=} != {data_commitments[0]=}")
@@ -217,11 +217,11 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         asyncio.create_task(request_sharing_data_all_parties())
         logger.debug(f"Waiting for sharing data MPC for {eth_address=}")
         # Wait until `gather` called, with a timeout
-        try:
-            await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
-        except asyncio.TimeoutError as e:
-            logger.error(f"Timeout waiting for sharing data MPC for {eth_address=}, {CLIENT_TIMEOUT=}")
-            raise e
+        # try:
+        #     await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
+        # except asyncio.TimeoutError as e:
+        #     logger.error(f"Timeout waiting for sharing data MPC for {eth_address=}, {CLIENT_TIMEOUT=}")
+        #     raise e
         # Change the return statement
         return RequestSharingDataResponse(
             client_port_base=mpc_client_port_base
@@ -259,7 +259,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
         logger.error(f"No MPC session found for {client_id=}")
         raise HTTPException(status_code=400, detail="No MPC session found")
 
-    l = asyncio.Event()
+    # l = asyncio.Event()
 
     async def request_querying_computation_all_parties():
         logger.info(f"Requesting querying computation MPC for {client_id=}")
@@ -276,7 +276,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
                     "client_cert_file": client_cert_file,
                 }, headers=headers)
                 tasks.append(task)
-            l.set()
+            # l.set()
             logger.debug(f"Sending all requests concurrently")
             # Send all requests concurrently
             responses = await asyncio.gather(*tasks)
@@ -292,11 +292,11 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
     asyncio.create_task(request_querying_computation_all_parties())
     logger.debug(f"Waiting for querying computation MPC for {client_id=}")
     # Wait until `gather` called, with a timeout
-    try:
-        await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
-    except asyncio.TimeoutError as e:
-        logger.error(f"Timeout waiting for querying computation for {client_id=}, {CLIENT_TIMEOUT=}")
-        raise e
+    # try:
+    #     await asyncio.wait_for(l.wait(), timeout=CLIENT_TIMEOUT)
+    # except asyncio.TimeoutError as e:
+    #     logger.error(f"Timeout waiting for querying computation for {client_id=}, {CLIENT_TIMEOUT=}")
+    #     raise e
     logger.debug(f"Querying computation for {client_id=} passed")
     return RequestQueryComputationResponse(
         client_port_base=mpc_client_port_base

@@ -27,7 +27,6 @@ def get_db():
 # MPC Session
 class MPCSession(Base):
     __tablename__ = "mpc_sessions"
-
     id = Column(Integer, primary_key=True, index=True)
     eth_address = Column(String, index=True, nullable=False)
     uid = Column(Integer, index=True, nullable=False)

@@ -5,12 +5,14 @@ Welcome to the [ETH Inequality Demo @ DevCon 2024](https://demo.mpcstats.org/). 
 This guide will help you participate in our survey of ETH distribution across Binance users at DevCon 2024. Don't worry - your data stays private and secure through [MPCStats](https://github.com/ZKStats/mpc-demo-infra) and [TLSNotary](https://tlsnotary.org/). You'll be eligible for an NFT from us and a chance to win $100 only if you complete the [share your balance](#share-your-binance-eth-balance-privately) step successfully.
 
 
-## Table of Contents
-- [Privacy & Security Details](#privacy--security-details)
-- [Share Your Binance ETH Balance Privately](#share-your-binance-eth-balance-privately)
-  - [Before You Start](#before-you-start)
-  - [Step 1: Get Your Binance API Key](#step-1-get-your-binance-api-key)
-  - [Step 2: Run the Privacy-Preserving Script](#step-2-run-the-privacy-preserving-script)
+## How it works
+1. Participants prove their ETH balance on Binance using TLSNotary.
+
+![alt text](./pics/prove-balance.png)
+
+2. Participants share their masked balance to computation parties. People can query statistical results from the computation parties.
+
+![alt text](./pics/demo-flow.png)
 
 
 ## Privacy & Security Details
@@ -106,5 +108,5 @@ Common issues:
     → Check if your ETH balance on Binance is not 0.
     → If it's timeout, try it again. If it didn't
 
-### Need Help?
+## Need Help?
 - Having trouble? Contact us on [Telegram](https://t.me/mpcstats)

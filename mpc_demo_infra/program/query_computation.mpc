@@ -10,8 +10,6 @@ from Compiler.instructions import closeclientconnection
 from Compiler.util import if_else
 from Compiler.circuit import sha3_256
 
-sfix.round_nearest = True
-
 PORTNUM = {client_port_base}
 MAX_DATA_PROVIDERS = {max_data_providers}
 NUM_DATA_PROVIDERS = {num_data_providers}
@@ -40,13 +38,13 @@ def computation(client_values: sint.Array):
     result[1] = data[num_data_providers-1]
     # Sum
     result[2] = sum(data)
-    median_odd = sfix(0)
-    median_even = sfix(0)
-    area = sfix(0)
+    median_odd = sint(0)
+    median_even = sint(0)
+    area = sint(0)
     @for_range(num_data_providers)
     def _(i):
-        median_odd.update(median_odd+(num_data_providers==2*sfix(i)+sfix(1))*data[i])
-        median_even.update(median_even+(num_data_providers==2*sfix(i))*data[i]/2+(num_data_providers-2==2*sfix(i))*data[i]/2)
+        median_odd.update(median_odd+(num_data_providers==2*sint(i)+sint(1))*data[i])
+        median_even.update(median_even+(num_data_providers==2*sint(i))*data[i]/2+(num_data_providers-2==2*sint(i))*data[i]/2)
         area.update(area+(2*i+1)*data[i])
     # Median
     result[3] = (num_data_providers%2)*median_odd + (1-num_data_providers%2)*median_even

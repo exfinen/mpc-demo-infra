@@ -176,8 +176,6 @@ async def share_data(
             "client_id": client_id,
             "computation_key": computation_key,
         }) as response:
-            await mark_queue_computation_to_be_finished(coordination_server_url, eth_address, computation_key)
-
             if response.status != 200:
                 json = await response.json()
                 raise Exception(f"{json['detail']}")
@@ -201,6 +199,7 @@ async def share_data(
         )
         return result
     finally:
+        # Call the server to mark the computation as finished.
         await mark_queue_computation_to_be_finished(coordination_server_url, eth_address, computation_key)
 
 
@@ -298,6 +297,7 @@ async def query_computation(
         )
         return results
     finally:
+        # Call the server to mark the computation as finished.
         await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)
 
 

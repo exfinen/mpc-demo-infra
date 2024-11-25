@@ -17,15 +17,6 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
 async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
-    print("Fetching party certificates...")
-    await fetch_parties_certs(
-        settings.party_web_protocol,
-        CERTS_PATH,
-        settings.party_hosts,
-        settings.party_ports
-    )
-    print("Party certificates have been fetched and saved.")
-
     # Gen tlsn proofs
     print(f"Generating Binance ETH balance TLSN proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
@@ -48,6 +39,16 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
     print(f"Sharing Binance ETH balance data to MPC parties...")
     await add_user_to_queue(settings.coordination_server_url, eth_address, settings.poll_duration)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, eth_address, settings.poll_duration)
+
+    print("Fetching party certificates...")
+    await fetch_parties_certs(
+        settings.party_web_protocol,
+        CERTS_PATH,
+        settings.party_hosts,
+        settings.party_ports
+    )
+    print("Party certificates have been fetched and saved.")
+
     # Share data
     await share_data(
         CERTS_PATH,

@@ -197,8 +197,8 @@ def generate_ip_file(mpc_port_base: int) -> str:
 def clean_up_player_data_dir() -> None:
     logger.debug(f"Cleaning up {CERTS_PATH}...")
     zero_files = glob.glob(os.path.join(CERTS_PATH, "*.0"))
-    pem_files = glob.glob(os.path.join(CERTS_PATH, "*.pem"))
-    for file in zero_files + pem_files:
+    c_pem_files = glob.glob(os.path.join(CERTS_PATH, "C*.pem"))
+    for file in zero_files + c_pem_files:
         try:
             os.remove(file)
             logger.debug(f"Deleted: {file}")

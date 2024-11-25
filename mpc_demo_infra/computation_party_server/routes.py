@@ -217,6 +217,7 @@ def generate_client_cert_file(client_id: int, client_cert_file: str) -> Path:
         check=True,
         shell=True,
     )
+    logger.debug(f"Created {client_cert_path} and called c_rehash {CERTS_PATH}")
     return client_cert_path
 
 

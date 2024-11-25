@@ -256,7 +256,7 @@ async def query_computation_from_data_consumer_api(
     computation_key = await poll_queue_until_ready(coordination_server_url, access_key, poll_duration)
 
     print("Fetching parties certs")
-    await client_lib.fetch_parties_certs(
+    await fetch_parties_certs(
         party_web_protocol=party_web_protocol,
         certs_path=certs_path,
         party_hosts=party_hosts,

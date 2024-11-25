@@ -25,16 +25,6 @@ _computation_cache = None
 _last_cache_update = None
 _background_task_started = False
 
-async def fetch_parties_certs():
-    logger.debug("Fetching parties certs")
-    await client_lib.fetch_parties_certs(
-        party_web_protocol=settings.party_web_protocol,
-        certs_path=Path(settings.certs_path),
-        party_hosts=settings.party_hosts,
-        party_ports=settings.party_ports,
-    )
-    logger.debug("Parties certs fetched")
-
 async def update_cache():
     global _computation_cache, _last_cache_update
     logger.debug(f"Updating cache at {_last_cache_update}")
@@ -43,6 +33,10 @@ async def update_cache():
         coordination_server_url=settings.coordination_server_url,
         computation_party_hosts=settings.party_hosts,
         poll_duration=settings.poll_duration,
+        party_web_protocol=settings.party_web_protocol,
+        certs_path=Path(settings.certs_path),
+        party_hosts=settings.party_hosts,
+        party_ports=settings.party_ports,
     )
     _computation_cache = QueryComputationResponse(
         num_data_providers=results.num_data_providers,
@@ -72,7 +66,6 @@ async def query_computation():
 
     # First time we fetch certs and update cache
     if not _background_task_started:
-        await fetch_parties_certs()
         await update_cache()
         # Start background task to update cache periodically
         asyncio.create_task(update_cache_periodically())

@@ -7,6 +7,8 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 import asyncio
+import os
+import glob
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -99,6 +101,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     ip_file_path = generate_ip_file(mpc_port_base)
 
     # 4. Generate client cert file
+    clean_up_player_data_dir()
     generate_client_cert_file(client_id, client_cert_file)
 
     # 5. Fetch other parties' certs
@@ -155,6 +158,7 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
     ip_file_path = generate_ip_file(mpc_port_base)
 
     # Generate client cert file
+    clean_up_player_data_dir()
     generate_client_cert_file(client_id, client_cert_file)
 
     # Fetch other parties' certs
@@ -188,6 +192,18 @@ def generate_ip_file(mpc_port_base: int) -> str:
         ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
         ip_file.flush()
     return ip_file.name
+
+
+def clean_up_player_data_dir() -> None:
+    logger.debug(f"Cleaning up {CERTS_PATH}...")
+    zero_files = glob.glob(os.path.join(CERTS_PATH, "*.0"))
+    pem_files = glob.glob(os.path.join(CERTS_PATH, "*.pem"))
+    for file in zero_files + pem_files:
+        try:
+            os.remove(file)
+            logger.debug(f"Deleted: {file}")
+        except Exception as e:
+            logger.error(f"Failed to delete {file}: {e}")
 
 
 def generate_client_cert_file(client_id: int, client_cert_file: str) -> Path:

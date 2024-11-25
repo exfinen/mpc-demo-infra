@@ -111,7 +111,10 @@ def run_computation_query_client(
 
 
 async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[int, Path, Path]:
-    client_id = random.randint(0, max_client_id - 1)
+    # currently the number of simultaneously executing computations is limited to 1
+    # and the client_id is fixed to 0
+    client_id = 0
+
     # openssl req -newkey rsa -nodes -x509 -out Player-Data/C$i.pem -keyout Player-Data/C$i.key -subj "/CN=C$i"
     cert_path = certs_path / f"C{client_id}.pem"
     key_path = certs_path / f"C{client_id}.key"

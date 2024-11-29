@@ -83,8 +83,8 @@ rm -f binance_prover.zip
 binary_dir=../../../../tlsn/tlsn/target/release/examples
 mkdir -p $binanry_dir
 
-mv binance_prover_* $binary_dir/binance_prover
-echo "copied binance_prover to $binary_dir"
+mv binance_prover_${binary_suffix} $binary_dir/binance_prover
+echo "Copied binance_prover to $binary_dir"
 
 echo 'Install poetry...'
 VENV_PATH=./mpc-demo-venv

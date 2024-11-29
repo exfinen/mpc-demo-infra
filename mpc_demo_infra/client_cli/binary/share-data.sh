@@ -27,18 +27,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    if ! command -v jq &> /dev/null; then
-        echo "Installing jq..."
-        brew install jq
-    fi
-    if ! command -v curl &> /dev/null; then
-        echo "Installing curl..."
-        brew install curl
-    fi
-    if ! command -v unzip &> /dev/null; then
-        echo "Installing unzip..."
-        brew install unzip
-    fi
+    for cmd in jq curl unzip python3; do
+        if ! command -v $cmd &> /dev/null; then
+            echo "Installing $cmd..."
+            brew install $cmd
+        fi
+    done
 
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if command -v lsb_release &> /dev/null; then
@@ -57,27 +51,15 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         exit 1
     fi
 
-    if ! command -v curl &> /dev/null; then
-        echo "Installing curl..."
-        sudo apt-get install -y curl || {
-            echo "Failed to install curl. Try running sudo apt-get update";
-            exit 1;
-        }
-    fi
-    if ! command -v jq &> /dev/null; then
-        echo "Installing jq..."
-        sudo apt-get install -y jq || {
-            echo "Failed to install jq. Try running: sudo apt-get update";
-            exit 1;
-        }
-    fi
-    if ! command -v unzip &> /dev/null; then
-        echo "Installing unzip..."
-        sudo apt-get install -y jq || {
-            echo "Failed to install unzip. Try running: sudo apt-get update";
-            exit 1;
-        }
-    fi
+    for cmd in curl jq unzip python3; do
+        if ! command -v $cmd &> /dev/null; then
+            echo "Installing $cmd..."
+            sudo apt-get install -y $cmd || {
+                echo "Failed to install $cmd. Try running: sudo apt-get update";
+                exit 1;
+            }
+        fi
+    done
 fi
 
 binary_url=$(curl -sL \
@@ -103,11 +85,6 @@ mkdir -p $binanry_dir
 
 mv binance_prover_* $binary_dir/binance_prover
 echo "copied binance_prover to $binary_dir"
-
-if ! command -v python3 &> /dev/null; then
-  echo 'python3 is required'
-  exit 1
-fi
 
 echo 'Install poetry...'
 VENV_PATH=./mpc-demo-venv

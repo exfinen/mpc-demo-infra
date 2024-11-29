@@ -119,10 +119,8 @@ source $VENV_PATH/bin/activate
 $VENV_PATH/bin/pip install -U pip setuptools
 $VENV_PATH/bin/pip install poetry
 
-# move to repository root
+# move to repository root and run client-share-data
 cd ../../..
-
 poetry install
-
 poetry run client-share-data $1 $2 $3
 

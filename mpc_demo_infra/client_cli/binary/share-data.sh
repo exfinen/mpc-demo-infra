@@ -5,8 +5,6 @@ if [ "$#" -lt 3 ]; then
     exit 1
 fi
 
-export github_artifacts_url=https://api.github.com/repos/ZKStats/tlsn/actions/artifacts
-
 # check if required environment variables are set
 if [ -z "$github_access_token" ]; then
     echo 'github_access_token environment variable is required'
@@ -16,8 +14,10 @@ fi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$(uname -m)" == "x86_64" ]]; then
         export binary_suffix=macos_sonoma
+        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_macos_sonoma
     elif [[ "$(uname -m)" == "arm64" ]]; then
         export binary_suffix=macos_sonoma_arm64
+        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_macos_sonoma_arm64
     else
         echo "Unsupported architecture: $OSTYPE"
         exit 1
@@ -27,7 +27,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    for cmd in jq curl unzip python3; do
+    for cmd in jq python3; do
         if ! command -v $cmd &> /dev/null; then
             echo "Installing $cmd..."
             brew install $cmd
@@ -44,14 +44,14 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         exit 1
     fi
 
-    if [[ "$version" == "24.04" ]]; then
-        export binary_suffix=ubuntu_noble
-    else
-        echo "Unsupported Ubuntu version: $ubuntu_version"
-        exit 1
+    export binary_suffix=ubuntu_noble
+    export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_ubuntu_noble
+
+    if [[ "$version" != "24.04" ]]; then
+        echo "Unsupported Ubuntu version: $ubuntu_version. Trying binary for Ubuntu 24.04."
     fi
 
-    for cmd in curl jq unzip python3; do
+    for cmd in curl python3; do
         if ! command -v $cmd &> /dev/null; then
             echo "Installing $cmd..."
             sudo apt-get install -y $cmd || {
@@ -62,28 +62,13 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     done
 fi
 
-binary_url=$(curl -sL \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $github_access_token" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  $github_artifacts_url \
-  | jq -r '.artifacts[] | select(.name == ("binance_prover_" + env.binary_suffix)) | .archive_download_url' | head -n1)
-
-echo "Downloading binance_prover from $binary_url..."
-curl -L \
-  -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer $github_access_token" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  -o binance_prover.zip \
-  $binary_url
-
-unzip -o -q binance_prover.zip
-rm -f binance_prover.zip
+echo "Downloading binance_prover for $binary_suffix..."
+curl -L -o binance_prover $binary_url
 
 binary_dir=../../../../tlsn/tlsn/target/release/examples
 mkdir -p $binanry_dir
 
-mv binance_prover_${binary_suffix} $binary_dir/binance_prover
+mv binance_prover $binary_dir/
 echo "Copied binance_prover to $binary_dir"
 
 echo 'Install poetry...'

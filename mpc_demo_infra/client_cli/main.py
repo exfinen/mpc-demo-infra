@@ -17,12 +17,29 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
 async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
+    # locate binance_prover
+    binance_provers = [
+        (Path('.').resolve(), './binance_prover'),
+        (TLSN_EXECUTABLE_DIR, CMD_GEN_TLSN_PROOF),
+    ]
+    binance_prover = None
+    for (dir, exec_cmd) in binance_provers:
+        if (dir / "binance_prover").exists():
+            binance_prover_dir = dir
+            binance_prover_exec_cmd = exec_cmd
+            break
+    if binance_prover_dir is None:
+        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dirs}")
+    else:
+        print(f"Found binance_prover in {binance_prover_dir}")
+
     # Gen tlsn proofs
     print(f"Generating Binance ETH balance TLSN proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
+
     process = await asyncio.create_subprocess_shell(
-        f"cd {TLSN_EXECUTABLE_DIR} && {CMD_GEN_TLSN_PROOF} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
+        f"cd {binance_prover_dir} && {binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )

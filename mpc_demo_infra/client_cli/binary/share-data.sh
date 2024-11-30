@@ -62,14 +62,11 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     done
 fi
 
+repository_root=../../..
+
 echo "Downloading binance_prover for $binary_suffix..."
-curl -L -o binance_prover $binary_url
-
-binary_dir=../../../../tlsn/tlsn/target/release/examples
-mkdir -p $binanry_dir
-
-mv binance_prover $binary_dir/
-echo "Copied binance_prover to $binary_dir"
+curl -L -o $repository_root/binance_prover $binary_url
+chmod +x $repository_root/binance_prover
 
 echo 'Install poetry...'
 VENV_PATH=./mpc-demo-venv
@@ -81,8 +78,7 @@ source $VENV_PATH/bin/activate
 $VENV_PATH/bin/pip install -U pip setuptools
 $VENV_PATH/bin/pip install poetry
 
-# move to repository root and run client-share-data
-cd ../../..
+cd $repository_root
 poetry install
 poetry run client-share-data $1 $2 $3
 

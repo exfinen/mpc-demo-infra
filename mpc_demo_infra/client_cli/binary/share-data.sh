@@ -5,12 +5,6 @@ if [ "$#" -lt 3 ]; then
     exit 1
 fi
 
-# check if required environment variables are set
-if [ -z "$github_access_token" ]; then
-    echo 'github_access_token environment variable is required'
-    exit 1
-fi
-
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$(uname -m)" == "x86_64" ]]; then
         export binary_suffix=macos_sonoma

@@ -68,15 +68,17 @@ echo "Downloading binance_prover for $binary_suffix..."
 curl -L -o $repository_root/binance_prover $binary_url
 chmod +x $repository_root/binance_prover
 
-echo 'Install poetry...'
-VENV_PATH=./mpc-demo-venv
-mkdir -p $VENV_PATH
+if ! command -v poetry &> /dev/null; then
+    echo 'Install poetry...'
+    VENV_PATH=./mpc-demo-venv
+    mkdir -p $VENV_PATH
 
-python3 -m venv $VENV_PATH
-source $VENV_PATH/bin/activate
+    python3 -m venv $VENV_PATH
+    source $VENV_PATH/bin/activate
 
-$VENV_PATH/bin/pip install -U pip setuptools
-$VENV_PATH/bin/pip install poetry
+    $VENV_PATH/bin/pip install -U pip setuptools
+    $VENV_PATH/bin/pip install poetry
+fi
 
 cd $repository_root
 poetry install

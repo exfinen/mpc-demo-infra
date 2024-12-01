@@ -21,7 +21,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    for cmd in jq python3; do
+    for cmd in curl python3; do
         if ! command -v $cmd &> /dev/null; then
             echo "Installing $cmd..."
             brew install $cmd

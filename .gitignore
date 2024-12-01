@@ -172,4 +172,4 @@ certs/
 sim-demo.sh
 secret.json
 binance_prover
-
+.DS_Store

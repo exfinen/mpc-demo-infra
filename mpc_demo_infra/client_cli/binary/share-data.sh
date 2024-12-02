@@ -8,10 +8,10 @@ fi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$(uname -m)" == "x86_64" ]]; then
         export binary_suffix=macos_sonoma
-        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_macos_sonoma
+        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma
     elif [[ "$(uname -m)" == "arm64" ]]; then
         export binary_suffix=macos_sonoma_arm64
-        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_macos_sonoma_arm64
+        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma_arm64
     else
         echo "Unsupported architecture: $OSTYPE"
         exit 1
@@ -39,7 +39,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     fi
 
     export binary_suffix=ubuntu_noble
-    export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241130/binance_prover_ubuntu_noble
+    export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_ubuntu_noble
 
     if [[ "$version" != "24.04" ]]; then
         echo "Unsupported Ubuntu version: $ubuntu_version. Trying binary for Ubuntu 24.04."

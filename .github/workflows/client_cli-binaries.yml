@@ -29,14 +29,18 @@ jobs:
         with:
           python-version: '3.8'
 
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller poetry
+
+      - name: Install project dependencies with Poetry
+        run: |
+          poetry install
+
       - name: Build client_cli
         run: |
-           pyinstaller --onefile -n client_cli \ 
-           -p $(poetry env info --path)/lib/python3.*/site-packages \
-           mpc_demo_infra/client_cli/binary/client_cli.py
-
-      - name: Show direcory structure
-        run: ls -R
+           pyinstaller --onefile -n client_cli -p $(poetry env info --path)/lib/python3.*/site-packages ./mpc_demo_infra/client_cli/binary/client_cli.py
 
       - name: Archive binary
         run: |
@@ -48,5 +52,5 @@ jobs:
         with:
           name: client_cli_${{ matrix.binary_suffix }}
           path: artifacts/
-          compression-level: 9
+          compression-level: 0
 

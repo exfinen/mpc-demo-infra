@@ -22,10 +22,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download share_data__macos_sonoma
+      - name: Download share_data_macos_ventura
         uses: actions/download-artifact@v4
         with:
-          name: share_data_macos_sonoma
+          name: share_data_macos_ventura
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
@@ -58,7 +58,7 @@ jobs:
           tag_name: ${{ env.tag_name }}
           body: |
             - share_data_ubuntu_noble
-            - share_data_macos_sonoma
+            - share_data_macos_ventura
             - share_data_macos_sonoma_arm64
           release_name: "Release ${{ env.tag_name }}"
           draft: false
@@ -71,7 +71,7 @@ jobs:
         run: |
           gh release upload ${{ env.tag_name }} \
             share_data_ubuntu_noble \
-            share_data_macos_sonoma \
+            share_data_macos_ventura \
             share_data_macos_sonoma_arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,8 +11,8 @@ jobs:
           - os: ubuntu-24.04
             binary_suffix: ubuntu_noble
             target: x86_64-unknown-linux-gnu
-          - os: macos-14
-            binary_suffix: macos_sonoma
+          - os: macos-13
+            binary_suffix: macos_ventura
             target: x86_64-apple-darwin
           - os: macos-14
             binary_suffix: macos_sonoma_arm64

@@ -40,7 +40,7 @@ jobs:
 
       - name: Build share_data
         run: |
-           pyinstaller --onefile -n share_data --hidden-import=mpc_demo_infra -p $(poetry env info --path)/lib/python3.*/site-packages ./mpc_demo_infra/client_cli/binary/share-data.py
+           pyinstaller --onefile -n share_data -p $(poetry env info --path)/lib/python3.*/site-packages -p $(pwd) ./mpc_demo_infra/client_cli/binary/share-data.py
 
       - name: Archive binary
         run: |

@@ -43,9 +43,7 @@ jobs:
 
       - name: Build client_cli
         run: |
-           pyinstaller --onefile -n client_cli \ 
-           -p $(poetry env info --path)/lib/python3.*/site-packages \
-           ./mpc_demo_infra/client_cli/binary/client_cli.py
+           pyinstaller --onefile -n client_cli -p $(poetry env info --path)/lib/python3.*/site-packages ./mpc_demo_infra/client_cli/binary/client_cli.py
 
       - name: Show direcory structure
         run: ls -R

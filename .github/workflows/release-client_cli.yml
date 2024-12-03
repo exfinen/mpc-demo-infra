@@ -1,0 +1,79 @@
+name: Create release
+on:
+  workflow_run:
+    workflows: [Build client_cli binaries]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download client_cli_ubuntu_noble
+        uses: actions/download-artifact@v4
+        with:
+          name: client_cli_ubuntu_noble
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Download client_cli_macos_sonoma
+        uses: actions/download-artifact@v4
+        with:
+          name: client_cli_macos_sonoma
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Download client_cli_macos_sonoma_arm64
+        uses: actions/download-artifact@v4
+        with:
+          name: client_cli_macos_sonoma_arm64
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Get current timestamp for tag
+        id: timestamp
+        run: echo "tag_name=client_cli_$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ env.tag_name }}
+          git push origin ${{ env.tag_name }}
+        env:
+          tag_name: ${{ env.tag_name }}
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.tag_name }}
+          body: |
+            - client_cli_ubuntu_noble
+            - client_cli_macos_sonoma
+            - client_cli_macos_sonoma_arm64
+          release_name: "Release ${{ env.tag_name }}"
+          draft: false
+          prerelease: false
+
+      - name: Show downloaded files
+        run: ls -R
+
+      - name: Upload Release Assets
+        run: |
+          gh release upload ${{ env.tag_name }} \
+            client_cli_ubuntu_noble \
+            client_cli_macos_sonoma \
+            client_cli_macos_sonoma_arm64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

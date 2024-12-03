@@ -3,7 +3,6 @@ on:
   workflow_run:
     workflows: [Build client_cli binaries]
     types: [completed]
-  workflow_dispatch:
 
 permissions:
   contents: write

@@ -1,4 +1,4 @@
-name: Build client_cli binaries
+name: Build share_data binaries
 
 on:
   workflow_dispatch:
@@ -38,19 +38,19 @@ jobs:
         run: |
           poetry install
 
-      - name: Build client_cli
+      - name: Build share_data
         run: |
-           pyinstaller --onefile -n client_cli -p $(poetry env info --path)/lib/python3.*/site-packages ./mpc_demo_infra/client_cli/binary/client_cli.py
+           pyinstaller --onefile -n share_data -p $(poetry env info --path)/lib/python3.*/site-packages ./mpc_demo_infra/client_cli/binary/share_data.py
 
       - name: Archive binary
         run: |
           mkdir -p artifacts
-          cp dist/client_cli artifacts/client_cli_${{ matrix.binary_suffix }}
+          cp dist/share_data artifacts/share_data_${{ matrix.binary_suffix }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: client_cli_${{ matrix.binary_suffix }}
+          name: share_data_${{ matrix.binary_suffix }}
           path: artifacts/
           compression-level: 0
 

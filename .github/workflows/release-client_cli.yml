@@ -1,7 +1,7 @@
 name: Create release
 on:
   workflow_run:
-    workflows: [Build client_cli binaries]
+    workflows: [Build share_data binaries]
     types: [completed]
 
 permissions:
@@ -15,30 +15,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download client_cli_ubuntu_noble
+      - name: Download share_data_ubuntu_noble
         uses: actions/download-artifact@v4
         with:
-          name: client_cli_ubuntu_noble
+          name: share_data_ubuntu_noble
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download client_cli_macos_sonoma
+      - name: Download share_data__macos_sonoma
         uses: actions/download-artifact@v4
         with:
-          name: client_cli_macos_sonoma
+          name: share_data_macos_sonoma
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download client_cli_macos_sonoma_arm64
+      - name: Download share_data_macos_sonoma_arm64
         uses: actions/download-artifact@v4
         with:
-          name: client_cli_macos_sonoma_arm64
+          name: share_data_macos_sonoma_arm64
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Get current timestamp for tag
         id: timestamp
-        run: echo "tag_name=client_cli_$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
+        run: echo "tag_name=share_data_$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
 
       - name: Create Git Tag
         run: |
@@ -57,9 +57,9 @@ jobs:
         with:
           tag_name: ${{ env.tag_name }}
           body: |
-            - client_cli_ubuntu_noble
-            - client_cli_macos_sonoma
-            - client_cli_macos_sonoma_arm64
+            - share_data_ubuntu_noble
+            - share_data_macos_sonoma
+            - share_data_macos_sonoma_arm64
           release_name: "Release ${{ env.tag_name }}"
           draft: false
           prerelease: false
@@ -70,9 +70,9 @@ jobs:
       - name: Upload Release Assets
         run: |
           gh release upload ${{ env.tag_name }} \
-            client_cli_ubuntu_noble \
-            client_cli_macos_sonoma \
-            client_cli_macos_sonoma_arm64
+            share_data_ubuntu_noble \
+            share_data_macos_sonoma \
+            share_data_macos_sonoma_arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

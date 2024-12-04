@@ -7,11 +7,18 @@ fi
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$(uname -m)" == "x86_64" ]]; then
-        export binary_suffix=macos_sonoma
-        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma
+        prover_suffix=macos_sonoma
+        prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma
+
+        share_data_suffix=macos_ventura
+        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241203_201111/share_data_macos_ventura
+
     elif [[ "$(uname -m)" == "arm64" ]]; then
-        export binary_suffix=macos_sonoma_arm64
-        export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma_arm64
+        prover_suffix=macos_sonoma_arm64
+        prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma_arm64
+
+        share_data_suffix=macos_sonoma_arm64
+        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241203_201111/share_data_macos_sonoma_arm64
     else
         echo "Unsupported architecture: $OSTYPE"
         exit 1
@@ -21,7 +28,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "Installing Homebrew..."
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    for cmd in curl python3; do
+    for cmd in curl; do
         if ! command -v $cmd &> /dev/null; then
             echo "Installing $cmd..."
             brew install $cmd
@@ -38,14 +45,17 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         exit 1
     fi
 
-    export binary_suffix=ubuntu_noble
-    export binary_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_ubuntu_noble
+    prover_suffix=ubuntu_noble
+    prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_ubuntu_noble
+
+    share_data_suffix=ubuntu_noble
+    share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241203_201111/share_data_ubuntu_noble
 
     if [[ "$version" != "24.04" ]]; then
         echo "Unsupported Ubuntu version: $ubuntu_version. Trying binary for Ubuntu 24.04."
     fi
 
-    for cmd in curl python3; do
+    for cmd in curl; do
         if ! command -v $cmd &> /dev/null; then
             echo "Installing $cmd..."
             sudo apt-get install -y $cmd || {
@@ -56,25 +66,20 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     done
 fi
 
-repository_root=../../..
-
-echo "Downloading binance_prover for $binary_suffix..."
-curl -L -o $repository_root/binance_prover $binary_url
-chmod +x $repository_root/binance_prover
-
-if ! command -v poetry &> /dev/null; then
-    echo 'Install poetry...'
-    VENV_PATH=./mpc-demo-venv
-    mkdir -p $VENV_PATH
-
-    python3 -m venv $VENV_PATH
-    source $VENV_PATH/bin/activate
-
-    $VENV_PATH/bin/pip install -U pip setuptools
-    $VENV_PATH/bin/pip install poetry
+if [ ! -f binance_prover ]; then
+    binance_prover=binance_prover_$prover_suffix
+    echo "Downloading $binance_prover..."
+    curl -L -o binance_prover $prover_url
+    chmod +x binance_prover
 fi
 
-cd $repository_root
-poetry install
-poetry run client-share-data $1 $2 $3
+if [ ! -f share_data ]; then
+    share_data=share_data_$share_data_suffix
+    echo "Downloading $share_data..."
+    curl -L -o share_data $share_data_url
+    chmod +x share_data
+fi
+
+echo "Started sharing data..."
+./share_data $1 $2 $3
 

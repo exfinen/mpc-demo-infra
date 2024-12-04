@@ -66,15 +66,20 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     done
 fi
 
-binance_prover=binance_prover_$prover_suffix
-echo "Downloading $binance_prover..."
-curl -L -o binance_prover $prover_url
-chmod +x binance_prover
+if [ ! -f binance_prover ]; then
+    binance_prover=binance_prover_$prover_suffix
+    echo "Downloading $binance_prover..."
+    curl -L -o binance_prover $prover_url
+    chmod +x binance_prover
+fi
 
-share_data=share_data_$share_data_suffix
-echo "Downloading $share_data..."
-curl -L -o share_data $share_data_url
-chmod +x share_data
+if [ ! -f share_data ]; then
+    share_data=share_data_$share_data_suffix
+    echo "Downloading $share_data..."
+    curl -L -o share_data $share_data_url
+    chmod +x share_data
+fi
 
+echo "Started sharing data..."
 ./share_data $1 $2 $3
 

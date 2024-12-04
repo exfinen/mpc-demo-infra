@@ -72,7 +72,8 @@ jobs:
           gh release upload ${{ env.tag_name }} \
             share_data_ubuntu_noble \
             share_data_macos_ventura \
-            share_data_macos_sonoma_arm64
+            share_data_macos_sonoma_arm64 \
+            mpc_demo_infra/client_cli/binary/share-data.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

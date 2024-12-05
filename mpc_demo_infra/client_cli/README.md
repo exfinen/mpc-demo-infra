@@ -22,6 +22,8 @@ Note: The binaries are built directly from the source code using public GitHub w
 #### Procedure
 
 ```
+curl -L https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share-data.sh | bash -s -- <eth-address> <binance-api-key> <binance-api-secret>
+```
 curl -L -o share-data.sh https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share-data.sh
 chmod +x share-data.sh
 ./share-data.sh <eth-address> <binance-api-key> <binance-api-secret>

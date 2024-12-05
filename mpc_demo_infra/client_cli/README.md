@@ -85,20 +85,25 @@ apt-get update && apt-get install -y python3 python3-venv python3-pip curl pipx 
 ```
 
 - MacOS (Intel/Apple Silicon)
+
 3.1 Install Homebrew (if not installed)
 ```
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" # only if brew is not installed
 ```
 
-3.2 Install Python3 and Poetry
+3.2 Install Python3 (if not installed)
 ```
-brew install python@3.8 poetry
+brew install python
 ```
 
 4. Install MPC demo infrastructure
 ```
 git clone https://github.com/ZKStats/mpc-demo-infra.git
 cd mpc-demo-infra
+python3 -m venv venv
+source venv/bin/activate
+venv/bin/pip install -U pip setuptools
+venv/bin/pip install poetry
 poetry install
 cp mpc_demo_infra/client_cli/.env.client_cli .
 ```

@@ -161,7 +161,8 @@ async def servers(tlsn_proofs_dir):
 
     print("!@# All servers started concurrently")
 
-    await asyncio.sleep(2)
+    # Wait for the servers to start
+    await asyncio.sleep(10)
 
     yield
 

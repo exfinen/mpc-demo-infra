@@ -8,17 +8,17 @@ fi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$(uname -m)" == "x86_64" ]]; then
         prover_suffix=macos_sonoma
-        prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma
+        prover_url=https://github.com/ZKStats/tlsn/releases/latest/download/binance_prover_macos_sonoma
 
         share_data_suffix=macos_ventura
-        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241204_011506/share_data_macos_ventura
+        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share_data_macos_ventura
 
     elif [[ "$(uname -m)" == "arm64" ]]; then
         prover_suffix=macos_sonoma_arm64
-        prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_macos_sonoma_arm64
+        prover_url=https://github.com/ZKStats/tlsn/releases/latest/download/binance_prover_macos_sonoma_arm64
 
         share_data_suffix=macos_sonoma_arm64
-        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241204_011506/share_data_macos_sonoma_arm64
+        share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share_data_macos_sonoma_arm64
 
     else
         echo "Unsupported architecture: $OSTYPE"
@@ -47,10 +47,10 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     fi
 
     prover_suffix=ubuntu_noble
-    prover_url=https://github.com/ZKStats/tlsn/releases/download/binance_prover_20241202_054257/binance_prover_ubuntu_noble
+    prover_url=https://github.com/ZKStats/tlsn/releases/latest/download/binance_prover_ubuntu_noble
 
     share_data_suffix=ubuntu_noble
-    share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/download/share_data_20241204_011506/share_data_ubuntu_noble
+    share_data_url=https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share_data_ubuntu_noble
 
     if [[ "$version" != "24.04" ]]; then
         echo "Unsupported Ubuntu version: $ubuntu_version. Trying binary for Ubuntu 24.04."
@@ -70,14 +70,14 @@ fi
 if [ ! -f binance_prover ]; then
     binance_prover=binance_prover_$prover_suffix
     echo "Downloading $binance_prover..."
-    curl -L -o binance_prover $prover_url
+    curl --retry 5 --retry-delay 5 -L -o binance_prover $prover_url
     chmod +x binance_prover
 fi
 
 if [ ! -f share_data ]; then
     share_data=share_data_$share_data_suffix
     echo "Downloading $share_data..."
-    curl -L -o share_data $share_data_url
+    curl --retry 5 --retry-delay 5 -L -o share_data $share_data_url
     chmod +x share_data
 fi
 

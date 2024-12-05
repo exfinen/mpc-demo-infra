@@ -64,15 +64,13 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Add execute permission to share-data.sh
-        run: chmod +x mpc_demo_infra/client_cli/binary/share-data.sh
-
       - name: Upload Release Assets
         run: |
           gh release upload ${{ env.tag_name }} \
             share_data_ubuntu_noble \
             share_data_macos_ventura \
             share_data_macos_sonoma_arm64 \
+            .env.client_cli \
             mpc_demo_infra/client_cli/binary/share-data.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

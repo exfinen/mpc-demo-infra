@@ -99,14 +99,6 @@ brew install python@3.8 poetry
 ```
 git clone https://github.com/ZKStats/mpc-demo-infra.git
 cd mpc-demo-infra
-cat <<EOF > .env.client_cli
-# Coordination server settings
-COORDINATION_SERVER_URL=https://coord.mpcstats.org:8005
-PARTY_HOSTS=["party-0.mpcstats.org","party-1.mpcstats.org","party-2.mpcstats.org"]
-PARTY_PORTS=[8006,8007,8008]
-# Protocol for party web servers
-PARTY_WEB_PROTOCOL=https
-EOF
 poetry install
 ```
 

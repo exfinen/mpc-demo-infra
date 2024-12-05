@@ -83,7 +83,7 @@ fi
 
 if [ ! -f .env.client_cli ]; then
     echo "Downloading .env.client_cli..."
-    curl --retry 5 --retry-delay 5 -L -o .env.client_cli https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/.env.client_cli
+    curl --retry 5 --retry-delay 5 -L -o .env.client_cli https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/default.env.client_cli
 fi
 
 echo "Started sharing data..."

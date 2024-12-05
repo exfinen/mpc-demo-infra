@@ -169,8 +169,10 @@ cython_debug/
 .env.consumer_api
 *.db
 proof.json
+!tests/proof.json
 certs/
 sim-demo.sh
 secret.json
+!tests/secret.json
 binance_prover
 .DS_Store

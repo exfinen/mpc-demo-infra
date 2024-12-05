@@ -165,6 +165,7 @@ cython_debug/
 .env.coord
 .env.party
 .env.client_cli
+!mpc_demo_infra/client_cli/.env.client_cli
 .env.consumer_api
 *.db
 proof.json

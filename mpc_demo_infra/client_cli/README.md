@@ -100,6 +100,7 @@ brew install python@3.8 poetry
 git clone https://github.com/ZKStats/mpc-demo-infra.git
 cd mpc-demo-infra
 poetry install
+cp mpc_demo_infra/client_cli/.env.client_cli .
 ```
 
 5. Initiate data sharing process

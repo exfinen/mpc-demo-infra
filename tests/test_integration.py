@@ -157,25 +157,34 @@ async def servers(tlsn_proofs_dir):
         start_data_consumer_api_server(CMD_PREFIX_DATA_CONSUMER_API, DATA_CONSUMER_API_PORT)
     ]
 
-    processes = await asyncio.gather(*start_tasks)
+    try:
+        processes = await asyncio.gather(*start_tasks)
 
-    print("!@# All servers started concurrently")
+        print("!@# All servers started concurrently")
 
-    # Wait for the servers to start
-    await asyncio.sleep(10)
+        # Wait for the servers to start
+        await asyncio.sleep(10)
 
-    yield
+        yield
 
-    # Graceful shutdown attempt
-    for process in processes:
-        process.terminate()
+    finally:
+        # Graceful shutdown attempt
+        for process in processes:
+            try:
+                if process.returncode is None:
+                    process.terminate()
+                    print(f"Terminated process: {process.pid}")
+                else:
+                    print(f"Process {process.pid} already exited with returncode {process.returncode}")
+            except Exception as e:
+                print(f"Failed to terminate process {process.pid}: {e}")
 
-    # Ensure all processes are terminated
-    await asyncio.gather(*[process.wait() for process in processes])
-    print("All servers terminated")
+        # Ensure all processes are terminated
+        await asyncio.gather(*[process.wait() for process in processes])
+        print("All servers terminated")
 
-    # Additional wait to allow OS to release resources
-    await asyncio.sleep(1)
+        # Additional wait to allow OS to release resources
+        await asyncio.sleep(10)
 
 
 async def get_mpc_sessions():

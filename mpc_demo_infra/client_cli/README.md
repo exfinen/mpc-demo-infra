@@ -24,10 +24,6 @@ Note: The binaries are built directly from the source code using public GitHub w
 ```
 curl -L https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share-data.sh | bash -s -- <eth-address> <binance-api-key> <binance-api-secret>
 ```
-curl -L -o share-data.sh https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/share-data.sh
-chmod +x share-data.sh
-./share-data.sh <eth-address> <binance-api-key> <binance-api-secret>
-```
 
 To get the Binance API key and secret, follow the instructions in [Get Your Binance API Key](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/client_cli/docker/README.md#step-1-get-your-binance-api-key)
 

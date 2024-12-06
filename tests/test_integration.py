@@ -170,14 +170,7 @@ async def servers(tlsn_proofs_dir):
     finally:
         # Graceful shutdown attempt
         for process in processes:
-            try:
-                if process.returncode is None:
-                    process.terminate()
-                    print(f"Terminated process: {process.pid}")
-                else:
-                    print(f"Process {process.pid} already exited with returncode {process.returncode}")
-            except Exception as e:
-                print(f"Failed to terminate process {process.pid}: {e}")
+            process.terminate()
 
         # Ensure all processes are terminated
         await asyncio.gather(*[process.wait() for process in processes])

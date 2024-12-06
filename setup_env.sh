@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MPC_PROTOCOL="replicated-ring"
+MPC_PROTOCOL="malicious-rep-ring"
 NUM_PARTIES=3
 
 # Function to check if a command exists
@@ -19,6 +19,15 @@ detect_os() {
     fi
 }
 
+get_num_cores() {
+    if [[ "$(detect_os)" == 'linux' ]]; then
+        nproc
+    elif [[ "$(detect_os)" == 'macos' ]]; then
+        sysctl -n hw.ncpu
+    else
+        echo '1'
+    fi
+}
 
 # Default value for MP-SPDZ setup
 setup_mpspdz=false
@@ -113,7 +122,7 @@ if [ "$setup_mpspdz" = true ]; then
         make setup
 
         # Build VM
-        make "$MPC_PROTOCOL-party.x"
+        make -j$(get_num_cores) ${MPC_PROTOCOL}-party.x
 
         # Generate keys for all parties
         ./Scripts/setup-ssl.sh $NUM_PARTIES

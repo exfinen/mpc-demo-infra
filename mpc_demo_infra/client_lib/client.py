@@ -86,7 +86,14 @@ class Client:
             n_expected = 3 if active else 1
             if os.get_length() != n_expected * T.size() * n:
                 import sys
-                logger.error(os.get_length(), n_expected, T.size(), n, active, file=sys.stderr)
+                logger.error(
+                    "length=%s n_expected=%s T.size=%s n=%s active=%s",
+                    os.get_length(),
+                    n_expected,
+                    T.size(),
+                    n,
+                    active,
+                )
                 raise Exception('unexpected data length')
             for triple in triples:
                 for i in range(n_expected):

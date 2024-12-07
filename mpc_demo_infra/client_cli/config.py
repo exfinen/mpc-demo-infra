@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
     party_ports: list[int] = [8006, 8007, 8008]
 
+    # logging
+    max_bytes_mb = 20
+    backup_count = 10
+    
     class Config:
         env_file = ".env.client_cli"
 

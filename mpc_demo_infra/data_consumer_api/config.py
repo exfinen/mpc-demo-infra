@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # cache expires every 10 minutes
     cache_ttl_seconds: int = Field(default=600, description="Cache TTL in seconds for computation results")
 
+    # logging
+    max_bytes_mb = 20
+    backup_count = 10
+    
     class Config:
         env_file = ".env.consumer_api"
 

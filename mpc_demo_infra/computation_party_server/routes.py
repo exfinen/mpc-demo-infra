@@ -94,8 +94,8 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
 
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
-    logger.debug(f"!@# backup_shares_path: {backup_shares_path}")
-    logger.debug(f"Backed up shares to {backup_shares_path}")
+    logger.info(f"!@# backup_shares_path: {backup_shares_path}")
+    logger.info(f"Backed up shares to {backup_shares_path}")
 
     # 3. Generate ip file
     ip_file_path = generate_ip_file(mpc_port_base)
@@ -107,7 +107,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     # 5. Fetch other parties' certs
     fetch_other_parties_certs()
 
-    logger.debug(f"Preparing data sharing program")
+    logger.info(f"Preparing data sharing program")
     num_bytes_input, tlsn_data_commitment_hash, tlsn_delta, tlsn_zero_encodings = extract_tlsn_proof_data(tlsn_proof)
     # Compile and run share_data program
     circuit_name, target_program_path = generate_data_sharing_program(
@@ -119,20 +119,20 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         tlsn_delta,
         tlsn_zero_encodings,
     )
-    logger.debug(f"Compiling data sharing program {circuit_name}")
+    logger.info(f"Compiling data sharing program {circuit_name}")
     compile_program(circuit_name)
     try:
-        logger.debug(f"Started computation: {circuit_name}")
+        logger.info(f"Started computation: {circuit_name}")
         mpc_data_commitment_hash = run_data_sharing_program(circuit_name, ip_file_path)
     except Exception as e:
         logger.error(f"Computation {circuit_name} failed: {str(e)}")
         rollback_shares(settings.party_id, backup_shares_path)
         raise HTTPException(status_code=500, detail=str(e))
 
-    logger.debug(f"Verifying data commitment hash")
+    logger.info(f"Verifying data commitment hash")
     # 3. Verify data commitment hash from TLSN proof and MPC matches or not. If not, rollback shares.
-    logger.debug(f"TLSN data commitment hash: {tlsn_data_commitment_hash}")
-    logger.debug(f"MPC data commitment hash: {mpc_data_commitment_hash}")
+    logger.info(f"TLSN data commitment hash: {tlsn_data_commitment_hash}")
+    logger.info(f"MPC data commitment hash: {mpc_data_commitment_hash}")
     # FIXME:
     # if mpc_data_commitment_hash != tlsn_data_commitment_hash:
     #     logger.error(f"Data commitment hash mismatch between TLSN proof and MPC. Rolling back shares to {backup_shares_path}")
@@ -170,15 +170,15 @@ def request_querying_computation_mpc(request: RequestQueryComputationMPCRequest,
         num_data_providers,
     )
 
-    logger.debug(f"Compiling computation query program {circuit_name}")
+    logger.info(f"Compiling computation query program {circuit_name}")
     compile_program(circuit_name)
-    logger.debug(f"Started computation: {circuit_name}")
+    logger.info(f"Started computation: {circuit_name}")
     try:
         run_computation_query_program(circuit_name, ip_file_path)
     except Exception as e:
         logger.error(f"Computation {circuit_name} failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-    logger.debug("MPC query computation finished")
+    logger.info("MPC query computation finished")
     return RequestQueryComputationMPCResponse()
 
 
@@ -188,20 +188,20 @@ def generate_ip_file(mpc_port_base: int) -> str:
         f"{host}:{mpc_port_base + party_id}" for party_id, host in enumerate(settings.party_hosts)
     ]
     with tempfile.NamedTemporaryFile(delete=False) as ip_file:
-        logger.debug(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")
+        logger.info(f"Writing IP addresses to {ip_file.name}: {mpc_addresses}")
         ip_file.write("\n".join(mpc_addresses).encode('utf-8'))
         ip_file.flush()
     return ip_file.name
 
 
 def clean_up_player_data_dir() -> None:
-    logger.debug(f"Cleaning up {CERTS_PATH}...")
+    logger.info(f"Cleaning up {CERTS_PATH}...")
     zero_files = glob.glob(os.path.join(CERTS_PATH, "*.0"))
     c_pem_files = glob.glob(os.path.join(CERTS_PATH, "C*.pem"))
     for file in zero_files + c_pem_files:
         try:
             os.remove(file)
-            logger.debug(f"Deleted: {file}")
+            logger.info(f"Deleted: {file}")
         except Exception as e:
             logger.error(f"Failed to delete {file}: {e}")
 
@@ -217,7 +217,7 @@ def generate_client_cert_file(client_id: int, client_cert_file: str) -> Path:
         check=True,
         shell=True,
     )
-    logger.debug(f"Created {client_cert_path} and called c_rehash {CERTS_PATH}")
+    logger.info(f"Created {client_cert_path} and called c_rehash {CERTS_PATH}")
     return client_cert_path
 
 
@@ -327,7 +327,7 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
-    logger.debug(f"Executing a program with {MPC_VM_BINARY}")
+    logger.info(f"Executing a program with {MPC_VM_BINARY}")
     # Run the MPC program
     try:
         process = subprocess.run(
@@ -341,7 +341,7 @@ def run_program(circuit_name: str, ip_file_path: str):
     if process.returncode != 0:
         raise Exception(f"!@# Failed to run program {circuit_name}: {process.stdout}, {process.stderr}")
     else:
-        logger.debug(f"Successfully executed")
+        logger.info(f"Successfully executed")
 
     return process
 
@@ -360,10 +360,10 @@ def run_data_sharing_program(circuit_name: str, ip_file_path: Path) -> list[str]
             # ed7ec2253e5b9f15a2157190d87d4fd7f4949ab219978f9915d12c03674dd161
             reg_value = after_equal.split(' ')[0][2:]
             commitments.append(reg_value)
-        # print(f"!@# line: {line}")
+        # logger.error(f"!@# line: {line}")
 
     # for err in process.stderr.split('\n'):
-    #     print(f"!@# err: {err}")
+    #     logger.error(f"!@# err: {err}")
     if len(commitments) != 1:
         raise ValueError(f"Expected 1 commitment, got {len(commitments)}")
     return commitments[0]
@@ -429,7 +429,7 @@ def fetch_other_parties_certs():
 
     def get_party_cert(host: str, port: int, party_id: int):
         url = f"{settings.party_web_protocol}://{host}:{port}/get_party_cert"
-        logger.debug(f"Fetching party cert from {host}:{port}")
+        logger.info(f"Fetching party cert from {host}:{port}")
         response = requests.get(url)
         if response.status_code != 200:
             logger.error(f"Failed to fetch party cert from {host}:{port}, text: {response.text}")
@@ -438,9 +438,9 @@ def fetch_other_parties_certs():
         if data["party_id"] != party_id:
             logger.error(f"party_id mismatch, expected {party_id}, got {data['party_id']}")
             raise HTTPException(status_code=500, detail=f"Party ID mismatch, expected {party_id}, got {data['party_id']}")
-        logger.debug(f"Fetched party cert from {host}:{port}")
+        logger.info(f"Fetched party cert from {host}:{port}")
         (CERTS_PATH / f"P{party_id}.pem").write_text(data["cert_file"])
-        logger.debug(f"Saved party cert to {CERTS_PATH / f'P{party_id}.pem'}")
+        logger.info(f"Saved party cert to {CERTS_PATH / f'P{party_id}.pem'}")
 
     with ThreadPoolExecutor() as executor:
         futures = [

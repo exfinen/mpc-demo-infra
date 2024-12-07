@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"
 
+    # logging
+    max_bytes_mb = 20
+    backup_count = 10
+    
     class Config:
         env_file = ".env.party"
 

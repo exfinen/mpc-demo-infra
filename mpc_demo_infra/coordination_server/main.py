@@ -15,17 +15,14 @@ from .config import settings
 from .limiter import limiter
 from .user_queue import UserQueue
 from contextlib import asynccontextmanager
+from ..logger_config import configure_file_console_loggers
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler()
-    ]
+configure_file_console_loggers(
+    'coord',
+    max_bytes_mb=settings.max_bytes_mb,
+    backup_count=settings.backup_count
 )
-
-logger = logging.getLogger("coordination_server")
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -6,6 +6,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from .config import settings
 from sqlalchemy.sql import func
+import logging
+
+logger = logging.getLogger(__name__)
 
 engine = create_engine(
     settings.database_url,
@@ -36,4 +39,4 @@ class MPCSession(Base):
 def create_tables():
     """Create database tables"""
     Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully for coordination server")
+    logge.info("Database tables created successfully for coordination server")

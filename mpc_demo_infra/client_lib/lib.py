@@ -53,9 +53,9 @@ def run_data_sharing_client(
     client.send_private_inputs([input_value, reverse_bytes(hex_to_int(nonce))])
     logger.info("Finish sending private inputs")
     outputs = client.receive_outputs(1)
-    logger.info("!@# data_sharing_client.py outputs: ", outputs)
+    logger.info(f"!@# data_sharing_client.py outputs: {outputs}")
     commitment = outputs[0]
-    logger.info("!@# data_sharing_client.py commitment: ", hex(reverse_bytes(commitment)))
+    logger.info(f"!@# data_sharing_client.py commitment: {hex(reverse_bytes(commitment))}")
 
 
 from dataclasses import dataclass
@@ -98,11 +98,11 @@ def run_computation_query_client(
         median=output_list[3]/(10*BINANCE_DECIMAL_SCALE),
         gini_coefficient=(output_list[4]/(num_data_providers*output_list[2]))-1,
     )
-    logger.info("Number of data providers: ", results.num_data_providers)
-    logger.info("Max: ", results.max)
-    logger.info("Mean: ", results.mean)
-    logger.info("Median: ", results.median)
-    logger.info("Gini Coefficient: ", results.gini_coefficient)
+    logger.info(f"Number of data providers: ", results.num_data_providers)
+    logger.info(f"Max: {results.max}")
+    logger.info(f"Mean: {results.mean}")
+    logger.info(f"Median: {results.median}")
+    logger.info(f"Gini Coefficient: {results.gini_coefficient}")
 
     # return {index -> commitment}
     data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[5:]]

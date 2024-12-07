@@ -3,8 +3,11 @@ import platform
 import socket, ssl
 import struct
 import time
+import logging
 
 from .domains import *
+
+logger = logging.getLogger(__name__)
 
 # The following function is either taken directly or derived from:
 # https://stackoverflow.com/questions/12248132/how-to-change-tcp-keepalive-timer-using-python-script
@@ -83,7 +86,7 @@ class Client:
             n_expected = 3 if active else 1
             if os.get_length() != n_expected * T.size() * n:
                 import sys
-                print (os.get_length(), n_expected, T.size(), n, active, file=sys.stderr)
+                logger.error(os.get_length(), n_expected, T.size(), n, active, file=sys.stderr)
                 raise Exception('unexpected data length')
             for triple in triples:
                 for i in range(n_expected):

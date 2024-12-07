@@ -4,10 +4,13 @@ import aiohttp
 import random
 from pathlib import Path
 import secrets
+import logging
 
 from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
 from mpc_demo_infra.coordination_server.user_queue import AddResult
+
+logger = logging.getLogger(__name__)
 
 EMPTY_COMMITMENT = '0'
 BINANCE_DECIMAL_PRECISION = 2
@@ -48,11 +51,11 @@ def run_data_sharing_client(
         os.Send(socket)
 
     client.send_private_inputs([input_value, reverse_bytes(hex_to_int(nonce))])
-    print("Finish sending private inputs")
+    logger.info("Finish sending private inputs")
     outputs = client.receive_outputs(1)
-    print("!@# data_sharing_client.py outputs: ", outputs)
+    logger.info("!@# data_sharing_client.py outputs: ", outputs)
     commitment = outputs[0]
-    print("!@# data_sharing_client.py commitment: ", hex(reverse_bytes(commitment)))
+    logger.info("!@# data_sharing_client.py commitment: ", hex(reverse_bytes(commitment)))
 
 
 from dataclasses import dataclass
@@ -85,7 +88,7 @@ def run_computation_query_client(
         os.Send(socket)
     # If computation returns more than one value, need to change the following line.
     output_list = client.receive_outputs(5 + max_data_providers)
-    print("Stats of Data")
+    logger.info("Stats of Data")
     num_data_providers = int(output_list[0])
 
     results = StatsResults(
@@ -95,11 +98,11 @@ def run_computation_query_client(
         median=output_list[3]/(10*BINANCE_DECIMAL_SCALE),
         gini_coefficient=(output_list[4]/(num_data_providers*output_list[2]))-1,
     )
-    print("Number of data providers: ", results.num_data_providers)
-    print("Max: ", results.max)
-    print("Mean: ", results.mean)
-    print("Median: ", results.median)
-    print("Gini Coefficient: ", results.gini_coefficient)
+    logger.info("Number of data providers: ", results.num_data_providers)
+    logger.info("Max: ", results.max)
+    logger.info("Mean: ", results.mean)
+    logger.info("Median: ", results.median)
+    logger.info("Gini Coefficient: ", results.gini_coefficient)
 
     # return {index -> commitment}
     data_commitments = [hex(reverse_bytes(i))[2:] for i in output_list[5:]]
@@ -187,7 +190,7 @@ async def share_data(
                 client_port_base = data["client_port_base"]
 
         # Wait until all computation parties started their MPC servers.
-        print(f"!@# Running data sharing client for {eth_address=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
+        logger.info(f"!@# Running data sharing client for {eth_address=}, {client_port_base=}, {client_id=}, {cert_path=}, {key_path=}, {value=}, {nonce=}")
 
         result = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -216,7 +219,7 @@ async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_
                 if response.status == 200:
                     data = await response.json()
                     if data["result"] == AddResult.QUEUE_IS_FULL:
-                        print("\nThe queue is currently full. Please wait for your turn.")
+                        logger.warn("\nThe queue is currently full. Please wait for your turn.")
                     else:
                         return
         await asyncio.sleep(poll_duration)
@@ -232,15 +235,15 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                     data = await response.json()
                     position = data["position"]
                     if position is None:
-                        print("{access_key}: The queue is currently full. Please wait for your turn.")
+                        logger.warn("{access_key}: The queue is currently full. Please wait for your turn.")
                     else:
                         if position == 0:
-                            print(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
+                            logger.info(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
-                            print(f"{access_key}: You are currently #{position + 1} in line.")
+                            logger.info(f"{access_key}: You are currently #{position + 1} in line.")
                 else:
-                    print(f"Server error. Status {response.status}")
+                    logger.error(f"Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)
 
 
@@ -258,14 +261,14 @@ async def query_computation_from_data_consumer_api(
     await add_user_to_queue(coordination_server_url, access_key, poll_duration)
     computation_key = await poll_queue_until_ready(coordination_server_url, access_key, poll_duration)
 
-    print("Fetching parties certs")
+    logger.info("Fetching parties certs")
     await fetch_parties_certs(
         party_web_protocol=party_web_protocol,
         certs_path=certs_path,
         party_hosts=party_hosts,
         party_ports=party_ports,
     )
-    print("Parties certs fetched")
+    logger.info("Parties certs fetched")
 
     return await query_computation(
         all_certs_path,
@@ -301,7 +304,7 @@ async def query_computation(
                     raise Exception(f"Failed to query computation: {response.status=}, {await response.text()=}")
                 data = await response.json()
                 client_port_base = data["client_port_base"]
-        print(f"!@# Running computation query client for {access_key=}, {computation_key=}, {client_port_base=}")
+        logger.info(f"!@# Running computation query client for {access_key=}, {computation_key=}, {client_port_base=}")
         results, commitments = await asyncio.get_event_loop().run_in_executor(
             None,
             run_computation_query_client,

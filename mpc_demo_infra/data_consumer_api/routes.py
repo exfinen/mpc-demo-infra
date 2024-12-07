@@ -27,7 +27,7 @@ _background_task_started = False
 
 async def update_cache():
     global _computation_cache, _last_cache_update
-    logger.debug(f"Updating cache at {_last_cache_update}")
+    logger.info(f"Updating cache at {_last_cache_update}")
     results = await client_lib.query_computation_from_data_consumer_api(
         all_certs_path=Path(settings.certs_path),
         coordination_server_url=settings.coordination_server_url,
@@ -46,18 +46,18 @@ async def update_cache():
         gini_coefficient=results.gini_coefficient,
     )
     _last_cache_update = datetime.now()
-    logger.debug(f"Cache updated at {_last_cache_update}. {_computation_cache=}")
+    logger.info(f"Cache updated at {_last_cache_update}. {_computation_cache=}")
 
 async def update_cache_periodically():
     global _computation_cache, _last_cache_update
 
     while True:
-        logger.debug(f"Periodically updating cache at {_last_cache_update}")
+        logger.info(f"Periodically updating cache at {_last_cache_update}")
         try:
             await update_cache()
         except Exception as e:
             logger.error(f"Error updating cache: {str(e)}")
-        logger.debug(f"Sleeping for {settings.cache_ttl_seconds} seconds")
+        logger.info(f"Sleeping for {settings.cache_ttl_seconds} seconds")
         await asyncio.sleep(settings.cache_ttl_seconds)
 
 @router.get("/query-computation")

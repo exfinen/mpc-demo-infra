@@ -5,6 +5,9 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
 from .config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 engine = create_engine(
     settings.database_url,
@@ -38,4 +41,4 @@ class DataProvider(Base):
 def create_tables():
     """Create database tables"""
     Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully for coordination server")
+    logger.info("Database tables created successfully for coordination server")

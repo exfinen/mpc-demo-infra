@@ -3,9 +3,14 @@ import asyncio
 from pathlib import Path
 import json
 import secrets
+import logging
 
 from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
 from .config import settings
+from ..logger_config import configure_console_logger
+
+configure_console_logger()
+logger = logging.getLogger(__name__)
 
 # project_root/certs
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -31,10 +36,10 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
     if binance_prover_dir is None:
         raise FileNotFoundError(f"binance_prover not found in {binance_prover_dirs}")
     else:
-        print(f"Found binance_prover in {binance_prover_dir}")
+        logger.info(f"Found binance_prover in {binance_prover_dir}")
 
     # Gen tlsn proofs
-    print(f"Generating Binance ETH balance TLSN proof...")
+    logger.info(f"Generating Binance ETH balance TLSN proof...")
     proof_file = PROJECT_ROOT / f"proof.json"
     secret_file = PROJECT_ROOT/ f"secret.json"
 
@@ -53,18 +58,18 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
         secret_input = float(secret_data["eth_free"])
         nonce = bytes(secret_data["nonce"]).hex()
 
-    print(f"Sharing Binance ETH balance data to MPC parties...")
+    logger.info(f"Sharing Binance ETH balance data to MPC parties...")
     await add_user_to_queue(settings.coordination_server_url, eth_address, settings.poll_duration)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, eth_address, settings.poll_duration)
 
-    print("Fetching party certificates...")
+    logger.info("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
         CERTS_PATH,
         settings.party_hosts,
         settings.party_ports
     )
-    print("Party certificates have been fetched and saved.")
+    logger.info("Party certificates have been fetched and saved.")
 
     # Share data
     await share_data(
@@ -77,7 +82,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
         nonce,
         computation_key,
     )
-    print(f"Binance ETH balance data has been shared secretly to MPC parties.")
+    logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
 async def query_computation_and_verify():
@@ -85,7 +90,7 @@ async def query_computation_and_verify():
     await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
 
-    print("Fetching party certificates...")
+    logger.info("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
         CERTS_PATH,
@@ -93,7 +98,7 @@ async def query_computation_and_verify():
         settings.party_ports
     )
 
-    print("Party certificates have been fetched and saved.")
+    logger.info("Party certificates have been fetched and saved.")
     results = await query_computation(
         CERTS_PATH,
         settings.coordination_server_url,
@@ -101,7 +106,7 @@ async def query_computation_and_verify():
         access_key,
         computation_key,
     )
-    print(f"{results=}")
+    logger.info(f"{results=}")
 
 
 def notarize_and_share_data_cli():
@@ -112,14 +117,15 @@ def notarize_and_share_data_cli():
     args = parser.parse_args()
     try:
         asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret))
-        print("Computation finished")
+        logger.info("Computation finished")
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 
 def query_computation_and_verify_cli():
     try:
         asyncio.run(query_computation_and_verify())
-        print("Computation finished")
+        logger.info("Computation finished")
     except Exception as e:
-        print(e)
+        logger.error(e)
+

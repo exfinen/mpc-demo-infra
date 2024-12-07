@@ -7,6 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes import router
 from .config import settings
 from .limiter import limiter
+from ..logger_config import configure_file_console_loggers
+
+configure_file_console_loggers(
+    'consumer',
+    max_bytes_mb=settings.max_bytes_mb,
+    backup_count=settings.backup_count
+)
+logger = logging.getLogger(__name__)
 
 # Get project root
 from pathlib import Path
@@ -20,8 +28,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
-logger = logging.getLogger("data_consumer_api")
 
 app = FastAPI(
     title="Data Consumer API Server",
@@ -58,7 +64,7 @@ async def shutdown_event():
 
 def run():
     import uvicorn
-    print(f"Running data consumer API server on port {settings.port}")
+    logger.info(f"Running data consumer API server on port {settings.port}")
 
     if settings.party_web_protocol == 'https':
         uvicorn.run(

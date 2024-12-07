@@ -98,7 +98,7 @@ def run_computation_query_client(
         median=output_list[3]/(10*BINANCE_DECIMAL_SCALE),
         gini_coefficient=(output_list[4]/(num_data_providers*output_list[2]))-1,
     )
-    logger.info(f"Number of data providers: ", results.num_data_providers)
+    logger.info(f"Number of data providers: {results.num_data_providers}")
     logger.info(f"Max: {results.max}")
     logger.info(f"Mean: {results.mean}")
     logger.info(f"Median: {results.median}")

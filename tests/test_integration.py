@@ -235,8 +235,6 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)
 
-    await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
-
     eth_address_1 = secrets.token_hex(20)
     eth_address_2 = secrets.token_hex(20)
 
@@ -245,6 +243,9 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     # Add user to queue and get position to get the computation key
     await add_user_to_queue(coordination_server_url, eth_address_1, 1)
     computation_key_1 = await poll_queue_until_ready(coordination_server_url, eth_address_1, 1)
+
+    await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
+
     await share_data(
         CERTS_PATH,
         coordination_server_url,

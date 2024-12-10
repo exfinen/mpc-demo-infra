@@ -113,10 +113,11 @@ def run_computation_query_client(
     return results, commitments
 
 
-async def generate_client_cert(max_client_id: int, certs_path: Path) -> tuple[int, Path, Path]:
-    # currently the number of simultaneously executing computations is limited to 1
-    # and the client_id is fixed to 0
-    client_id = 0
+async def generate_client_cert(max_client_id: int, certs_path: Path, client_id: int = None) -> tuple[int, Path, Path]:
+    if client_id is None:
+        # currently the number of simultaneously executing computations is limited to 1
+        # and the client_id is fixed to 0 unless overridden
+        client_id = 0
 
     # openssl req -newkey rsa -nodes -x509 -out Player-Data/C$i.pem -keyout Player-Data/C$i.key -subj "/CN=C$i"
     cert_path = certs_path / f"C{client_id}.pem"
@@ -167,11 +168,12 @@ async def share_data(
     value: float,
     nonce: str,
     computation_key: str,
+    client_id: int,
 ):
     if await validate_computation_key(coordination_server_url, eth_address, computation_key) == False:
         raise Exception(f"Computation key is invalid")
 
-    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path)
+    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path, client_id)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
     try:

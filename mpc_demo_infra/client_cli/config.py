@@ -6,7 +6,7 @@ this_file_path = Path(__file__).parent.resolve()
 class Settings(BaseSettings):
     # Coordination server settings
     coordination_server_url: str = "http://localhost:8005"
-    notary_server_host: str = "notary-1.mpcstats.org"
+    notary_server_host: str = "notary.mpcstats.org"
     notary_server_port: int = 8003
 
     # mpc-demo-infra/certs

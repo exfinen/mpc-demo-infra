@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
-    yield {'user_queue': user_queue}
+    app.state.user_queue = UserQueue(settings.user_queue_size, settings.user_queue_head_timeout)
+    yield
     logger.info("shutting down")
 
 app = FastAPI(

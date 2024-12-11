@@ -135,6 +135,8 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     logger.info(f"MPC data commitment hash: {mpc_data_commitment_hash}")
 
     if settings.perform_commitment_check:
+        logger.info(f"MPC data commitment:  {mpc_data_commitment_hash}")
+        logger.info(f"TLSN data commitment: {tqdm_data_commitment_hash}")
         if mpc_data_commitment_hash != tlsn_data_commitment_hash:
             logger.error(f"Data commitment hash mismatch between TLSN proof and MPC. Rolling back shares to {backup_shares_path}")
             rollback_shares(settings.party_id, backup_shares_path)

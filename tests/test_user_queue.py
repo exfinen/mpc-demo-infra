@@ -145,3 +145,64 @@ def test_add_user():
     assert q.add_user('apple') == AddResult.SUCCEEDED
     assert q.add_user('orange') == AddResult.QUEUE_IS_FULL
 
+def test_add_priority_user():
+    q = get_queue(max_size=6)
+
+    # add to empty queue w/ priority
+    assert q.add_priority_user('mpc') == AddResult.SUCCEEDED
+    assert q.users_len == 1
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'mpc'
+    assert q.get_position('mpc') == 0
+
+    # add to queue of length 1 w/ priority
+    assert q.add_priority_user('zk') == AddResult.SUCCEEDED
+    assert q.users_len == 2
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'zk'
+    assert q.get_position('mpc') == 0
+    print(q.get_position('zk'))
+    assert q.get_position('zk') == 1
+
+    # add to queue of length 2 normally
+    assert q.add_user('fhe') == AddResult.SUCCEEDED
+    assert q.users_len == 3
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'fhe'
+    assert q.get_position('mpc') == 0
+    assert q.get_position('zk') == 1
+    assert q.get_position('fhe') == 2
+
+    # add to queue of length 3 w/ priority
+    assert q.add_priority_user('ot') == AddResult.SUCCEEDED
+    assert q.users_len == 4
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'fhe'
+    assert q.get_position('mpc') == 0
+    assert q.get_position('ot') == 1
+    assert q.get_position('zk') == 2
+    assert q.get_position('fhe') == 3
+
+    # add to queue of length 4 normally
+    assert q.add_user('gc') == AddResult.SUCCEEDED
+    assert q.users_len == 5
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'gc'
+    assert q.get_position('mpc') == 0
+    assert q.get_position('ot') == 1
+    assert q.get_position('zk') == 2
+    assert q.get_position('fhe') == 3
+    assert q.get_position('gc') == 4
+
+    # add to queue of length 5 w/ priority
+    assert q.add_priority_user('yao') == AddResult.SUCCEEDED
+    assert q.users_len == 6
+    assert q.users_head.access_key == 'mpc'
+    assert q.users_tail.access_key == 'gc'
+    assert q.get_position('mpc') == 0
+    assert q.get_position('yao') == 1
+    assert q.get_position('ot') == 2
+    assert q.get_position('zk') == 3
+    assert q.get_position('fhe') == 4
+    assert q.get_position('gc') == 5
+

@@ -231,6 +231,21 @@ async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_
         await asyncio.sleep(poll_duration)
 
 
+async def add_priority_user_to_queue(coordination_server_url: str, access_key: str, poll_duration: int) -> None:
+    while True:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{coordination_server_url}/add_priority_user_to_queue", json={
+                "access_key": access_key,
+            }) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["result"] == AddResult.QUEUE_IS_FULL:
+                        logger.warn("\nThe queue is currently full. Please wait for your turn.")
+                    else:
+                        return
+        await asyncio.sleep(poll_duration)
+
+
 async def poll_queue_until_ready(coordination_server_url: str, access_key: str, poll_duration: int) -> str:
     while True:
         async with aiohttp.ClientSession() as session:
@@ -264,7 +279,7 @@ async def query_computation_from_data_consumer_api(
     party_ports: list[int],
 ):
     access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(coordination_server_url, access_key, poll_duration)
+    await add_priority_user_to_queue(coordination_server_url, access_key, poll_duration)
     computation_key = await poll_queue_until_ready(coordination_server_url, access_key, poll_duration)
 
     logger.info("Fetching parties certs")

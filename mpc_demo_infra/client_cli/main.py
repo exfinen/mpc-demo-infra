@@ -6,7 +6,7 @@ import secrets
 import logging
 from datetime import datetime
 
-from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
+from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready, mark_queue_computation_to_be_finished
 from .config import settings
 from ..logger_config import configure_console_logger
 from ..constants import MAX_CLIENT_ID
@@ -28,14 +28,14 @@ def locate_binance_prover():
         (Path('.').resolve(), './binance_prover'),
         (TLSN_EXECUTABLE_DIR, CMD_GEN_TLSN_PROOF),
     ]
-    binance_prover = None
+    binance_prover_dir = None
     for (dir, exec_cmd) in binance_provers:
         if (dir / "binance_prover").exists():
             binance_prover_dir = dir
             binance_prover_exec_cmd = exec_cmd
             break
     if binance_prover_dir is None:
-        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dirs}")
+        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dir}")
     logger.info(f"Found binance_prover in {binance_prover_dir}")
     return binance_prover_dir, binance_prover_exec_cmd
 
@@ -72,33 +72,38 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
     await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration, True)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration, True)
 
-    # Generate TLSN proof
-    tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret)
-    logger.info(f"Generated TLSN proof")
+    try:
+        # Generate TLSN proof
+        tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret)
+        logger.info(f"Generated TLSN proof")
 
-    # Fetch party certificates
-    logger.info("Fetching party certificates...")
-    await fetch_parties_certs(
-        settings.party_web_protocol,
-        CERTS_PATH,
-        settings.party_hosts,
-        settings.party_ports
-    )
-    logger.info("Party certificates have been fetched and saved.")
+        # Fetch party certificates
+        logger.info("Fetching party certificates...")
+        await fetch_parties_certs(
+            settings.party_web_protocol,
+            CERTS_PATH,
+            settings.party_hosts,
+            settings.party_ports
+        )
+        logger.info("Party certificates have been fetched and saved.")
 
-    # Share data
-    await share_data(
-        CERTS_PATH,
-        settings.coordination_server_url,
-        settings.party_hosts,
-        eth_address,
-        tlsn_proof,
-        secret_input,
-        nonce,
-        access_key,
-        computation_key,
-        timestamp,
-    )
+        # Share data
+        await share_data(
+            CERTS_PATH,
+            settings.coordination_server_url,
+            settings.party_hosts,
+            eth_address,
+            tlsn_proof,
+            secret_input,
+            nonce,
+            access_key,
+            computation_key,
+            timestamp,
+        )
+    finally:
+        # Call the server to mark the computation as finished whether it succeeds or not.
+        await mark_queue_computation_to_be_finished(settings.coordination_server_url, eth_address, computation_key)
+    logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
 async def query_computation_and_verify():
@@ -106,22 +111,25 @@ async def query_computation_and_verify():
     await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration, True)
     computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration, True)
 
-    logger.info("Fetching party certificates...")
-    await fetch_parties_certs(
-        settings.party_web_protocol,
-        CERTS_PATH,
-        settings.party_hosts,
-        settings.party_ports
-    )
+    try:
+        logger.info("Fetching party certificates...")
+        await fetch_parties_certs(
+            settings.party_web_protocol,
+            CERTS_PATH,
+            settings.party_hosts,
+            settings.party_ports
+        )
 
-    logger.info("Party certificates have been fetched and saved.")
-    results = await query_computation(
-        CERTS_PATH,
-        settings.coordination_server_url,
-        settings.party_hosts,
-        access_key,
-        computation_key,
-    )
+        logger.info("Party certificates have been fetched and saved.")
+        results = await query_computation(
+            CERTS_PATH,
+            settings.coordination_server_url,
+            settings.party_hosts,
+            access_key,
+            computation_key,
+        )
+    finally:
+        await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
     logger.info(f"{results=}")
 
 

@@ -25,6 +25,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env.client_cli"
 
-    poll_duration: int = 30
+    poll_duration: int = 10
 
 settings = Settings()

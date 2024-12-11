@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     max_bytes_mb = 20
     backup_count = 10
     
+    # Debug flags
+    perform_commitment_check: bool = True
+
     class Config:
         env_file = ".env.party"
 

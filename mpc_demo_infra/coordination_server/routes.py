@@ -56,6 +56,20 @@ async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
         logger.info(f"Added {request.access_key} to the queue")
         return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
 
+@router.post("/add_priority_user_to_queue", response_model=RequestAddUserToQueueResponse)
+async def add_priority_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
+    result = x.app.state.user_queue.add_priority_user(request.access_key)
+    logger.info(f"add_priority_user_to_queue: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
+    if result == AddResult.ALREADY_IN_QUEUE:
+        logger.info(f"{request.access_key} not added. Already in the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
+    elif result == AddResult.QUEUE_IS_FULL:
+        logger.warn(f"{request.access_key} not added. The queue is full")
+        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
+    else:
+        logger.info(f"Added {request.access_key} to the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
+
 @router.post("/get_position", response_model=RequestGetPositionResponse)
 async def get_position(request: RequestGetPositionRequest, x: Request):
     position = x.app.state.user_queue.get_position(request.access_key)

@@ -47,6 +47,21 @@ class UserQueue:
             self.users_tail = user
         self.users_len += 1
 
+    def _add_priority_user(self, user: User) -> None:
+        if self.users_head == None:
+            self.users_head = user
+            user.next = None
+            self.users_tail = user
+        else:
+            # insert the user in the second position
+            prev_user_next = self.users_head.next
+            self.users_head.next = user
+            user.next = prev_user_next
+
+            if prev_user_next == None:
+                self.users_tail = user
+        self.users_len += 1
+
     def _pop_user(self) -> User:
         if self.users_head == None:
             return None
@@ -101,6 +116,32 @@ class UserQueue:
         with self.locker.gen_wlock():
             self._add_user(user)
             position = self.users_len - 1
+            self.user_positions[access_key] = (position, user)
+            self._set_queue_head_data_if_needed()
+
+        return AddResult.SUCCEEDED
+
+    def add_priority_user(self, access_key: str) -> AddResult:
+        with self.locker.gen_rlock():
+            # fail if max_size has been reached
+            if self.users_len == self.max_size:
+                return AddResult.QUEUE_IS_FULL
+
+            # fail if the user is already in the queue
+            if self.user_positions.get(access_key, None) is not None:
+                return AddResult.ALREADY_IN_QUEUE
+
+        user = User(access_key=access_key)
+        with self.locker.gen_wlock():
+            self._add_priority_user(user)
+            if self.users_len == 1:
+                position = 0
+            else:
+                position = 1
+                for _access_key in self.user_positions.keys():
+                    _position, _user = self.user_positions[_access_key]
+                    if _position > 0:
+                        self.user_positions[_access_key] = (_position + 1, _user)
             self.user_positions[access_key] = (position, user)
             self._set_queue_head_data_if_needed()
 

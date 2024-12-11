@@ -44,8 +44,8 @@ async def has_address_shared_data(eth_address: str, db: Session = Depends(get_db
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
-    result = x.state.user_queue.add_user(request.access_key)
-    logger.info(f"add_user_to_queue: {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    result = x.app.state.user_queue.add_user(request.access_key)
+    logger.info(f"add_user_to_queue: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.info(f"{request.access_key} not added. Already in the queue")
         return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
@@ -58,21 +58,21 @@ async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
 
 @router.post("/get_position", response_model=RequestGetPositionResponse)
 async def get_position(request: RequestGetPositionRequest, x: Request):
-    position = x.state.user_queue.get_position(request.access_key)
-    computation_key = x.state.user_queue.get_computation_key(request.access_key)
+    position = x.app.state.user_queue.get_position(request.access_key)
+    computation_key = x.app.state.user_queue.get_computation_key(request.access_key)
     logger.info(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
 async def validate_computation_key(request: RequestValidateComputationKeyRequest, x: Request):
-    is_valid = x.state.user_queue.validate_computation_key(request.access_key, request.computation_key)
-    logger.info(f"validate_computation_key: {request.access_key}; {is_valid} {x.state.user_queue._queue_to_str()}")
+    is_valid = x.app.state.user_queue.validate_computation_key(request.access_key, request.computation_key)
+    logger.info(f"validate_computation_key: {request.access_key}; {is_valid} {x.app.state.user_queue._queue_to_str()}")
     return RequestValidateComputationKeyResponse(is_valid=is_valid)
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
-    is_finished = x.state.user_queue.finish_computation(request.access_key, request.computation_key)
-    logger.info(f"finish_computation: {request.access_key}; {x.state.user_queue._queue_to_str()}")
+    is_finished = x.app.state.user_queue.finish_computation(request.access_key, request.computation_key)
+    logger.info(f"finish_computation: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
@@ -81,11 +81,12 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     tlsn_proof = request.tlsn_proof
     client_id = request.client_id
     client_cert_file = request.client_cert_file
+    access_key = request.access_key
     computation_key = request.computation_key
     logger.info(f"Sharing data for {eth_address=}, {client_id=}")
 
     # Check if computation key is valid
-    if not x.state.user_queue.validate_computation_key(eth_address, computation_key):
+    if not x.app.state.user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key {computation_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
     logger.error(f"{eth_address}: Computation key {computation_key} is valid")
@@ -122,9 +123,10 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         logger.info(f"TLSN proof verification passed")
 
     # Check if uid already in db. If so, raise an error.
-    if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-        logger.error(f"UID {uid} already in database")
-        raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+    if settings.prohibit_multiple_contributions:
+        if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+            logger.error(f"UID {uid} already in database")
+            raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {eth_address=}")
@@ -236,11 +238,11 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 async def query_computation(request: RequestQueryComputationRequest, x: Request, db: Session = Depends(get_db)):
     client_id = request.client_id
     client_cert_file = request.client_cert_file
-    computation_key = request.computation_key
     access_key = request.access_key
+    computation_key = request.computation_key
 
     # Check if computation key is valid
-    if not x.state.user_queue.validate_computation_key(access_key, computation_key):
+    if not x.app.state.user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key ({computation_key})")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
     logger.info(f"Computation key ({computation_key}) is valid")

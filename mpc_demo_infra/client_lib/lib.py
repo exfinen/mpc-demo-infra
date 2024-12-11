@@ -167,11 +167,14 @@ async def share_data(
     tlsn_proof: str,
     value: float,
     nonce: str,
+    access_key: str,
     computation_key: str,
     client_id: int,
 ):
-    if await validate_computation_key(coordination_server_url, eth_address, computation_key) == False:
+    if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
         raise Exception(f"Computation key is invalid")
+    else:
+        logger.info(f"Validated computation key is {computation_key}")
 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path, client_id)
     with open(cert_path, "r") as cert_file:
@@ -183,6 +186,7 @@ async def share_data(
             "tlsn_proof": tlsn_proof,
             "client_cert_file": cert_file_content,
             "client_id": client_id,
+            "access_key": access_key,
             "computation_key": computation_key,
             }) as response:
                 if response.status != 200:
@@ -243,7 +247,7 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                             logger.info(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
-                            logger.info(f"{access_key}: You are currently #{position + 1} in line.")
+                            logger.info(f"{access_key}: You are currently #{position} in line.")
                 else:
                     logger.error(f"Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)

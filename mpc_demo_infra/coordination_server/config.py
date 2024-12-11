@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # User queue
     user_queue_size: int = 1000
-    user_queue_head_timeout: int = 120
+    user_queue_head_timeout: int = 180
 
     # Allowed IPs for access control
     allowed_ips: List[str] = ["192.168.1.100", "192.168.1.101"]
@@ -41,9 +41,12 @@ class Settings(BaseSettings):
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"
 
-    # logging
+    # Logging
     max_bytes_mb = 20
     backup_count = 10
+
+    # Debug flags
+    prohibit_multiple_contributions: bool = True
     
     class Config:
         env_file = ".env.coord"

@@ -23,8 +23,7 @@ CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 
 
-async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
-    # locate binance_prover
+def locate_binance_prover():
     binance_provers = [
         (Path('.').resolve(), './binance_prover'),
         (TLSN_EXECUTABLE_DIR, CMD_GEN_TLSN_PROOF),
@@ -37,12 +36,14 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
             break
     if binance_prover_dir is None:
         raise FileNotFoundError(f"binance_prover not found in {binance_prover_dirs}")
-    else:
-        logger.info(f"Found binance_prover in {binance_prover_dir}")
+    logger.info(f"Found binance_prover in {binance_prover_dir}")
+    return binance_prover_dir, binance_prover_exec_cmd
 
-    # Gen tlsn proofs
+async def generate_tlsn_proof(api_key: str, api_secret: str):
+    binance_prover_dir, binance_prover_exec_cmd = locate_binance_prover()
+
     logger.info(f"Generating Binance ETH balance TLSN proof with notary server {settings.notary_server_host}:{settings.notary_server_port}...")
-    timestamp = int(datetime.now().timestamp() * 10) % MAX_CLIENT_ID
+    timestamp = int(datetime.now().timestamp() * 100) % MAX_CLIENT_ID
     proof_file = PROJECT_ROOT / f"proof{timestamp}.json"
     secret_file = PROJECT_ROOT/ f"secret{timestamp}.json"
 
@@ -54,19 +55,28 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
         raise Exception(f"TLSN proof generation failed with return code {process.returncode}, {stdout=}, {stderr=}")
-    else:
-        logger.info(f"Generated TLSN proof")
+
     with open(proof_file, "r") as f:
         tlsn_proof = f.read()
     with open(secret_file, "r") as f_secret:
         secret_data = json.load(f_secret)
         secret_input = float(secret_data["eth_free"])
         nonce = bytes(secret_data["nonce"]).hex()
+    return tlsn_proof, secret_input, nonce, timestamp
 
+async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
     logger.info(f"Sharing Binance ETH balance data to MPC parties...")
-    await add_user_to_queue(settings.coordination_server_url, eth_address, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(settings.coordination_server_url, eth_address, settings.poll_duration)
 
+    # Wait to get the computation key
+    access_key = f'{eth_address}-{datetime.now().timestamp()}'
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
+
+    # Generate TLSN proof
+    tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret)
+    logger.info(f"Generated TLSN proof")
+
+    # Fetch party certificates
     logger.info("Fetching party certificates...")
     await fetch_parties_certs(
         settings.party_web_protocol,
@@ -85,6 +95,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
         tlsn_proof,
         secret_input,
         nonce,
+        access_key,
         computation_key,
         timestamp,
     )

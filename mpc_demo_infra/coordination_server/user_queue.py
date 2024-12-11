@@ -125,6 +125,7 @@ class UserQueue:
         self._timeout_head_user()
         with self.locker.gen_rlock():
             position, user = self.user_positions.get(access_key, (None, None))
+            print(f"{position=}, {user=}, {access_key=}, {computation_key=}, user_positions={self.user_positions}")
             return position is not None and position == 0 and user.computation_key == computation_key
 
     def finish_computation(self, access_key: str, computation_key: str) -> bool:

@@ -83,13 +83,13 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     client_cert_file = request.client_cert_file
     access_key = request.access_key
     computation_key = request.computation_key
-    logger.info(f"Sharing data for {eth_address=}, {client_id=}")
+    logger.info(f"Sharing data for {eth_address=}, {client_id=}, computation_key={computation_key}, access_key={access_key}")
 
     # Check if computation key is valid
     if not x.app.state.user_queue.validate_computation_key(access_key, computation_key):
         logger.error(f"Invalid computation key {computation_key}")
         raise HTTPException(status_code=400, detail=f"Invalid computation key {computation_key}")
-    logger.error(f"{eth_address}: Computation key {computation_key} is valid")
+    logger.info(f"{eth_address}: Computation key {computation_key} is valid")
 
     logger.info(f"Verifying registration for voucher code: {eth_address}")
     if client_id >= MAX_CLIENT_ID:

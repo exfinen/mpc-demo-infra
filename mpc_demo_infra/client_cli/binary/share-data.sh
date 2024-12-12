@@ -86,6 +86,8 @@ if [ ! -f .env.client_cli ]; then
     curl --retry 5 --retry-delay 5 -L -o .env.client_cli https://github.com/ZKStats/mpc-demo-infra/releases/latest/download/default.env.client_cli
 fi
 
+export SSL_CERT_FILE=$(python3 -m certifi)
+
 echo "Started sharing data..."
 ./share_data $1 $2 $3
 

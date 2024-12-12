@@ -307,7 +307,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
 
     logger.info(f"Creating task for querying computation MPC for {client_id=}")
     query_computation_task = asyncio.create_task(request_querying_computation_all_parties())
-    await asyncio.gather(query_computation_task)
+    #await asyncio.gather(query_computation_task)
     logger.info(f"Waiting for querying computation MPC for {client_id=}")
     # Wait until `gather` called, with a timeout
     # try:

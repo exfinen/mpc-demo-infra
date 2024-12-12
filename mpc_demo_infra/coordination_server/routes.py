@@ -41,8 +41,8 @@ async def has_address_shared_data(eth_address: str, db: Session = Depends(get_db
     logger.info(f"has_address_shared_data: {eth_address}; {res}")
     return RequestHasAddressSharedDataResponse(has_shared_data=res)
 
-async def add_user_impl(add_user_func, queue_to_str, access_key: str):
-    result = add_user_func(raccess_key)
+def add_user_impl(add_user_func, queue_to_str, access_key: str):
+    result = add_user_func(access_key)
     logger.info(f"add_user_to_queue: {access_key}; {queue_to_str()}")
     if result == AddResult.ALREADY_IN_QUEUE:
         logger.info(f"{access_key} not added. Already in the queue")

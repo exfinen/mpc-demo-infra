@@ -177,4 +177,4 @@ binance_prover
 logs/
 secret*.json
 proof*.json
-test.sh
+stress-test.sh

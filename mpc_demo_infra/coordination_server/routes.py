@@ -41,34 +41,34 @@ async def has_address_shared_data(eth_address: str, db: Session = Depends(get_db
     logger.info(f"has_address_shared_data: {eth_address}; {res}")
     return RequestHasAddressSharedDataResponse(has_shared_data=res)
 
+async def add_user_impl(add_user_func, queue_to_str, access_key: str):
+    result = add_user_func(raccess_key)
+    logger.info(f"add_user_to_queue: {access_key}; {queue_to_str()}")
+    if result == AddResult.ALREADY_IN_QUEUE:
+        logger.info(f"{access_key} not added. Already in the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
+    elif result == AddResult.QUEUE_IS_FULL:
+        logger.warn(f"{access_key} not added. The queue is full")
+        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
+    else:
+        logger.info(f"Added {access_key} to the queue")
+        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
 
 @router.post("/add_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
-    result = x.app.state.user_queue.add_user(request.access_key)
-    logger.info(f"add_user_to_queue: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
-    if result == AddResult.ALREADY_IN_QUEUE:
-        logger.info(f"{request.access_key} not added. Already in the queue")
-        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
-    elif result == AddResult.QUEUE_IS_FULL:
-        logger.warn(f"{request.access_key} not added. The queue is full")
-        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
-    else:
-        logger.info(f"Added {request.access_key} to the queue")
-        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
+    return add_user_impl(
+        x.app.state.user_queue.add_user,
+        x.app.state.user_queue._queue_to_str,
+        request.access_key
+    )
 
 @router.post("/add_priority_user_to_queue", response_model=RequestAddUserToQueueResponse)
 async def add_priority_user_to_queue(request: RequestAddUserToQueueRequest, x: Request):
-    result = x.app.state.user_queue.add_priority_user(request.access_key)
-    logger.info(f"add_priority_user_to_queue: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
-    if result == AddResult.ALREADY_IN_QUEUE:
-        logger.info(f"{request.access_key} not added. Already in the queue")
-        return RequestAddUserToQueueResponse(result=AddResult.ALREADY_IN_QUEUE)
-    elif result == AddResult.QUEUE_IS_FULL:
-        logger.warn(f"{request.access_key} not added. The queue is full")
-        return RequestAddUserToQueueResponse(result=AddResult.QUEUE_IS_FULL)
-    else:
-        logger.info(f"Added {request.access_key} to the queue")
-        return RequestAddUserToQueueResponse(result=AddResult.SUCCEEDED)
+    return add_user_impl(
+        x.app.state.user_queue.add_priority_user,
+        x.app.state.user_queue._queue_to_str,
+        request.access_key
+    )
 
 @router.post("/get_position", response_model=RequestGetPositionResponse)
 async def get_position(request: RequestGetPositionRequest, x: Request):
@@ -306,7 +306,8 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
         logger.info(f"All responses for querying computation MPC for {client_id=} are successful")
 
     logger.info(f"Creating task for querying computation MPC for {client_id=}")
-    asyncio.create_task(request_querying_computation_all_parties())
+    query_computation_task = asyncio.create_task(request_querying_computation_all_parties())
+    await asyncio.gather(query_computation_task)
     logger.info(f"Waiting for querying computation MPC for {client_id=}")
     # Wait until `gather` called, with a timeout
     # try:

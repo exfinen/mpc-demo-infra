@@ -69,8 +69,8 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
 
     # Wait to get the computation key
     access_key = f'{eth_address}-{datetime.now().timestamp()}'
-    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration, True)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration, True)
 
     # Generate TLSN proof
     tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret)
@@ -103,8 +103,8 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
 
 async def query_computation_and_verify():
     access_key = secrets.token_urlsafe(16)
-    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration)
-    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration)
+    await add_user_to_queue(settings.coordination_server_url, access_key, settings.poll_duration, True)
+    computation_key = await poll_queue_until_ready(settings.coordination_server_url, access_key, settings.poll_duration, True)
 
     logger.info("Fetching party certificates...")
     await fetch_parties_certs(

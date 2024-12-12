@@ -229,7 +229,7 @@ async def add_user_to_queue(coordination_server_url: str, access_key: str, poll_
                 if response.status == 200:
                     data = await response.json()
                     if data["result"] == AddResult.QUEUE_IS_FULL:
-                        logger.warn("\nThe queue is currently full. Please wait for your turn.")
+                        print(f"The queue is currently full. Please wait for your turn.", end='\r', flush=True)
                     else:
                         return
         await asyncio.sleep(poll_duration)
@@ -244,7 +244,7 @@ async def add_priority_user_to_queue(coordination_server_url: str, access_key: s
                 if response.status == 200:
                     data = await response.json()
                     if data["result"] == AddResult.QUEUE_IS_FULL:
-                        logger.warn("\nThe queue is currently full. Please wait for your turn.")
+                        print(f"The queue is currently full. Please wait for your turn.", end='\r', flush=True)
                     else:
                         return
         await asyncio.sleep(poll_duration)
@@ -260,15 +260,15 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                     data = await response.json()
                     position = data["position"]
                     if position is None:
-                        logger.warn("{access_key}: The queue is currently full. Please wait for your turn.")
+                        print("The queue is currently full. Please wait for your turn.", end='\r', flush=True)
                     else:
                         if position == 0:
-                            logger.info(f"{access_key}: Computation servers are ready. Your requested computation will begin shortly.")
+                            print(f"Computation servers are ready. Your requested computation will begin shortly.", end='\r', flush=True)
                             return data["computation_key"]
                         else:
-                            logger.info(f"{access_key}: You are currently #{position} in line.")
+                            print(f"You're #{position} in line", end='\r', flush=True)
                 else:
-                    logger.error(f"Server error. Status {response.status}")
+                    print(f"Server error. Status {response.status}", end='\r', flush=True)
         await asyncio.sleep(poll_duration)
 
 

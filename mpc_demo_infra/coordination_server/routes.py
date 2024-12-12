@@ -231,7 +231,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
         logger.info(f"Creating task for sharing data MPC for {eth_address=}")
         share_data_task = asyncio.create_task(request_sharing_data_all_parties())
-        await asyncio.gather(share_data_task)
+        #await asyncio.gather(share_data_task)
         logger.info(f"Waiting for sharing data MPC for {eth_address=}")
         # Wait until `gather` called, with a timeout
         # try:

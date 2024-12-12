@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     backup_count = 10
     
     # Debug flags
-    perform_commitment_check: bool = True
+    perform_commitment_check: bool = False
 
     class Config:
         env_file = ".env.party"

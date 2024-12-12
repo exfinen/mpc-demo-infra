@@ -18,15 +18,17 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CERTS_PATH = Path(settings.certs_path)
 TLSN_EXECUTABLE_DIR = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
+TLSN_BINARY_PATH = Path(settings.tlsn_project_root) / "tlsn" / "target" / "release" / "examples"
 
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
-
+CMD_TLSN_PROVER = "./binance_prover"
 
 def locate_binance_prover():
+    # either in the project root or place executing `poetry run` or `tlsn executable dir`
     binance_provers = [
-        (Path('.').resolve(), './binance_prover'),
-        (TLSN_EXECUTABLE_DIR, CMD_GEN_TLSN_PROOF),
+        (Path('.').resolve(), CMD_TLSN_PROVER),
+        (TLSN_BINARY_PATH, CMD_TLSN_PROVER),
     ]
     binance_prover_dir = None
     for (dir, exec_cmd) in binance_provers:
@@ -35,7 +37,7 @@ def locate_binance_prover():
             binance_prover_exec_cmd = exec_cmd
             break
     if binance_prover_dir is None:
-        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dir}")
+        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dir}. Please build it in TLSN repo.")
     logger.info(f"Found binance_prover in {binance_prover_dir}")
     return binance_prover_dir, binance_prover_exec_cmd
 

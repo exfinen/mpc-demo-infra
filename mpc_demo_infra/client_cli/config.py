@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     certs_path: str = str(this_file_path.parent.parent / "certs")
     # ../../../tlsn
     tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
+    print(f"tlsn_project_root: {tlsn_project_root}")
 
     party_web_protocol: str = "http"
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     # logging
     max_bytes_mb = 20
     backup_count = 10
-    
+
     class Config:
         env_file = ".env.client_cli"
 

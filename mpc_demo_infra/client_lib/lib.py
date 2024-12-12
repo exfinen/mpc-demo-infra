@@ -189,6 +189,7 @@ async def share_data(
             "access_key": access_key,
             "computation_key": computation_key,
             }) as response:
+                logger.info(f"share_data response status: {response.status}")
                 if response.status != 200:
                     json = await response.json()
                     raise Exception(f"{json['detail']}")
@@ -210,7 +211,10 @@ async def share_data(
             int(value*10*BINANCE_DECIMAL_SCALE),
             nonce
         )
-        return result
+        logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
+        logger.info("Computation finished")
+    except Exception as e:
+        logger.error(f"Data sharing failed")
     finally:
         # Call the server to mark the computation as finished whether it succeeds or not.
         await mark_queue_computation_to_be_finished(coordination_server_url, eth_address, computation_key)

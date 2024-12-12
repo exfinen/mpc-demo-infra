@@ -99,7 +99,6 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
         computation_key,
         timestamp,
     )
-    logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
 async def query_computation_and_verify():
@@ -134,7 +133,6 @@ def notarize_and_share_data_cli():
     args = parser.parse_args()
     try:
         asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret))
-        logger.info("Computation finished")
     except Exception as e:
         logger.error(e)
 

@@ -50,7 +50,8 @@ async def generate_tlsn_proof(api_key: str, api_secret: str):
     secret_file = PROJECT_ROOT/ f"secret{timestamp}.json"
 
     process = await asyncio.create_subprocess_shell(
-        f"cd {binance_prover_dir} && {binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
+        f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
+        cwd=binance_prover_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )

@@ -10,12 +10,9 @@ class Settings(BaseSettings):
 
     # mpc-demo-infra/certs
     certs_path: str = str(this_file_path.parent.parent / "certs")
-    # ../../../tlsn
-    tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
 
     party_web_protocol: str = "http"
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
-    party_ports: list[int] = [8006, 8007, 8008]
 
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"

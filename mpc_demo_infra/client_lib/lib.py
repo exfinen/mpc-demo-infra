@@ -122,6 +122,7 @@ async def generate_client_cert(max_client_id: int, certs_path: Path, client_id: 
     # openssl req -newkey rsa -nodes -x509 -out Player-Data/C$i.pem -keyout Player-Data/C$i.key -subj "/CN=C$i"
     cert_path = certs_path / f"C{client_id}.pem"
     key_path = certs_path / f"C{client_id}.key"
+    certs_path.mkdir(parents=True, exist_ok=True)
     process = await asyncio.create_subprocess_exec(
         "openssl", "req", "-newkey", "rsa", "-nodes", "-x509", "-out", str(cert_path), "-keyout", str(key_path), "-subj", f"/CN=C{client_id}",
         stdout=asyncio.subprocess.PIPE,

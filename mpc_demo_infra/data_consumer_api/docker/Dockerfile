@@ -1,0 +1,25 @@
+FROM ubuntu:24.04
+
+SHELL ["/bin/bash", "-c"]
+ENV PATH="/root/.local/bin:${PATH}"
+
+WORKDIR /root
+
+RUN apt-get update && apt-get install -y python3 python3-venv python3-pip pipx git libgmp-dev libntl-dev libsodium-dev libssl-dev libtool pkg-config libmpfr-dev libmpc-dev \
+    && apt-get clean \
+    && pipx install poetry \
+    && pipx ensurepath
+
+# install mpc-demo-infra
+RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
+    && cd mpc-demo-infra \
+    && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
+
+WORKDIR /root/mpc-demo-infra
+
+COPY .env.consumer_api /root/mpc-demo-infra/
+COPY ssl_certs /root/mpc-demo-infra/
+
+ENTRYPOINT ["poetry", "run"]
+CMD ["consumer-api-run"]
+

@@ -20,6 +20,8 @@ WORKDIR /root/mpc-demo-infra
 COPY .env.consumer_api /root/mpc-demo-infra/
 COPY ssl_certs /root/mpc-demo-infra/
 
+EXPOSE 8004
+
 ENTRYPOINT ["poetry", "run"]
 CMD ["consumer-api-run"]
 

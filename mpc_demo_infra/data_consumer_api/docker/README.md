@@ -6,6 +6,6 @@
 3. Build Consumer API Docker image and run
    ```bash
    docker build -t consumer_api .
-   docker run -it consumer_api
+   docker run -it consumer_api -p 8004:8004
    ```
 

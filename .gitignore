@@ -165,7 +165,7 @@ cython_debug/
 .env.coord
 !mpc_demo_infra/coordination_server/docker/.env.coord
 .env.party
-!mpc_demo_infra/computation_party_server/docker/.env.client_cli
+!mpc_demo_infra/computation_party_server/docker/.env.party
 .env.client_cli
 !mpc_demo_infra/client_cli/.env.client_cli
 .env.consumer_api

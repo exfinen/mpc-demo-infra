@@ -10,24 +10,27 @@ RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl p
     && pipx install poetry \
     && pipx ensurepath
 
-# install mpc-demo-infra
+# Install mpc-demo-infra
 RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
     && cd mpc-demo-infra \
     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
-# install rust
+# Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# install simple_prover command
+# Install binance_verifier
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \
     && cd tlsn \
-    && cargo build --release --example binance_prover
+    && cargo build --release --example binance_verifier
 
-COPY .env.client_cli /root/mpc-demo-infra/
+COPY .env.coord /root/mpc-demo-infra/
+COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
+COPY coordination.db /root/mpc-demo-infra/
 
 WORKDIR /root/mpc-demo-infra
+EXPOSE 8005
 
 ENTRYPOINT ["poetry", "run"]
-
+CMD ["coord-run"]

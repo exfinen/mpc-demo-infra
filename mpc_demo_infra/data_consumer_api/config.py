@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     party_web_protocol: str = "http"
     party_hosts: list[str] = ["localhost", "localhost", "localhost"]
+    party_ports: list[int] = [8006, 8007, 8008]
 
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"

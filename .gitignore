@@ -163,10 +163,13 @@ cython_debug/
 
 # mpc-demo-infra
 .env.coord
+!mpc_demo_infra/coordination_server/docker/.env.coord
 .env.party
+!mpc_demo_infra/computation_party_server/docker/.env.client_cli
 .env.client_cli
 !mpc_demo_infra/client_cli/.env.client_cli
 .env.consumer_api
+!mpc_demo_infra/data_consumer_api/docker/.env.consumer_api
 *.db
 !tests/proof.json
 certs/

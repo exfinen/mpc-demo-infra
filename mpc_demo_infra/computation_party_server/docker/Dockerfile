@@ -33,7 +33,7 @@ RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
 
 # export LD_LIBRARY_PATH=/home/ubuntu/MP-SPDZ
 
-COPY .env.client_cli /root/mpc-demo-infra/
+COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ:$LD_LIBRARY_PATH"

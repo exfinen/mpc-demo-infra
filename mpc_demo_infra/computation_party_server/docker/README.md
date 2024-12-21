@@ -1,7 +1,6 @@
 # Running Computation Party Server
 
-## Set up procedure
-### Assumptions
+## Assumptions
 This document assumes that:
 1. Coordinbation server URL is:
    ```
@@ -15,6 +14,7 @@ This document assumes that:
 | 1 | prod-party-1.mpcstats.org | 8007 |
 | 2 | prod-party-2.mpcstats.org | 8008 |
  
+## Configuring server
 ### Common configuration
 1. Edit `mpc_demo_infra/computation_party_server/docker/.env.party` as follows:
    ```
@@ -52,9 +52,12 @@ For each computation party server, do the following replacing %PORT% and %PARTY_
    PORT=%PORT%
    ```
 
-## Running the server
+## Running the servers
+On each party server host, move to `mpc-demo-infra/mpc_demo_infra/computation_party_server/docker` and run the following commands replacing %PORT% with the port for the server:
+
 ```bash
+export PORT=%PORT%
 docker build -t party .
-docker run -it -p %PORT%:%PORT% party 
+docker run -it -p ${PORT}:${PORT} party 
 ```
 

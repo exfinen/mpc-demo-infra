@@ -1,7 +1,6 @@
 # Running Data Consumer API Server
 
-## Set up procedure
-### Assumptions
+## Assumptions
 This document assumes that:
 1. Coordinbation server URL is:
    ```
@@ -15,7 +14,7 @@ This document assumes that:
 | 1 | prod-party-1.mpcstats.org | 8007 |
 | 2 | prod-party-2.mpcstats.org | 8008 |
  
-### Server configuration
+## Configring server
 1. Edit `mpc_demo_infra/data_consumer_api/docker/.env.consumer_api` according to your server configuraiton.
 2. If you're to use:
    - `https`: 

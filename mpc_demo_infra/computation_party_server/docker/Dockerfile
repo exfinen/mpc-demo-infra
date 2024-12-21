@@ -36,7 +36,7 @@ RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
-ENV LD_LIBRARY_PATH="/root/MP-SPDZ:$LD_LIBRARY_PATH"
+ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8006
 

@@ -1,6 +1,21 @@
 # Running Data Consumer API Server
 
-## Setting up
+## Set up procedure
+### Assumptions
+This document assumes that:
+1. Coordinbation server URL is:
+   ```
+   https://prod-coord.mpcstats.org:8005
+   ```
+2. 3-party computation is to be run.
+3. Computation party server addresses and ports are:
+| Party ID | Address | Port |
+|----------|---------|------|
+| 0 | prod-party-0.mpcstats.org | 8006 |
+| 1 | prod-party-1.mpcstats.org | 8007 |
+| 2 | prod-party-2.mpcstats.org | 8008 |
+ 
+### Server configuration
 1. Edit `mpc_demo_infra/data_consumer_api/docker/.env.consumer_api` according to your server configuraiton.
 2. If you're to use:
    - `https`: 
@@ -20,6 +35,11 @@
    2. Update the following line in `mpc_demo_infra/data_consumer_api/docker/.env.consumer_api`
    ```
    PORT=8004
+   ```
+
+4. Update the coordination server address in `mpc_demo_infra/computation_party_server/docker/.env.consumer_api` as follows:
+   ```
+   COORDINATION_SERVER_URL=https://prod-coord.mpcstats.org:8005
    ```
 
 ## Running the server

@@ -26,13 +26,20 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cargo build --release --example binance_verifier
 
 # Install MP-SPDZ
+RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
+    && cd MP-SPDZ \
+    && git checkout demo_client \
+    && make -j$(nproc) malicious-rep-ring-party.x
 
+# export LD_LIBRARY_PATH=/home/ubuntu/MP-SPDZ
 
 COPY .env.client_cli /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
+ENV LD_LIBRARY_PATH="/root/MP-SPDZ:$LD_LIBRARY_PATH"
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8006
 
 ENTRYPOINT ["poetry", "run"]
+CMD ["party-run"]
 

@@ -20,14 +20,14 @@ RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# install binance_verifier
+# Install binance_verifier
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \
     && cd tlsn \
     && cargo build --release --example binance_verifier
 
-# Install MP-SPDZ
+# Install MP-SPDZ and generate party cert files
 RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
     && cd MP-SPDZ \
     && git checkout demo_client \
@@ -39,10 +39,6 @@ RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-
-# for testing
-COPY P0.pem /root/MP-SPDZ/Player-Data/
-COPY P0.key /root/MP-SPDZ/Player-Data/
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra

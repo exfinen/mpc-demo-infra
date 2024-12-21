@@ -18,7 +18,7 @@ RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
 WORKDIR /root/mpc-demo-infra
 
 COPY .env.consumer_api /root/mpc-demo-infra/
-COPY ssl_certs /root/mpc-demo-infra/
+COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
 EXPOSE 8004
 

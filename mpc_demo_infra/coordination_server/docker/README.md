@@ -25,7 +25,7 @@
 ## Running the server
 ```bash
 docker build -t coord .
-docker run -it -p 8005:8005 coord -p 8005:8005
+docker run -it -p 8005:8005 coord
 ```
 
 

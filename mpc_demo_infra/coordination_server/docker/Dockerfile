@@ -26,9 +26,9 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cargo build --release --example binance_verifier
 
 COPY .env.coord /root/mpc-demo-infra/
+COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
 WORKDIR /root/mpc-demo-infra
-
 EXPOSE 8005
 
 ENTRYPOINT ["poetry", "run"]

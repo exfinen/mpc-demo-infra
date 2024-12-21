@@ -15,11 +15,10 @@ RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
     && cd mpc-demo-infra \
     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
-WORKDIR /root/mpc-demo-infra
-
 COPY .env.consumer_api /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
+WORKDIR /root/mpc-demo-infra
 EXPOSE 8004
 
 ENTRYPOINT ["poetry", "run"]

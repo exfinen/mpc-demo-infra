@@ -18,7 +18,7 @@ RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Install simple_prover command
+# Install binance_prover
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \

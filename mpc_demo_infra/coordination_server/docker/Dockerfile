@@ -27,7 +27,6 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
 
 COPY .env.coord /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-COPY coordination.db /root/mpc-demo-infra/
 
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8005

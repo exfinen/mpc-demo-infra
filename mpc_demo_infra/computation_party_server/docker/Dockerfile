@@ -2,6 +2,8 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
+ENV PORT=8006
+ENV PARTY_ID=0
 
 WORKDIR /root
 
@@ -18,27 +20,29 @@ RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# install binance_verifier
+# Install binance_verifier
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \
     && cd tlsn \
     && cargo build --release --example binance_verifier
 
-# Install MP-SPDZ
+# Install MP-SPDZ and generate party cert files
 RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
     && cd MP-SPDZ \
     && git checkout demo_client \
-    && make -j$(nproc) malicious-rep-ring-party.x
+    && make -j$(nproc) malicious-rep-ring-party.x \
+    && Scripts/setup-ssl.sh 3 \
+    && mv Player-Data/P${PARTY_ID}.* /root \
+    && rm -f Player-Data/P*.{pem,key} \
+    && mv /root/P${PARTY_ID}.* Player-Data
 
-# export LD_LIBRARY_PATH=/home/ubuntu/MP-SPDZ
-
-COPY .env.client_cli /root/mpc-demo-infra/
+COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
-ENV LD_LIBRARY_PATH="/root/MP-SPDZ:$LD_LIBRARY_PATH"
+ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra
-EXPOSE 8006
+EXPOSE ${PORT}
 
 ENTRYPOINT ["poetry", "run"]
 CMD ["party-run"]

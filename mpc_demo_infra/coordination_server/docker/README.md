@@ -1,6 +1,15 @@
 # Running Coordination Server
 
-## Setting up
+## Assumptions
+2. 3-party computation is to be run.
+3. Computation party server addresses and ports are:
+| Party ID | Address | Port |
+|----------|---------|------|
+| 0 | prod-party-0.mpcstats.org | 8006 |
+| 1 | prod-party-1.mpcstats.org | 8007 |
+| 2 | prod-party-2.mpcstats.org | 8008 |
+
+## Conguring server
 1. Edit `mpc_demo_infra/coordination_server/docker/.env.coord` according to your server configuraiton.
 2. If you're to use:
    - `https`: 

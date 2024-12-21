@@ -169,6 +169,7 @@ cython_debug/
 .env.client_cli
 !mpc_demo_infra/client_cli/.env.client_cli
 .env.consumer_api
+!mpc_demo_infra/data_consumer_api/docker/.env.consumer_api
 *.db
 !tests/proof.json
 certs/

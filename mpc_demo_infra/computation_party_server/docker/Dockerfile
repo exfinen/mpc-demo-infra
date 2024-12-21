@@ -33,9 +33,9 @@ RUN git clone https://github.com/ZKStats/MP-SPDZ.git \
     && git checkout demo_client \
     && make -j$(nproc) malicious-rep-ring-party.x \
     && Scripts/setup-ssl.sh 3 \
-    && mv Player-Data/${PARTY_ID}.* /root \
-    && rm -f Player-Data/*.{pem,key} \
-    && mv /root/${PARTY_ID}.* Player-Data
+    && mv Player-Data/P${PARTY_ID}.* /root \
+    && rm -f Player-Data/P*.{pem,key} \
+    && mv /root/P${PARTY_ID}.* Player-Data
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/

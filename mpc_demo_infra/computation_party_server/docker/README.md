@@ -39,24 +39,18 @@ For each computation party server, do the following replacing %PORT% and %PARTY_
         PARTY_WEB_PROTOCOL=http
         ``` 
 
-2. Update the following line in `mpc_demo_infra/computation_party_server/docker/Dockerfile`
+2. In order to use a different MPC scheme, replace `malicious-rep-ring-party.x` in the following line in `mpc_demo_infra/computation_party_server/docker/Dockerfile` with the name of the virtual machine that implements the desired scheme:
    ```
-   EXPOSE %PORT%
+   && make -j$(nproc) malicious-rep-ring-party.x \
    ```
-   2. Update the following line in `mpc_demo_infra/computation_party_server/docker/.env.party`
-   ```
-   PARTY_ID=%PARTY_ID%
-   ``` 
-
-   ```
-   PORT=%PORT%
-   ```
+   For the available schemes, refer to the Protocols section in the [README](https://github.com/exfinen/MP-SPDZ?tab=readme-ov-file) file of MP-SPDZ.
 
 ## Running the servers
-On each party server host, move to `mpc-demo-infra/mpc_demo_infra/computation_party_server/docker` and run the following commands replacing %PORT% with the port for the server:
+On each party server host, move to `mpc-demo-infra/mpc_demo_infra/computation_party_server/docker` and run the following commands replacing %PORT% and %PARTY_ID% with the port and party ID for the server:
 
 ```bash
 export PORT=%PORT%
+export PARTY_ID=%PARTY_ID%
 docker build -t party .
 docker run -it -p ${PORT}:${PORT} party 
 ```

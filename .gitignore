@@ -181,6 +181,3 @@ logs/
 secret*.json
 proof*.json
 stress-test.sh
-
-# DELETE THIS
-!coordination.db

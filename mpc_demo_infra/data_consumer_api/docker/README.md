@@ -26,7 +26,7 @@ This document assumes that:
         PARTY_WEB_PROTOCOL=http
         ``` 
 
-3. In order to change the port Data Consumer API server listens to:
+3. In order to change the port that the data consumer api server listens to:
    1. Update the following line in `mpc_demo_infra/data_consumer_api/docker/Dockerfile`
    ```
    EXPOSE 8004

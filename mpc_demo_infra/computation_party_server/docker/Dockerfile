@@ -2,8 +2,10 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
-ENV PORT=8006
-ENV PARTY_ID=0
+ARG PORT=8006
+ARG PARTY_ID=0
+ENV PORT=${PORT}
+ENV PARTY_ID=${PARTY_ID}
 
 WORKDIR /root
 

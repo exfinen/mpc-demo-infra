@@ -51,7 +51,7 @@ On each party server host, move to `mpc-demo-infra/mpc_demo_infra/computation_pa
 ```bash
 export PORT=%PORT%
 export PARTY_ID=%PARTY_ID%
-docker build -t party .
-docker run -it -p ${PORT}:${PORT} party 
+docker build --build-arg PORT=${PORT} --build-arg PARTY_ID=${PARTY_ID} -t party .
+docker run -it -p ${PORT}:${PORT} -e PORT=${PORT} -e PARTY_ID=${PARTY_ID} party 
 ```
 

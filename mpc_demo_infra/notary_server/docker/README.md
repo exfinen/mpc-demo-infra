@@ -18,6 +18,6 @@
 ## Running the server
 ```bash
 docker build -t notary .
-docker run -it -p 8003:8003 notary
+docker run --init -it -p 8003:8003 notary
 ```
 

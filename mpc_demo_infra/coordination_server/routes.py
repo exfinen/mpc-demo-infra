@@ -80,7 +80,7 @@ async def get_position(request: RequestGetPositionRequest, x: Request):
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
 async def validate_computation_key(request: RequestValidateComputationKeyRequest, x: Request):
     is_valid = x.app.state.user_queue.validate_computation_key(request.access_key, request.computation_key)
-    logger.info(f"validate_computation_key: {request.access_key}; {is_valid} {x.app.state.user_queue._queue_to_str()}")
+    logger.info(f"validate_computation_key: access_key: {request.access_key}, is_valid: {is_valid}, queue: {x.app.state.user_queue._queue_to_str()}")
     return RequestValidateComputationKeyResponse(is_valid=is_valid)
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)

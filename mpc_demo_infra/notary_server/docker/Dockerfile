@@ -16,7 +16,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn/notary/server \
     && git checkout mpspdz-compat-binance \
     && cargo build --release \
-    && cp -R notary/server/fixture notary/target/release
+    && cp -R fixture notary/target/release
 
 # Copy config file and keys
 COPY config.yaml /root/tlsn/notary/target/release/config/

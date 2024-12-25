@@ -44,6 +44,6 @@ This document assumes that:
 ## Running the server
 ```bash
 docker build -t consumer_api .
-docker run -it -p 8004:8004 consumer_api
+docker run --init -it -p 8004:8004 consumer_api
 ```
 

@@ -322,12 +322,12 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
 
 
 def get_uid_from_tlsn_proof_verifier(stdout_from_tlsn_proof_verifier: str) -> int:
-    print(f"stdout: {stdout_from_tlsn_proof_verifier}");
     uid_match = re.search(r'"uid":(\d+)[,}]', stdout_from_tlsn_proof_verifier)
     if uid_match:
         uid = uid_match.group(1)
         logger.info(f"UID: {uid}")
     else:
+        print(f"stdout: {stdout_from_tlsn_proof_verifier}");
         raise ValueError(
             f"UID not found in stdout from TLSN proof verifier: {stdout_from_tlsn_proof_verifier}"
         )

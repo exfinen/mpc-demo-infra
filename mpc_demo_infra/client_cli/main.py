@@ -25,7 +25,9 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 CMD_TLSN_PROVER = "./binance_prover"
 
 def locate_binance_prover():
-    # either in the project root or place executing `poetry run` or `tlsn executable dir`
+    # binance_prover is expected to be in the current working dir or missing.
+    # if missing, tlsn directory is expected to exist so that binance_prover
+    # can be built from the source.
     binance_provers = [
         (Path('.').resolve(), CMD_TLSN_PROVER),
         (TLSN_BINARY_PATH, CMD_TLSN_PROVER),
@@ -37,7 +39,7 @@ def locate_binance_prover():
             binance_prover_exec_cmd = exec_cmd
             break
     if binance_prover_dir is None:
-        raise FileNotFoundError(f"binance_prover not found in {binance_prover_dir}. Please build it in TLSN repo.")
+        raise FileNotFoundError(f"binance_prover not found in {binance_provers}. Please build it in TLSN repo.")
     logger.info(f"Found binance_prover in {binance_prover_dir}")
     return binance_prover_dir, binance_prover_exec_cmd
 

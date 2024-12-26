@@ -30,9 +30,9 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cargo build --release --example binance_verifier
 
 # Install MP-SPDZ and generate party cert files
-COPY CONFIG.mine/ /root/MP-SPDZ/
-RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git \
-    && cd MP-SPDZ \
+RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git
+COPY CONFIG.mine /root/MP-SPDZ
+RUN cd MP-SPDZ \
     && git checkout demo_client \
     && make -j$(nproc) malicious-rep-ring-party.x \
     && Scripts/setup-ssl.sh 3 \

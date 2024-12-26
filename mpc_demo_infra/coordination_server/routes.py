@@ -27,8 +27,8 @@ from .user_queue import AddResult
 
 router = APIRouter()
 
-CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
+CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_TLSN_VERIFIER = "./binance_verifier"
 
 
@@ -96,6 +96,7 @@ def locate_binance_verifier():
     # can be built from the source.
     binance_verifiers = [
         (Path('.').resolve(), CMD_TLSN_VERIFIER),
+        (TLSN_VERIFIER_PATH, CMD_TLSN_VERIFIER),
         (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
     ]
     binance_verifier_dir = None

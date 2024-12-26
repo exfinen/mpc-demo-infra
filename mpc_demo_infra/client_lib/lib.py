@@ -43,6 +43,7 @@ def run_data_sharing_client(
     input_value: int,
     nonce: str,
 ):
+    logger.info(f"Setting up data sharing client with {party_hosts=}, {port_base=}...")
     client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
 
     for socket in client.sockets:
@@ -50,8 +51,9 @@ def run_data_sharing_client(
         os.store(0)
         os.Send(socket)
 
+    logger.info("Sending private inputs to computation party servers ...")
     client.send_private_inputs([input_value, reverse_bytes(hex_to_int(nonce))])
-    logger.info("Finish sending private inputs")
+    logger.info("Finished sending private inputs")
     outputs = client.receive_outputs(1)
     logger.info(f"!@# data_sharing_client.py outputs: {outputs}")
     commitment = outputs[0]
@@ -175,7 +177,7 @@ async def share_data(
     if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
         raise Exception(f"Computation key is invalid")
     else:
-        logger.info(f"Validated computation key is {computation_key}")
+        logger.info(f"Validated computation key: {computation_key}")
 
     client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path, client_id)
     with open(cert_path, "r") as cert_file:

@@ -25,9 +25,8 @@ CMD_GEN_TLSN_PROOF = "cargo run --release --example binance_prover"
 CMD_TLSN_PROVER = "./binance_prover"
 
 def locate_binance_prover():
-    # binance_prover is expected to be in the current working dir or missing.
-    # if missing, tlsn directory is expected to exist so that binance_prover
-    # can be built from the source.
+    # binance_prover is expected to be in the current working dir or
+    # built from the source
     binance_provers = [
         (Path('.').resolve(), CMD_TLSN_PROVER),
         (TLSN_BINARY_PATH, CMD_TLSN_PROVER),

@@ -102,7 +102,7 @@ def locate_binance_verifier():
     for (dir, exec_cmd) in binance_verifiers:
         if (dir / "binance_verifier").exists():
             binance_verifier_dir = dir
-            binance_verifierexec_cmd = exec_cmd
+            binance_verifier_exec_cmd = exec_cmd
             break
     if binance_verifier_dir is None:
         raise FileNotFoundError(f"binance_verifier not found in {binance_verifiers}. Please build it in TLSN repo.")

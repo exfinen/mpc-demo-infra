@@ -29,6 +29,7 @@ router = APIRouter()
 
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
+CMD_TLSN_VERIFIER = "./binance_verifier"
 
 
 # Global lock for sharing data, to prevent concurrent sharing data requests.
@@ -89,6 +90,25 @@ async def finish_computation(request: RequestFinishComputationRequest, x: Reques
     logger.info(f"finish_computation: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
+def locate_binance_verifier():
+    # binance_verifier is expected to be in the current working dir or missing.
+    # if missing, tlsn directory is expected to exist so that binance_verifier
+    # can be built from the source.
+    binance_verifiers = [
+        (Path('.').resolve(), CMD_TLSN_VERIFIER),
+        (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
+    ]
+    binance_verifier_dir = None
+    for (dir, exec_cmd) in binance_verifiers:
+        if (dir / "binance_verifier").exists():
+            binance_verifier_dir = dir
+            binance_verifierexec_cmd = exec_cmd
+            break
+    if binance_verifier_dir is None:
+        raise FileNotFoundError(f"binance_verifier not found in {binance_verifiers}. Please build it in TLSN repo.")
+    logger.info(f"Found binance_verifier in {binance_verifier_dir}")
+    return binance_verifier_dir, binance_verifier_exec_cmd
+
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, x: Request, db: Session = Depends(get_db)):
     eth_address = request.eth_address
@@ -118,12 +138,14 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
         logger.info(f"Running TLSN proof verifier: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
+        binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier()
         process = await asyncio.create_subprocess_shell(
-            f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}",
+            f"{binance_verifier_exec_cmd} {temp_tlsn_proof_file.name}",
+            cwd=binance_verifier_dir,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        logger.info(f"Getting TLSN proof verification result")
+        logger.info(f"Getting TLSN proof verification result...")
         stdout, stderr = await process.communicate()
         try:
             uid = get_uid_from_tlsn_proof_verifier(stdout.decode('utf-8'))

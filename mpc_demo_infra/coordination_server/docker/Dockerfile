@@ -21,7 +21,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Install binance_verifier
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
-    && git checkout mpspdz-compat \
+    && git checkout mpspdz-compat-binance \
     && cd tlsn \
     && cargo build --release --example binance_verifier
 

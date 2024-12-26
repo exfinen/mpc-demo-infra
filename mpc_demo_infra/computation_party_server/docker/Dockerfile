@@ -41,6 +41,7 @@ RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
+COPY CONFIG.mine/ /root/MP-SPDZ/
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra

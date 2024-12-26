@@ -30,6 +30,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cargo build --release --example binance_verifier
 
 # Install MP-SPDZ and generate party cert files
+COPY CONFIG.mine/ /root/MP-SPDZ/
 RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git \
     && cd MP-SPDZ \
     && git checkout demo_client \
@@ -41,7 +42,6 @@ RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-COPY CONFIG.mine/ /root/MP-SPDZ/
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra

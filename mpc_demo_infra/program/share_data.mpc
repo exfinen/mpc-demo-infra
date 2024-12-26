@@ -74,11 +74,12 @@ def main():
     commitment_values.read_from_file(1 + MAX_DATA_PROVIDERS)  # NOTE: Skipped if it's the first run
 
     # Start listening for client socket connections
+    print_ln('Calling listen_for_clients(%s)...', PORTNUM)
     listen_for_clients(PORTNUM)
     print_ln('Listening for client connections on base port %s', PORTNUM)
 
     client_socket_id = accept_client()
-    print_ln('client_socket_id: %s', client_socket_id)
+    print_ln('Accepted client connection. client_socket_id: %s', client_socket_id)
 
     input_value, input_nonce = client_input(sint, client_socket_id)
     client_values[SECRET_INDEX] = input_value

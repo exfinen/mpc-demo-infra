@@ -72,7 +72,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_id = request.client_id
     client_port_base = request.client_port_base
     client_cert_file = request.client_cert_file
-    logger.info(f"Requesting sharing data MPC for {secret_index=}")
+    logger.info(f"Requesting sharing data MPC for {secret_index=}, {client_id=}, {mpc_port_base=}, {client_port_base=}")
     if secret_index >= MAX_DATA_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
     # 1. Verify TLSN proof
@@ -81,9 +81,11 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         temp_file.write(tlsn_proof.encode('utf-8'))
 
         # Run TLSN proof verifier
+        logger.info("Verifying TLSN proof...")
         try:
             subprocess.run(
-                f"cd {str(TLSN_VERIFIER_PATH)} && {CMD_VERIFY_TLSN_PROOF} {temp_file.name}",
+                f"{CMD_VERIFY_TLSN_PROOF} {temp_file.name}",
+                cwd=TLSN_VERIFIER_PATH,
                 check=True,
                 shell=True,
                 capture_output=True,
@@ -91,6 +93,7 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to verify TLSN proof: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+        logger.info("TLSN proof is valid")
 
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)
@@ -290,6 +293,8 @@ def generate_data_sharing_program(
     if is_first_run:
         program_content = '\n'.join([line for line in program_content.split('\n') if "# NOTE: Skipped if it's the first run" not in line])
 
+    logger.info(f"Generated data sharing program from the template with parameters: {secret_index=}, {client_port_base=}, {max_data_providers=}, {is_first_run=}, {input_bytes=}, {tlsn_delta=}, {tlsn_zero_encodings=}")
+    logger.info(f"Generated program: {program_content}")
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name, target_program_path

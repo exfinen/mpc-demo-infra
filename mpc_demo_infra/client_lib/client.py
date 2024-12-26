@@ -46,8 +46,10 @@ class Client:
         for i, hostname in enumerate(hosts):
             for j in range(10000):
                 try:
+                    logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
                     plain_socket = socket.create_connection(
                         (hostname, port_base + i), timeout=timeout)
+                    logging.info("Etablished")
                     break
                 except ConnectionRefusedError:
                     if j < 600:

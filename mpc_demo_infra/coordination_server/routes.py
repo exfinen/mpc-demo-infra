@@ -91,9 +91,9 @@ async def finish_computation(request: RequestFinishComputationRequest, x: Reques
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 def locate_binance_verifier():
-    # binance_verifier is expected to be in the current working dir or missing.
-    # if missing, tlsn directory is expected to exist so that binance_verifier
-    # can be built from the source.
+    # If pre-built binance_verifier exists, it's expected to be in
+    # the current working dir or TLSN_VERIFIER_PATH.
+    # Othereise, binance_verifier will be built from the source
     binance_verifiers = [
         (Path('.').resolve(), CMD_TLSN_VERIFIER),
         (TLSN_VERIFIER_PATH, CMD_TLSN_VERIFIER),
@@ -407,4 +407,5 @@ def get_computation_query_mpc_ports() -> tuple[int, int]:
         next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
     else:
         next_query_port_base = client_port_base + settings.num_parties
+    logger.info(f"Computation party ports: {server_port_base=}, {client_port_base=}")
     return server_port_base, client_port_base

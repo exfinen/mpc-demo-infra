@@ -21,7 +21,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
 # Copy config file and keys
 COPY config.yaml /root/tlsn/notary/target/release/config/
 COPY ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/
-COPY notary.key /root/tlsn/notary/target/release/fixture/
+COPY notary.key /root/tlsn/notary/target/release/fixture/notary/
 
 WORKDIR /root/tlsn/notary/target/release
 EXPOSE 8003

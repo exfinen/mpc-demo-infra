@@ -60,10 +60,11 @@ To run the servers on each party’s host, follow these steps:
 cd mpc-demo-infra/mpc_demo_infra/computation_party_server/docker
 ```
 
-2. Run the following commands, replacing %PARTY_ID% with the  party ID for the server:
+2. Run the following commands, replacing %PORT% and %PARTY_ID% with the port and party ID for the server:
 ```bash
+export PORT=%PORT%
 export PARTY_ID=%PARTY_ID%
-docker build --build-arg PARTY_ID=${PARTY_ID} -t party .
-docker run --init -it -p 8000-9000:8000:9000 -e PARTY_ID=${PARTY_ID} party 
+docker build --build-arg PORT={PORT} --build-arg PARTY_ID=${PARTY_ID} -t party .
+docker run --init -it -p 8000-9000:8000-9000 -e PARTY_ID=${PARTY_ID} party 
 ```
 

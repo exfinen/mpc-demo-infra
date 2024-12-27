@@ -2,6 +2,8 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
+ARG PORT=8006
+ENV PORT=${PORT}
 ARG PARTY_ID=0
 ENV PARTY_ID=${PARTY_ID}
 
@@ -40,6 +42,9 @@ RUN cd MP-SPDZ \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
+
+RUN sed -i "s/^PORT=.*/PORT=${PORT}/" /root/mpc-demo-infra/.env.party \
+    && sed -i "s/^PARTY_ID=.*/PARTY_ID=${PARTY_ID}/" /root/mpc-demo-infra/.env.party
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra

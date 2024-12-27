@@ -2,9 +2,7 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
-ARG PORT=8006
 ARG PARTY_ID=0
-ENV PORT=${PORT}
 ENV PARTY_ID=${PARTY_ID}
 
 WORKDIR /root
@@ -45,7 +43,7 @@ COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
 ENV LD_LIBRARY_PATH="/root/MP-SPDZ"
 WORKDIR /root/mpc-demo-infra
-EXPOSE ${PORT}
+EXPOSE 8000-9000
 
 ENTRYPOINT ["poetry", "run"]
 CMD ["party-run"]

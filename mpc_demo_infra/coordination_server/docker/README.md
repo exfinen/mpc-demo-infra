@@ -9,32 +9,20 @@
 | 1 | prod-party-1.mpcstats.org | 8007 |
 | 2 | prod-party-2.mpcstats.org | 8008 |
 
-## Conguring server
-1. Edit `mpc_demo_infra/coordination_server/docker/.env.coord` according to your server configuraiton.
-2. If you're to use:
-   - `https`: 
-     1. Add `pem` files for your https domain to `mpc_demo_infra/coordination_server/docker/ssl_certs` directory.
-     2. Update the `PRIVKEY_PEM_PATH` and `FULLCHAIN_PEM_PATH` in `mpc_demo_infra/data_consumer_api/docker/.env.coord`. The paths should be relative to the repository root.
-   - `http`
-     1. Update the `PARTY_WEB_PROTOCL` in `mpc_demo_infra/coordination_server/docker/.env.coord` as follows:
-        ```
-        PARTY_WEB_PROTOCOL=http
-        ``` 
+## Configuring the server
+Edit `mpc_demo_infra/coordination_server/docker/.env.coord` as needed.
 
-3. In order to change the port Coordination server listens to:
-   1. Update the following line in `mpc_demo_infra/coordination_server/docker/Dockerfile`
-   ```
-   EXPOSE 8005
-   ```
-   2. Update the following line in `mpc_demo_infra/coordination_server/docker/.env.coord`
-   ```
-   PORT=8004
-   ```
+If `PARTY_WEB_PROTOCOL` is set to `https`, the following configuration will be necessary:
+1. Add the .pem files for your HTTPS domain to the `mpc_demo_infra/computation_party_server/docker/ssl_certs directory`.
+2. Update the following variables in the `mpc_demo_infra/data_consumer_api/docker/.env.party file`:
+   - `PRIVKEY_PEM_PATH`: Path to your private key PEM file.
+   - `FULLCHAIN_PEM_PATH`: Path to your full chain PEM file.
+   Ensure the paths are relative to the repository root.
 
 ## Running the server
 ```bash
 docker build -t coord .
-docker run --init -it -p 8005:8005 coord
+docker run --init -it -p 8000-9000:8000-9000 coord
 ```
 
 

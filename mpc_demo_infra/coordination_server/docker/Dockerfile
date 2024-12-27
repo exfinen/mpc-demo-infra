@@ -31,7 +31,7 @@ COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 COPY notary.key /root/tlsn/notary/server/fixture/notary/
 
 WORKDIR /root/mpc-demo-infra
-EXPOSE 8005
+EXPOSE 8000-9000
 
 ENTRYPOINT ["poetry", "run"]
 CMD ["coord-run"]

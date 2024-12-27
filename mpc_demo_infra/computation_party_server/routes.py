@@ -294,7 +294,7 @@ def generate_data_sharing_program(
         program_content = '\n'.join([line for line in program_content.split('\n') if "# NOTE: Skipped if it's the first run" not in line])
 
     logger.info(f"Generated data sharing program from the template with parameters: {secret_index=}, {client_port_base=}, {max_data_providers=}, {is_first_run=}, {input_bytes=}, {tlsn_delta=}, {tlsn_zero_encodings=}")
-    logger.info(f"Generated program: {program_content}")
+    logger.debug(f"Generated program: {program_content}")
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name, target_program_path
@@ -313,6 +313,8 @@ def generate_computation_query_program(
     program_content = program_content.replace("{client_port_base}", str(client_port_base))
     program_content = program_content.replace("{max_data_providers}", str(max_data_providers))
     program_content = program_content.replace("{num_data_providers}", str(num_data_providers))
+    logger.info(f"Generated query computation program from the template with parameters: {circuit_name=}, {client_port_base=}, {max_data_providers=}, {num_data_providers=}")
+    logger.debug(f"Generated program: {program_content}")
     with open(target_program_path, "w") as program_file:
         program_file.write(program_content)
     return circuit_name, target_program_path
@@ -321,7 +323,8 @@ def generate_computation_query_program(
 def compile_program(circuit_name: str):
     # Compile share_data_<client_id>.mpc
     subprocess.run(
-        f"cd {settings.mpspdz_project_root} && {CMD_COMPILE_MPC} {circuit_name}",
+        f"{CMD_COMPILE_MPC} {circuit_name}",
+        cwd=settings.mpspdz_project_root,
         check=True,
         shell=True,
     )
@@ -336,11 +339,12 @@ def run_program(circuit_name: str, ip_file_path: str):
     # cmd_run_mpc = f"./{MPC_VM_BINARY} -N {settings.num_parties} -p {settings.party_id} -OF . {circuit_name} -ip {str(ip_file_path)}"
     # ./replicated-ring-party.x -ip ip_rep -p 0 tutorial
     cmd_run_mpc = f"./{MPC_VM_BINARY} -ip {str(ip_file_path)} -p {settings.party_id} -OF . {circuit_name}"
-    logger.info(f"Executing a program on {MPC_VM_BINARY} vm")
+    logger.info(f"Executing a program on {MPC_VM_BINARY} vm: {cmd_run_mpc}")
     # Run the MPC program
     try:
         process = subprocess.run(
-            f"cd {settings.mpspdz_project_root} && {cmd_run_mpc}",
+            f"{cmd_run_mpc}",
+            cwd=settings.mpspdz_project_root,
             shell=True,
             capture_output=True,
             text=True

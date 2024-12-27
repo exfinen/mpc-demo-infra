@@ -200,7 +200,8 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                         }, headers=headers)
                         tasks.append(task)
                     # l.set()
-                    logger.info(f"Sending all requests concurrently")
+                    logger.info(f"Concurrently sent sharing data request to all parties")
+
                     # Send all requests concurrently
                     responses = await asyncio.gather(*tasks)
                     logger.info(f"Received responses for sharing data MPC for {eth_address=}")

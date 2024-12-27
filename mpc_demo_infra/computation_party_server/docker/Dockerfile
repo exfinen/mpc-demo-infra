@@ -34,14 +34,14 @@ RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git
 COPY CONFIG.mine /root/MP-SPDZ
 RUN cd MP-SPDZ \
     && git checkout demo_client \
-    && make -j$(nproc) malicious-rep-ring-party.x \
-    && Scripts/setup-ssl.sh 3 \
-    && mv Player-Data/P${PARTY_ID}.* /root \
-    && rm -f Player-Data/P*.{pem,key} \
-    && mv /root/P${PARTY_ID}.* Player-Data
+    && make -j$(nproc) malicious-rep-ring-party.x
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
+COPY P${PARTY_ID}.key /root/MP-SPDZ/Player-Data/
+COPY P0.pem /root/MP-SPDZ/Player-Data/
+COPY P1.pem /root/MP-SPDZ/Player-Data/
+COPY P2.pem /root/MP-SPDZ/Player-Data/
 
 RUN sed -i "s/^PORT=.*/PORT=${PORT}/" /root/mpc-demo-infra/.env.party \
     && sed -i "s/^PARTY_ID=.*/PARTY_ID=${PARTY_ID}/" /root/mpc-demo-infra/.env.party

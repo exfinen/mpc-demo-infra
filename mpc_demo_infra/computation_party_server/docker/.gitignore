@@ -1,3 +1,5 @@
 ssl_certs/fullchain.pem
 ssl_certs/privkey.pem
+*.pem
+*.key
 

@@ -27,7 +27,7 @@ from .database import get_db
 from .config import settings
 from .limiter import limiter
 from ..constants import MAX_DATA_PROVIDERS
-from ..client_lib import locate_binance_verifier
+from ..client_lib.lib import locate_binance_verifier
 
 SHARE_DATA_ENDPOINT = "/request_sharing_data_mpc"
 QUERY_COMPUTATION_ENDPOINT = "/request_querying_computation_mpc"

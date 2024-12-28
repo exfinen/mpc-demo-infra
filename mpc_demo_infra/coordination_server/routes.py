@@ -24,7 +24,7 @@ from .database import MPCSession, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 from .user_queue import AddResult
-from ..client_lib import locate_binance_verifier
+from ..client_lib.lib import locate_binance_verifier
 
 router = APIRouter()
 

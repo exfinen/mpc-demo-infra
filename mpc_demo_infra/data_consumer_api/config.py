@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"
 
-    poll_duration: int = 30
+    poll_duration: int = 10
 
     # cache expires every 10 minutes
     cache_ttl_seconds: int = Field(default=600, description="Cache TTL in seconds for computation results")

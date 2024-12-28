@@ -27,6 +27,7 @@ from .database import get_db
 from .config import settings
 from .limiter import limiter
 from ..constants import MAX_DATA_PROVIDERS
+from ..client_lib import locate_binance_verifier
 
 SHARE_DATA_ENDPOINT = "/request_sharing_data_mpc"
 QUERY_COMPUTATION_ENDPOINT = "/request_querying_computation_mpc"
@@ -35,7 +36,9 @@ router = APIRouter()
 
 # TLSN
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
+CMD_TLSN_VERIFIER = "./binance_verifier"
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
+TLSN_VERIFIER_BUILD_PATH = Path(settings.tlsn_project_root) / "tlsn" / "target" / "release" / "examples"
 
 # MP-SPDZ
 MP_SPDZ_PROJECT_ROOT = Path(settings.mpspdz_project_root)
@@ -81,11 +84,17 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         temp_file.write(tlsn_proof.encode('utf-8'))
 
         # Run TLSN proof verifier
+        binance_verifier_locations = [
+            (Path('.').resolve(), CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_BUILD_PATH, CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
+        ]
+        binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
         logger.info("Verifying TLSN proof...")
         try:
             subprocess.run(
-                f"{CMD_VERIFY_TLSN_PROOF} {temp_file.name}",
-                cwd=TLSN_VERIFIER_PATH,
+                f"{binance_verifier_exec_cmd} {temp_file.name}",
+                cwd=binance_verifier_dir,
                 check=True,
                 shell=True,
                 capture_output=True,

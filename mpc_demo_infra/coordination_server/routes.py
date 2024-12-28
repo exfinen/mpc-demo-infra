@@ -24,10 +24,12 @@ from .database import MPCSession, get_db, SessionLocal
 from .config import settings
 from ..constants import MAX_CLIENT_ID, CLIENT_TIMEOUT
 from .user_queue import AddResult
+from ..client_lib import locate_binance_verifier
 
 router = APIRouter()
 
 TLSN_VERIFIER_PATH = Path(settings.tlsn_project_root) / "tlsn" / "examples" / "binance"
+TLSN_VERIFIER_BUILD_PATH = Path(settings.tlsn_project_root) / "tlsn" / "target" / "release" / "examples"
 CMD_VERIFY_TLSN_PROOF = "cargo run --release --example binance_verifier"
 CMD_TLSN_VERIFIER = "./binance_verifier"
 
@@ -90,26 +92,6 @@ async def finish_computation(request: RequestFinishComputationRequest, x: Reques
     logger.info(f"finish_computation: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
-def locate_binance_verifier():
-    # If pre-built binance_verifier exists, it's expected to be in
-    # the current working dir or TLSN_VERIFIER_PATH.
-    # Othereise, binance_verifier will be built from the source
-    binance_verifiers = [
-        (Path('.').resolve(), CMD_TLSN_VERIFIER),
-        (TLSN_VERIFIER_PATH, CMD_TLSN_VERIFIER),
-        (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
-    ]
-    binance_verifier_dir = None
-    for (dir, exec_cmd) in binance_verifiers:
-        if (dir / "binance_verifier").exists():
-            binance_verifier_dir = dir
-            binance_verifier_exec_cmd = exec_cmd
-            break
-    if binance_verifier_dir is None:
-        raise FileNotFoundError(f"binance_verifier not found in {binance_verifiers}. Please build it in TLSN repo.")
-    logger.info(f"Found binance_verifier in {binance_verifier_dir}")
-    return binance_verifier_dir, binance_verifier_exec_cmd
-
 @router.post("/share_data", response_model=RequestSharingDataResponse)
 async def share_data(request: RequestSharingDataRequest, x: Request, db: Session = Depends(get_db)):
     eth_address = request.eth_address
@@ -139,7 +121,12 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
         logger.info(f"Running TLSN proof verifier: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
-        binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier()
+        binance_verifier_locations = [
+            (Path('.').resolve(), CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_BUILD_PATH, CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
+        ]
+        binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
         process = await asyncio.create_subprocess_shell(
             f"{binance_verifier_exec_cmd} {temp_tlsn_proof_file.name}",
             cwd=binance_verifier_dir,

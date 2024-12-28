@@ -22,7 +22,7 @@ If `PARTY_WEB_PROTOCOL` is set to `https`, the following configuration will be n
 ## Running the server
 ```bash
 docker build -t coord .
-docker run --init -it -p 8000-9000:8000-9000 coord
+docker run --init -it -p 8005-8100:8005-8100 coord
 ```
 
 

@@ -24,7 +24,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && git checkout mpspdz-compat-binance \
     && cd tlsn \
     && cargo build --release --example binance_verifier \
-    && mv $(ls /root/tlsn/tlsn/target/release/examples/binance_verifier-* | head -n 1) /root/tlsn/tlsn/examples/binance/binance_verifier
+    && mv $(ls /root/tlsn/tlsn/target/release/examples/binance_verifier-* | grep -ve '\.d$' | head -n 1) /root/tlsn/tlsn/target/release/examples/binance/binance_verifier
 
 COPY .env.coord /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/

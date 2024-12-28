@@ -71,6 +71,13 @@ class StatsResults:
     gini_coefficient: float
 
 
+def safe_div(a, b):
+    if b == 0:
+        return 0
+    else:
+        return a / b
+
+
 def run_computation_query_client(
     party_hosts: list[str],
     port_base: int,
@@ -90,15 +97,15 @@ def run_computation_query_client(
         os.Send(socket)
     # If computation returns more than one value, need to change the following line.
     output_list = client.receive_outputs(5 + max_data_providers)
-    logger.info("Stats of Data")
+    logger.info(f"Stats of Data: {output_list}")
     num_data_providers = int(output_list[0])
 
     results = StatsResults(
-        num_data_providers=num_data_providers,
-        max=output_list[1]/(10*BINANCE_DECIMAL_SCALE),
-        mean=output_list[2]/(num_data_providers*10*BINANCE_DECIMAL_SCALE),
-        median=output_list[3]/(10*BINANCE_DECIMAL_SCALE),
-        gini_coefficient=(output_list[4]/(num_data_providers*output_list[2]))-1,
+        num_data_providers = num_data_providers,
+        max = safe_div(output_list[1], 10 * BINANCE_DECIMAL_SCALE),
+        mean = safe_div(output_list[2], num_data_providers * 10 * BINANCE_DECIMAL_SCALE),
+        median = safe_div(output_list[3], 10 * BINANCE_DECIMAL_SCALE),
+        gini_coefficient = safe_div(output_list[4], num_data_providers * output_list[2]) - 1,
     )
     logger.info(f"Number of data providers: {results.num_data_providers}")
     logger.info(f"Max: {results.max}")
@@ -384,3 +391,18 @@ async def fetch_parties_certs(
     # Write party certs to files
     for party_id, cert in enumerate(party_certs):
         (certs_path / f"P{party_id}.pem").write_text(cert)
+
+
+def locate_binance_verifier(binance_verifier_locations):
+    binance_verifier_dir = None
+    for (dir, exec_cmd) in binance_verifier_locations:
+        if (dir / "binance_verifier").exists():
+            binance_verifier_dir = dir
+            binance_verifier_exec_cmd = exec_cmd
+            break
+    if binance_verifier_dir is None:
+        raise FileNotFoundError(f"binance_verifier not found in {binance_verifiers}. Please build it in TLSN repo.")
+    logger.info(f"Found binance_verifier in {binance_verifier_dir}")
+    return binance_verifier_dir, binance_verifier_exec_cmd
+
+

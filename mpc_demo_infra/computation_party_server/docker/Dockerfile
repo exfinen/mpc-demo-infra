@@ -27,8 +27,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
     && git checkout mpspdz-compat \
     && cd tlsn \
-    && cargo build --release --example binance_verifier \
-    && mv $(ls /root/tlsn/tlsn/target/release/examples/binance_verifier-* | grep -ve '\.d$' | head -n 1) /root/tlsn/tlsn/target/release/examples/binance_verifier
+    && cargo build --release --example binance_verifier
 
 # Install MP-SPDZ and generate party cert files
 RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git

@@ -19,18 +19,11 @@ If `PARTY_WEB_PROTOCOL` is set to `https`, the following configuration will be n
    - `FULLCHAIN_PEM_PATH`: Path to your full chain PEM file.
    Ensure the paths are relative to the repository root.
 
-## Preparation
-Create a volume to store the demo participants history:
-
-```
-docker volume create coord-data
-```
-
 ## Running the server
 
 ```bash
 cd /home/ubuntu/mpc-demo-infra/mpc_demo_infra/coordination_server/docker/
 docker build -t coord .
-docker run --init -it -v coord-data:/home/ubuntu/mpc-demo-infra -p 8005-8100:8005-8100 coord
+docker run --init -it -v coord-data:/root/mpc-demo-infra -p 8005-8100:8005-8100 coord
 ```
 

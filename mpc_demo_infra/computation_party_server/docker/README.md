@@ -81,6 +81,6 @@ cd mpc-demo-infra/mpc_demo_infra/computation_party_server/docker
 export PORT=%PORT%
 export PARTY_ID=%PARTY_ID%
 docker build --build-arg PORT=${PORT} --build-arg PARTY_ID=${PARTY_ID} -t party .
-docker run --init -it -p 8000-8100:8000-8100 -e PARTY_ID=${PARTY_ID} party
+docker run --init -it party-data:/root/tlsn -p 8000-8100:8000-8100 -e PARTY_ID=${PARTY_ID} party
 ```
 

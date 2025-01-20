@@ -51,6 +51,7 @@ async def shutdown_event():
 
 def run():
     import uvicorn
+    logger.info(f"Running computation party server on port {settings.port} with settings: {settings}")
     if settings.party_web_protocol == 'https':
         uvicorn.run(
             "mpc_demo_infra.computation_party_server.main:app",

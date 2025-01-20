@@ -64,7 +64,7 @@ async def shutdown_event():
 
 def run():
     import uvicorn
-    logger.info(f"Running data consumer API server on port {settings.port}")
+    logger.info(f"Running data consumer API server on port {settings.port} with settings: {settings}")
 
     if settings.party_web_protocol == 'https':
         uvicorn.run(

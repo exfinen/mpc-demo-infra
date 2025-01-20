@@ -9,7 +9,6 @@ def parse_args():
   parser.add_argument(
     'coord_host',
     type=str,
-    required=True,
     help='Coordination server host',
   )
   parser.add_argument(

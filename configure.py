@@ -201,7 +201,7 @@ def write_file(file_path: Path, content: str, args):
         f.write(content)
 
 party_hosts = [host.strip() for host in args.party_hosts.split(',')]
-if len(args.party_hosts) != 2 and len(args.party_hosts) != 3:
+if len(party_hosts) != 2 and len(party_hosts) != 3:
   raise ValueError(f"Only 2 or 3 computation parties are supported, but got {party_hosts}")
 
 party_ports =[8006, 8007]

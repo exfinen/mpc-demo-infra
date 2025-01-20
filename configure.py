@@ -60,7 +60,7 @@ def gen_env_coord(
   party_hosts: list[str],
   party_ports: list[int],
 ):
-  output = """\
+  output = f"""\
 PORT=8005
 PARTY_HOSTS={json.dumps(party_hosts)}
 PARTY_PORTS={json.dumps(party_ports)}
@@ -79,14 +79,14 @@ def gen_env_party(
   party_hosts: list[str],
   party_ports: list[int], 
 ):
-  output = """\
+  output = f"""\
 PORT=8006
 PARTY_ID=0
 COORDINATION_SERVER_URL={transport}://{coord_host}:8005
 PARTY_API_KEY=81f47c24b9fbe22421ea3ae92a9cc8f6
 PARTY_HOSTS={json.dumps(party_hosts)}
 PARTY_PORTS={json.dumps(party_ports)}
-PARTY_WEB_PROTOCOL={transport}}
+PARTY_WEB_PROTOCOL={transport}
 MAX_DATA_PROVIDERS=1000
 PERFORM_COMMITMENT_CHECK=False
 PRIVKEY_PEM_PATH=ssl_certs/privkey.pem

@@ -205,7 +205,7 @@ if len(party_hosts) != 2 and len(party_hosts) != 3:
   raise ValueError(f"Only 2 or 3 computation parties are supported, but got {party_hosts}")
 
 party_ports =[8006, 8007]
-if args.num_parties == 3:
+if len(party_hosts) == 3:
   party_hosts.append(8008)
 
 # write .env.consumer_api

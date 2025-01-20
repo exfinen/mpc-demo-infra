@@ -18,9 +18,10 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
     && cargo build --release \
     && cp -R fixture ../target/release
 
-# Copy config file and keys
+# Copy config file
 COPY config.yaml /root/tlsn/notary/target/release/config/
-COPY notary.key /root/tlsn/notary/target/release/fixture/notary/
+
+#RUN cp /root/tlsn/notary/server/fixture/notary/notary.key /root/tlsn/notary/target/release/fixture/notary/
 
 RUN if [ -f ssl_certs/cert_privkey.pem ]; then \
     mkdir -p /root/tlsn/notary/target/release/keys && \

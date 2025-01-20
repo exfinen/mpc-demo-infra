@@ -6,6 +6,8 @@ ARG PORT=8006
 ENV PORT=${PORT}
 ARG PARTY_ID=0
 ENV PARTY_ID=${PARTY_ID}
+ARG NUM_PARTIES=3
+ENV NUM_PARTIES=${NUM_PARTIES}
 
 WORKDIR /root
 
@@ -38,10 +40,8 @@ RUN cd MP-SPDZ \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-COPY P${PARTY_ID}.key /root/MP-SPDZ/Player-Data/
-COPY P0.pem /root/MP-SPDZ/Player-Data/
-COPY P1.pem /root/MP-SPDZ/Player-Data/
-COPY P2.pem /root/MP-SPDZ/Player-Data/
+
+RUN /root/MP-SPDZ/Scripts/setup-ssl.sh ${NUM_PARTIES}
 
 RUN sed -i "s/^PORT=.*/PORT=${PORT}/" /root/mpc-demo-infra/.env.party \
     && sed -i "s/^PARTY_ID=.*/PARTY_ID=${PARTY_ID}/" /root/mpc-demo-infra/.env.party

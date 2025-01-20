@@ -29,6 +29,11 @@ def parse_args():
     help='Use HTTPS',
   )
   parser.add_argument(
+    '--overwrite',
+    action='store_true',
+    help='Overwrite existing file',
+  )
+  parser.add_argument(
     '--dry-run',
     action='store_true',
     help='Print out docker-compose.yml without creating a file',

@@ -123,7 +123,7 @@ services:
     build:
       context: ./mpc_demo_infra/data_consumer_api/docker
     ports:
-      - "8003:8003"
+      - "8004:8004"
     stdin_open: true
     tty: true
     init: true

@@ -204,8 +204,10 @@ party_hosts = [host.strip() for host in args.party_hosts.split(',')]
 if len(party_hosts) != 2 and len(party_hosts) != 3:
   raise ValueError(f"Only 2 or 3 computation parties are supported, but got {party_hosts}")
 
+num_parties = len(party_hosts)
+
 party_ports =[8006, 8007]
-if len(party_hosts) == 3:
+if num_parties == 3:
   party_hosts.append(8008)
 
 # write .env.consumer_api
@@ -215,7 +217,9 @@ dot_env_consumer_api = gen_env_consumer_api(
   party_hosts,
   party_ports,
 )
-write_file('mpc_demo_infra' / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
+
+mpc_demo_infra = Path('mpc_demo_infra')
+write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
 
 # write .env.coord
 dot_env_coord = gen_env_coord(
@@ -223,7 +227,7 @@ dot_env_coord = gen_env_coord(
   party_hosts,
   party_ports,
 )
-write_file('mpc_demo_infra' / 'coordination_server' / 'docker' / '.env.coord', dot_env_coord, args)
+write_file(mpc_demo_infra / 'coordination_server' / 'docker' / '.env.coord', dot_env_coord, args)
 
 # write .env.party for partys
 dot_env_party = gen_env_party(
@@ -232,9 +236,9 @@ dot_env_party = gen_env_party(
   party_hosts,
   party_ports,
 )
-write_file('mpc_demo_infra' / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
+write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
 
 # write docker-compose.yml
-docker_compose_yml = gen_docker_compose(len(party_hosts))
+docker_compose_yml = gen_docker_compose(num_parties)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
 

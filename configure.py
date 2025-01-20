@@ -131,9 +131,9 @@ services:
   party_0:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
-    args:
-      PORT: 8006
-      PARTY_ID: 0
+      args:
+        PORT: 8006
+        PARTY_ID: 0
     ports:
       - "8000-8100:8000-8100"
     environment:
@@ -147,9 +147,9 @@ services:
   party_1:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
-    args:
-      PORT: 8007
-      PARTY_ID: 1
+      args:
+        PORT: 8007
+        PARTY_ID: 1
     ports:
       - "8000-8100:8000-8100"
     environment:
@@ -165,9 +165,9 @@ services:
   party_2:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
-    args:
-      PORT: 8008
-      PARTY_ID: 2
+      args:
+        PORT: 8008
+        PARTY_ID: 2
     ports:
       - "8000-8100:8000-8100"
     environment:
@@ -181,10 +181,10 @@ services:
 
   output_3 = """\
 volumes:
-  - coord-data:
-  - party0-data
-  - party1-data
-  - party2-data
+  coord-data:
+  party0-data:
+  party1-data:
+  party2-data:
 """
 
   output = output_1 + (output_2 if num_parties == 3 else "") + output_3

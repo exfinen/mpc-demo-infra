@@ -23,6 +23,11 @@ COPY config.yaml /root/tlsn/notary/target/release/config/
 COPY ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/
 COPY notary.key /root/tlsn/notary/target/release/fixture/notary/
 
+RUN if [ -f ssl_certs/cert_privkey.pem ]; then \
+    mkdir -p /root/tlsn/notary/target/release/keys && \
+    cp ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/; \
+    fi
+
 WORKDIR /root/tlsn/notary/target/release
 EXPOSE 8003
 

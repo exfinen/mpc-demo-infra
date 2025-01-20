@@ -101,7 +101,7 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 
 def gen_docker_compose(num_parties: int):
   output_0 = """\
-version: "3.8"
+version: "3.9"
 
 services:
   coord:
@@ -216,6 +216,7 @@ def write_file(file_path: Path, content: str, args):
     else:
       with open(file_path, 'w') as f:
         f.write(content)
+      print(f"Created {str(file_path)}")
 
 party_hosts = [host.strip() for host in args.party_hosts.split(',')]
 if len(party_hosts) != 2 and len(party_hosts) != 3:

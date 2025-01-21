@@ -100,9 +100,7 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
   return output
 
 def gen_docker_compose(num_parties: int):
-  output_0 = """\
-version: "3.9"
-
+  s = """\
 services:
   coord:
     build:
@@ -118,11 +116,12 @@ services:
       - party_0
       - party_1
 """
-  output_0_3_party = """\
+  if num_parties == 3:
+    s += """\
       - party_2
 """
 
-  output_1 = f"""\
+  s += f"""\
   notary:
     build:
       context: ./mpc_demo_infra/notary_server/docker
@@ -178,7 +177,8 @@ services:
     init: true
 """
 
-  output_2 = f"""\
+  if num_parties == 3:
+    s += """\
   party_2:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
@@ -197,25 +197,19 @@ services:
     init: true
 """
 
-  output_3 = """\
+  s += """\
 volumes:
   coord-data:
   party0-data:
   party1-data:
 """
 
-  output_3_3_party = """\
+  if num_parties == 3:
+    s += """\
   party2-data:
 """
 
-  output = output_0 + \
-    (output_0_3_party if num_parties == 3 else "") + \
-    output_1 + \
-    (output_2 if num_parties == 3 else "") + \
-    output_3 + \
-    (output_3_3_party if num_parties == 3 else "")
-
-  return output
+  return s
 
 def write_file(file_path: Path, content: str, args):
   if args.dry_run:

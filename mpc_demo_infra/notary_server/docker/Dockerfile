@@ -26,6 +26,9 @@ RUN git clone https://github.com/exfinen/tlsn.git \
 # Copy config file
 COPY config.yaml /root/tlsn/notary/target/release/config/
 
+COPY /root/tlsn/notary/server/fixture/tls/rootCA.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
 #RUN cp /root/tlsn/notary/server/fixture/notary/notary.key /root/tlsn/notary/target/release/fixture/notary/
 
 RUN if [ -f ssl_certs/cert_privkey.pem ]; then \

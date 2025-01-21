@@ -115,7 +115,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     # Verify TLSN proof.
     with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
-        logger.info(f"TLSN proof: {request.tlsn_proof}")
+        #logger.info(f"TLSN proof: {request.tlsn_proof}")
         logger.info(f"Writing TLSN proof to temporary file: {temp_tlsn_proof_file.name}")
         # Store TLSN proof in temporary file.
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
@@ -177,6 +177,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                     tasks = []
                     for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
                         url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
+                        logger.info(f"Sending: {url}")
                         headers = {"X-API-Key": settings.party_api_key}
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
@@ -196,7 +197,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                     # Check if all responses are successful
                     for party_id, response in enumerate(responses):
                         if response.status != 200:
-                            logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
+                            logger.error(f"Failed to request sharing data MPC from party {party_id}: {response.status}")
                             raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
                     # Check if all data commitments are the same
                     data_commitments = [(await response.json())["data_commitment"] for response in responses]

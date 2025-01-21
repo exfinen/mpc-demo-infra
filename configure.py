@@ -122,7 +122,7 @@ services:
       - party_2
 """
 
-  output_1 = """\
+  output_1 = f"""\
   notary:
     build:
       context: ./mpc_demo_infra/notary_server/docker
@@ -149,6 +149,9 @@ services:
       args:
         PORT: 8006
         PARTY_ID: 0
+        NUM_PARTIES={num_parties}
+    ports:
+      - "8006:8006"
     environment:
       - PARTY_ID=0
     volumes:
@@ -163,6 +166,9 @@ services:
       args:
         PORT: 8007
         PARTY_ID: 1
+        NUM_PARTIES={num_parties}
+    ports:
+      - "8007:8007"
     environment:
       - PARTY_ID=1
     volumes:
@@ -172,15 +178,16 @@ services:
     init: true
 """
 
-  output_2 = """\
+  output_2 = f"""\
   party_2:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
       args:
         PORT: 8008
         PARTY_ID: 2
+        NUM_PARTIES={num_parties}
     ports:
-      - "8000-8100:8000-8100"
+      - "8008:8009"
     environment:
       - PARTY_ID=2
     volumes:

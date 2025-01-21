@@ -270,26 +270,26 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                     position = data["position"]
                     if position is None:
                         if use_print:
-                            print("The queue is currently full. Please wait for your turn.", end='\r', flush=True)
+                            print("| The queue is currently full. Please wait for your turn.", end='\r', flush=True)
                         else:
-                            logger.warn("The queue is currently full. Please wait for your turn.")
+                            logger.warn("| The queue is currently full. Please wait for your turn.")
                     else:
                         if position == 0:
                             if use_print:
-                                print(f"Computation servers are ready. Your requested computation will begin shortly.", end='\r', flush=True)
+                                print(f"| Computation servers are ready. Your requested computation will begin shortly.", end='\r', flush=True)
                             else:
-                                logger.info("Computation servers are ready. Your requested computation will begin shortly.")
+                                logger.info("| Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
                             if use_print:
-                                print(f"You're #{position} in line", end='\r', flush=True)
+                                print(f"| You're #{position} in line", end='\r', flush=True)
                             else:
-                                logger.info(f"You're #{position} in line")
+                                logger.info(f"| You're #{position} in line")
                 else:
                     if use_print:
-                        print(f"Server error. Status {response.status}", end='\r', flush=True)
+                        print(f"| Server error. Status {response.status}", end='\r', flush=True)
                     else:
-                        logger.error(f"Server error. Status {response.status}")
+                        logger.error(f"| Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)
 
 

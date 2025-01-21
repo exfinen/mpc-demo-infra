@@ -144,6 +144,7 @@ def notarize_and_share_data_cli():
     parser.add_argument("api_secret", type=str, help="The API secret")
     args = parser.parse_args()
     try:
+        logger.info(f"Started with settings: {settings}")
         asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret))
     except Exception as e:
         logger.error(e)
@@ -151,6 +152,7 @@ def notarize_and_share_data_cli():
 
 def query_computation_and_verify_cli():
     try:
+        logger.info(f"Started with settings: {settings}")
         asyncio.run(query_computation_and_verify())
         logger.info("Computation finished")
     except Exception as e:

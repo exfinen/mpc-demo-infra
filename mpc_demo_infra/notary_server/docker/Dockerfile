@@ -29,8 +29,6 @@ COPY config.yaml /root/tlsn/notary/target/release/config/
 RUN cp /root/tlsn/notary/server/fixture/tls/rootCA.crt /usr/local/share/ca-certificates/ \
     && update-ca-certificates
 
-RUN echo '127.0.0.1 tlsnotaryserver.io' >> /etc/hosts
-
 #RUN cp /root/tlsn/notary/server/fixture/notary/notary.key /root/tlsn/notary/target/release/fixture/notary/
 
 RUN if [ -f ssl_certs/cert_privkey.pem ]; then \

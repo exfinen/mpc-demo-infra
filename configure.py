@@ -130,6 +130,8 @@ services:
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
 
   data_consumer_api:
     build:

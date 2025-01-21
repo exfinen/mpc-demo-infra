@@ -149,7 +149,7 @@ services:
       args:
         PORT: 8006
         PARTY_ID: 0
-        NUM_PARTIES={num_parties}
+        NUM_PARTIES: {num_parties}
     ports:
       - "8006:8006"
     environment:
@@ -166,7 +166,7 @@ services:
       args:
         PORT: 8007
         PARTY_ID: 1
-        NUM_PARTIES={num_parties}
+        NUM_PARTIES: {num_parties}
     ports:
       - "8007:8007"
     environment:
@@ -185,7 +185,7 @@ services:
       args:
         PORT: 8008
         PARTY_ID: 2
-        NUM_PARTIES={num_parties}
+        NUM_PARTIES: {num_parties}
     ports:
       - "8008:8009"
     environment:

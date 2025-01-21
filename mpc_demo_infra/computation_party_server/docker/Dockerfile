@@ -46,7 +46,8 @@ RUN cd MP-SPDZ \
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 
-RUN /root/MP-SPDZ/Scripts/setup-ssl.sh ${NUM_PARTIES}
+RUN cd /root/MP-SPDZ \
+    && ./Scripts/setup-ssl.sh ${NUM_PARTIES}
 
 RUN sed -i "s/^PORT=.*/PORT=${PORT}/" /root/mpc-demo-infra/.env.party \
     && sed -i "s/^PARTY_ID=.*/PARTY_ID=${PARTY_ID}/" /root/mpc-demo-infra/.env.party

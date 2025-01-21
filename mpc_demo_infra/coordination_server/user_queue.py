@@ -3,7 +3,10 @@ from enum import Enum
 from readerwriterlock import rwlock
 import secrets
 import time
+import logging
 from typing import Optional, Self, Tuple
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class User:
@@ -172,10 +175,12 @@ class UserQueue:
     def finish_computation(self, access_key: str, computation_key: str) -> bool:
         with self.locker.gen_wlock():
             position, user = self.user_positions.get(access_key, (None, None))
+            logger.info(f"Current position of the user '{user}' is {position}")
             if position is not None and position == 0 and user.computation_key == computation_key:
                 user = self._pop_user()
                 self._set_queue_head_data_if_needed()
                 self._build_position_map()
+                logger.info(f"Popped {user}")
                 return True
             else:
                 return False

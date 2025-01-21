@@ -115,11 +115,13 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     # Verify TLSN proof.
     with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
+        tlsn_proof = request.tlsn_proof.encode('utf-8')
+        logger.info(f"TLSN proof: {tlsn_proof}")
         logger.info(f"Writing TLSN proof to temporary file: {temp_tlsn_proof_file.name}")
         # Store TLSN proof in temporary file.
-        temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
+        temp_tlsn_proof_file.write(tlsn_proof)
 
-        logger.info(f"Running TLSN proof verifier: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
+        logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
         binance_verifier_locations = [
             (Path('.').resolve(), CMD_TLSN_VERIFIER),

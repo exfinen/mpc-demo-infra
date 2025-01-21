@@ -202,6 +202,9 @@ volumes:
   coord-data:
   party0-data:
   party1-data:
+"""
+
+  output_3_3_party = """\
   party2-data:
 """
 
@@ -209,7 +212,8 @@ volumes:
     (output_0_3_party if num_parties == 3 else "") + \
     output_1 + \
     (output_2 if num_parties == 3 else "") + \
-    output_3
+    output_3 + \
+    (output_3_3_party if num_parties == 3 else "")
 
   return output
 

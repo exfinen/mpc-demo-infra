@@ -153,6 +153,7 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8006:8006"
+      - "8010:8010"
     environment:
       - PARTY_ID=0
     volumes:
@@ -170,6 +171,7 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8007:8007"
+      - "8011:8011"
     environment:
       - PARTY_ID=1
     volumes:
@@ -189,7 +191,8 @@ services:
         PARTY_ID: 2
         NUM_PARTIES: {num_parties}
     ports:
-      - "8008:8009"
+      - "8008:8008"
+      - "8012:8012"
     environment:
       - PARTY_ID=2
     volumes:

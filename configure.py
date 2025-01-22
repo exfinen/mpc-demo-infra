@@ -151,7 +151,7 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8006:8006"
-      - "8010:8010"
+      - "8019:8019"
     environment:
       - PARTY_ID=0
     volumes:
@@ -169,7 +169,6 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8007:8007"
-      - "8019:8019"
     environment:
       - PARTY_ID=1
     volumes:
@@ -190,7 +189,6 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8008:8008"
-      - "8020:8020"
     environment:
       - PARTY_ID=2
     volumes:
@@ -234,7 +232,7 @@ num_parties = len(party_hosts)
 
 party_ports =[8006, 8007]
 if num_parties == 3:
-  party_hosts.append(8008)
+  party_ports.append(8008)
 
 # write .env.consumer_api
 dot_env_consumer_api = gen_env_consumer_api(

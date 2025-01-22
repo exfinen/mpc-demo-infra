@@ -37,6 +37,10 @@ RUN if [ -f ssl_certs/cert_privkey.pem ]; then \
     cp ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/; \
     fi
 
+RUN if [ -f ssl_certs/notary.crt ]; then \
+    cp ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/; \
+    fi
+
 WORKDIR /root/tlsn/notary/target/release
 EXPOSE 8003
 

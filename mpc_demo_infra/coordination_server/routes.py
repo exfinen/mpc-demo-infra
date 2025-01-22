@@ -152,6 +152,8 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             if db.query(MPCSession).filter(MPCSession.uid == uid).first():
                 logger.error(f"UID {uid} already in database")
                 raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+        else:
+            uid = 0
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {eth_address=}")

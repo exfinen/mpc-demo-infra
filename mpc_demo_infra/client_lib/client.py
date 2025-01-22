@@ -49,7 +49,7 @@ class Client:
                     logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
                     plain_socket = socket.create_connection(
                         (hostname, port_base + i), timeout=timeout)
-                    logging.info("Etablished")
+                    logging.info("Socket connection to %s:%d established", hostname, port_base + i)
                     break
                 except ConnectionRefusedError:
                     if j < 600:

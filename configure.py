@@ -169,6 +169,7 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8007:8007"
+      - "8020:8020"
     environment:
       - PARTY_ID=1
     volumes:
@@ -189,6 +190,7 @@ services:
         NUM_PARTIES: {num_parties}
     ports:
       - "8008:8008"
+      - "8021:8021"
     environment:
       - PARTY_ID=2
     volumes:

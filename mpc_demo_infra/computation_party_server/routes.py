@@ -77,7 +77,9 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
     client_cert_file = request.client_cert_file
     logger.info(f"Requesting sharing data MPC for {secret_index=}, {client_id=}, {mpc_port_base=}, {client_port_base=}")
     if secret_index >= MAX_DATA_PROVIDERS:
-        raise HTTPException(status_code=400, detail=f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}")
+        detail = f"Secret index {secret_index} exceeds the maximum {MAX_DATA_PROVIDERS}"
+        logger.error(detail)
+        raise HTTPException(status_code=400, detail=detail)
     # 1. Verify TLSN proof
     with tempfile.NamedTemporaryFile() as temp_file:
         # Store TLSN proof in temporary file.
@@ -92,15 +94,16 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
         logger.info("Verifying TLSN proof...")
         try:
-            subprocess.run(
+            res = subprocess.run(
                 f"{binance_verifier_exec_cmd} {temp_file.name}",
                 cwd=binance_verifier_dir,
                 check=True,
                 shell=True,
                 capture_output=True,
+                text=True,
             )
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to verify TLSN proof: {str(e)}")
+            logger.error(f"Failed to verify TLSN proof: {str(e)}, stdout={res.stdout.strip()}, stderr={res.stderr.strip()}")
             raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
         logger.info("TLSN proof is valid")
 

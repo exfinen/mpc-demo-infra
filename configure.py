@@ -141,8 +141,6 @@ services:
     stdin_open: true
     tty: true
     init: true
-    depends_on:
-      - coord
 
   party_0:
     build:

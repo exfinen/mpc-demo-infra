@@ -180,7 +180,7 @@ services:
 """
 
   if num_parties == 3:
-    s += """\
+    s += f"""\
   party_2:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
@@ -194,7 +194,7 @@ services:
     environment:
       - PARTY_ID=2
     volumes:
-      - party1-data:/root/MP-SPDZ/
+      - party2-data:/root/MP-SPDZ/
     stdin_open: true
     tty: true
     init: true

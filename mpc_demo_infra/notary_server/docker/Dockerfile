@@ -32,14 +32,10 @@ COPY config.yaml /root/tlsn/notary/target/release/config/
 # RUN cp /root/tlsn/notary/server/fixture/tls/rootCA.crt /usr/local/share/ca-certificates/ \
 #     && update-ca-certificates
 
-RUN if [ -f ssl_certs/cert_privkey.pem ]; then \
-    mkdir -p /root/tlsn/notary/target/release/keys && \
-    cp ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/; \
-    fi
+RUN mkdir -p /root/tlsn/notary/target/release/keys
 
-RUN if [ -f ssl_certs/notary.crt ]; then \
-    cp ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/; \
-    fi
+COPY ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/ || true
+COPY ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/ || true
 
 WORKDIR /root/tlsn/notary/target/release
 EXPOSE 8003

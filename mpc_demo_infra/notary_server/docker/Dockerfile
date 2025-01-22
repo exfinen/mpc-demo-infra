@@ -34,8 +34,8 @@ COPY config.yaml /root/tlsn/notary/target/release/config/
 
 RUN mkdir -p /root/tlsn/notary/target/release/keys
 
-COPY ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/
-COPY ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/
+#COPY ssl_certs/cert_privkey.pem /root/tlsn/notary/target/release/keys/
+#COPY ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/
 
 WORKDIR /root/tlsn/notary/target/release
 EXPOSE 8003

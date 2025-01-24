@@ -81,31 +81,36 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         logger.error(detail)
         raise HTTPException(status_code=400, detail=detail)
     # 1. Verify TLSN proof
-    # with tempfile.NamedTemporaryFile() as temp_file:
-    #     # Store TLSN proof in temporary file.
-    #     temp_file.write(tlsn_proof.encode('utf-8'))
-    # 
-    #     # Run TLSN proof verifier
-    #     binance_verifier_locations = [
-    #         (Path('.').resolve(), CMD_TLSN_VERIFIER),
-    #         (TLSN_VERIFIER_BUILD_PATH, CMD_TLSN_VERIFIER),
-    #         (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
-    #     ]
-    #     binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
-    #     logger.info("Verifying TLSN proof...")
-    #     try:
-    #         subprocess.run(
-    #             f"{binance_verifier_exec_cmd} {temp_file.name}",
-    #             cwd=binance_verifier_dir,
-    #             check=True,
-    #             shell=True,
-    #             capture_output=True,
-    #             text=True,
-    #         )
-    #     except subprocess.CalledProcessError as e:
-    #         logger.error(f"Failed to verify TLSN proof: {str(e)}, stdout={e.stdout.strip()}, stderr={e.stderr.strip()}")
-    #         raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
-    #     logger.info("TLSN proof is valid")
+    with tempfile.NamedTemporaryFile() as temp_file:
+        # Store TLSN proof in temporary file.
+        temp_file.write(tlsn_proof.encode('utf-8'))
+
+        # FOR DEBUGGING. DELETE THIS
+        copy_path = os.path.expanduser("~/proof_copy")
+        shutil.copyfile(temp_file.name, copy_path)
+        logger.info(f"Copied proof file to {copy_path}")
+
+        # Run TLSN proof verifier
+        binance_verifier_locations = [
+            (Path('.').resolve(), CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_BUILD_PATH, CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
+        ]
+        binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
+        logger.info("Verifying TLSN proof...")
+        try:
+            subprocess.run(
+                f"{binance_verifier_exec_cmd} {temp_file.name}",
+                cwd=binance_verifier_dir,
+                check=True,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to verify TLSN proof: {str(e)}, stdout={e.stdout.strip()}, stderr={e.stderr.strip()}")
+            raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+        logger.info("TLSN proof is valid")
 
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)

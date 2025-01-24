@@ -120,6 +120,11 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         # Store TLSN proof in temporary file.
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
 
+        # FOR DEBUGGING. DELETE THIS
+        copy_path = os.path.expanduser("~/proof_copy")
+        shutil.copyfile(temp_file.name, copy_path)
+        logger.info(f"Copied proof file to {copy_path}")
+
         logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
         binance_verifier_locations = [
@@ -340,9 +345,8 @@ def get_uid_from_tlsn_proof_verifier(stdout_from_tlsn_proof_verifier: str) -> in
         uid = uid_match.group(1)
         logger.info(f"UID: {uid}")
     else:
-        print(f"stdout: {stdout_from_tlsn_proof_verifier}");
         raise ValueError(
-            f"UID not found in stdout from TLSN proof verifier: {stdout_from_tlsn_proof_verifier}"
+            f"UID not found in stdout from TLSN proof verifier. Verifier stdout: {stdout_from_tlsn_proof_verifier}"
         )
     return int(uid)
 

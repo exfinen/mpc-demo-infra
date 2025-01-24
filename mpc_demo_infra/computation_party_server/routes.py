@@ -85,11 +85,6 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         # Store TLSN proof in temporary file.
         temp_file.write(tlsn_proof.encode('utf-8'))
 
-        # FOR DEBUGGING. DELETE THIS
-        copy_path = os.path.expanduser("~/proof_copy")
-        shutil.copyfile(temp_file.name, copy_path)
-        logger.info(f"Copied proof file to {copy_path}")
-
         # Run TLSN proof verifier
         binance_verifier_locations = [
             (Path('.').resolve(), CMD_TLSN_VERIFIER),

@@ -14,7 +14,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Build notary server
 # RUN git clone https://github.com/ZKStats/tlsn.git \
 #     && cd tlsn/notary/server \
-#     && git checkout mpspdz-compat-binance \
+#     && git checkout mpspdz-compat \
 #     && cargo build --release \
 #     && cp -R fixture ../target/release
 RUN git clone https://github.com/exfinen/tlsn.git \

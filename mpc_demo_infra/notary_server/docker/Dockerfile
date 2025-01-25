@@ -29,6 +29,8 @@ RUN cp -R /root/tlsn/notary/server/config /root/tlsn/notary/target/release/
 # Copy config file
 COPY config.yaml /root/tlsn/notary/target/release/config/
 
+COPY notary.crt /root/
+
 RUN cp /root/tlsn/notary/server/fixture/tls/notary.crt /usr/local/share/ca-certificates/ \
     && update-ca-certificates
 

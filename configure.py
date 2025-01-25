@@ -62,7 +62,7 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
   return output
 
 def gen_docker_compose(coord_ip: str):
-  return """\
+  return f"""\
 services:
   coord:
     build:

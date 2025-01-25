@@ -110,7 +110,7 @@ services:
       args:
         PORT: 8006
         PARTY_ID: 0
-        NUM_PARTIES: {num_parties}
+        NUM_PARTIES: 3
     ports:
       - "8006:8006"
       - "8019:8019"
@@ -130,7 +130,7 @@ services:
       args:
         PORT: 8007
         PARTY_ID: 1
-        NUM_PARTIES: {num_parties}
+        NUM_PARTIES: 3
     ports:
       - "8007:8007"
       - "8020:8020"
@@ -149,7 +149,7 @@ services:
       args:
         PORT: 8008
         PARTY_ID: 2
-        NUM_PARTIES: {num_parties}
+        NUM_PARTIES: 3
     ports:
       - "8008:8008"
       - "8021:8021"

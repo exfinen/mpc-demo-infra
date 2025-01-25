@@ -112,6 +112,8 @@ services:
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
     depends_on:
       - party_0
       - party_1
@@ -159,6 +161,8 @@ services:
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
 
   party_1:
     build:
@@ -177,6 +181,8 @@ services:
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
 """
 
   if num_parties == 3:

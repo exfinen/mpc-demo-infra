@@ -124,7 +124,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
         # FOR DEBUGGING. DELETE THIS
         copy_path = os.path.expanduser("~/proof_copy")
-        shutil.copyfile(temp_file.name, copy_path)
+        shutil.copyfile(tempfile.name, copy_path)
         logger.info(f"Copied proof file to {copy_path}")
 
         logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")

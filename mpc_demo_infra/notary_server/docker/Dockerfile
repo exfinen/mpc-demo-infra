@@ -12,16 +12,16 @@ RUN apt-get update && apt-get install -y curl git build-essential git libgmp-dev
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # Build notary server
-# RUN git clone https://github.com/ZKStats/tlsn.git \
-#     && cd tlsn/notary/server \
-#     && git checkout mpspdz-compat \
-#     && cargo build --release \
-#     && cp -R fixture ../target/release
-RUN git clone https://github.com/exfinen/tlsn.git \
+RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn/notary/server \
-    && git checkout turn-off-tls \
+    && git checkout mpspdz-compat \
     && cargo build --release \
     && cp -R fixture ../target/release
+# RUN git clone https://github.com/exfinen/tlsn.git \
+#     && cd tlsn/notary/server \
+#     && git checkout turn-off-tls \
+#     && cargo build --release \
+#     && cp -R fixture ../target/release
 
 RUN cp -R /root/tlsn/notary/server/fixture /root/tlsn/notary/target/release/
 RUN cp -R /root/tlsn/notary/server/config /root/tlsn/notary/target/release/
@@ -29,8 +29,8 @@ RUN cp -R /root/tlsn/notary/server/config /root/tlsn/notary/target/release/
 # Copy config file
 COPY config.yaml /root/tlsn/notary/target/release/config/
 
-RUN cp /root/tlsn/notary/server/fixture/tls/notary.crt /usr/local/share/ca-certificates/ \
-    && update-ca-certificates
+# RUN cp /root/tlsn/notary/server/fixture/tls/notary.crt /usr/local/share/ca-certificates/ \
+#     && update-ca-certificates
 
 RUN mkdir -p /root/tlsn/notary/target/release/keys
 

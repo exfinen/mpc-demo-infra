@@ -24,22 +24,20 @@ RUN git clone https://github.com/exfinen/mpc-demo-infra.git \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # Install binance_verifier
-# RUN git clone https://github.com/ZKStats/tlsn.git \
-#     && cd tlsn \
-#     && git checkout mpspdz-compat \
-#     && cd tlsn \
-#     && cargo build --release --example binance_verifier
-RUN git clone https://github.com/exfinen/tlsn.git \
+RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
-    && git checkout turn-off-tls \
+    && git checkout mpspdz-compat \
     && cd tlsn \
     && cargo build --release --example binance_verifier
+# RUN git clone https://github.com/exfinen/tlsn.git \
+#     && cd tlsn \
+#     && git checkout turn-off-tls \
+#     && cd tlsn \
+#     && cargo build --release --example binance_verifier
 
 COPY .env.coord /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 #COPY notary.key /root/tlsn/notary/server/fixture/notary/
-
-COPY notary.crt /root/
 
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8000-9000

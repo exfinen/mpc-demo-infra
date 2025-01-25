@@ -1,6 +1,4 @@
 import re
-import os
-import shutil
 import json
 import asyncio
 import tempfile
@@ -121,11 +119,6 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         logger.info(f"Writing TLSN proof to temporary file: {temp_tlsn_proof_file.name}")
         # Store TLSN proof in temporary file.
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
-
-        # FOR DEBUGGING. DELETE THIS
-        copy_path = os.path.expanduser("~/proof_copy")
-        shutil.copyfile(temp_tlsn_proof_file.name, copy_path)
-        logger.info(f"Copied proof file to {copy_path}")
 
         logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier

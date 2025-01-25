@@ -31,11 +31,10 @@ RUN cp -R /root/tlsn/notary/server/config /root/tlsn/notary/target/release/
 COPY config.yaml /root/tlsn/notary/target/release/config/
 
 # Generate self-signed certificate 
-WORKDIR /root/tlsn/notary/server/fixtuire/tls/
+RUN sed -i "s/127.0.0.1/${COORD_IP}/" /root/tlsn/notary/server/fixtuire/tls/openssl.cnf
 
-RUN sed -i "s/127.0.0.1/${COORD_IP}/" openssl.cnf
-
-RUN openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
+RUN cd /root/tlsn/notary/server/fixtuire/tls/openssl.cnf \
+    && openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
     && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=${COORD_IP}" \
     && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req 
 

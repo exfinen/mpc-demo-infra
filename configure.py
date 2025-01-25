@@ -176,7 +176,7 @@ def parse_args():
     '--transport',
     choices=['http', 'https'],
     default='http',
-    help="Transport to use'",
+    help=f"Transport to use. http is used by default",
   )
   parser.add_argument(
     '--coord-ip',
@@ -227,7 +227,7 @@ write_file(mpc_demo_infra / 'coordination_server' / 'docker' / '.env.coord', dot
 # write .env.party for partys
 dot_env_party = gen_env_party(
   args.transport,
-  args.coord_host,
+  args.coord_ip,
   party_hosts,
   party_ports,
 )

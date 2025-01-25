@@ -2,45 +2,7 @@
 
 import argparse
 import json
-import os
 from pathlib import Path
-
-def parse_args():
-  parser = argparse.ArgumentParser(description="docker-compose generation script")
-  parser.add_argument(
-    'coord_host',
-    type=str,
-    help='Coordination server host',
-  )
-  parser.add_argument(
-    'party_hosts',
-    type=str,
-    help='Comma-separated list of computation party server hosts',
-  )
-  parser.add_argument(
-    '--transport',
-    choices=['http', 'https'],
-    default='http',
-    help="Transport to use'"
-  )
-  parser.add_argument(
-    '--https',
-    action='store_true',
-    help='Use HTTPS',
-  )
-  parser.add_argument(
-    '--overwrite',
-    action='store_true',
-    help='Overwrite existing file',
-  )
-  parser.add_argument(
-    '--dry-run',
-    action='store_true',
-    help='Print out docker-compose.yml without creating a file',
-  )
-  return parser.parse_args()
-
-args = parse_args()
 
 def gen_env_consumer_api(
   transport: str,
@@ -99,8 +61,8 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 """
   return output
 
-def gen_docker_compose(num_parties: int):
-  s = """\
+def gen_docker_compose(coord_ip: str):
+  return """\
 services:
   coord:
     build:
@@ -117,18 +79,16 @@ services:
     depends_on:
       - party_0
       - party_1
-"""
-  if num_parties == 3:
-    s += """\
       - party_2
-"""
-
-  s += f"""\
   notary:
     build:
       context: ./mpc_demo_infra/notary_server/docker
+      args:
+        COORD_IP: {coord_ip}
     ports:
       - "8003:8003"
+    environment:
+      - COORD_IP={coord_ip}
     stdin_open: true
     tty: true
     init: true
@@ -183,10 +143,6 @@ services:
     init: true
     extra_hosts:
       - "tlsnotaryserver.io:127.0.0.1"
-"""
-
-  if num_parties == 3:
-    s += f"""\
   party_2:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
@@ -206,48 +162,53 @@ services:
     init: true
     extra_hosts:
       - "tlsnotaryserver.io:127.0.0.1"
-"""
-
-  s += """\
 volumes:
   coord-data:
   party0-data:
   party1-data:
-"""
-
-  if num_parties == 3:
-    s += """\
   party2-data:
 """
-
   return s
+
+def parse_args():
+  parser = argparse.ArgumentParser(description="config-file generation script")
+  parser.add_argument(
+    '--transport',
+    choices=['http', 'https'],
+    default='http',
+    help="Transport to use'",
+  )
+  parser.add_argument(
+    '--coord-ip',
+    type=str,
+    default='127.0.0.1',
+    help="IP address of the server on which the coordination server runs",
+  )
+  parser.add_argument(
+    '--dry-run',
+    action='store_true',
+    help='Print out the contents of config files',
+  )
+  return parser.parse_args()
+
+args = parse_args()
 
 def write_file(file_path: Path, content: str, args):
   if args.dry_run:
     print(f"----> {file_path}")
     print(content)
   else:
-    if os.path.exists('docker-compose.yml') and not args.overwrite:
-      print(f"{str(file_path)} already exists")
-    else:
-      with open(file_path, 'w') as f:
-        f.write(content)
-      print(f"Created {str(file_path)}")
+    with open(file_path, 'w') as f:
+      f.write(content)
+    print(f"Created {str(file_path)}")
 
-party_hosts = [host.strip() for host in args.party_hosts.split(',')]
-if len(party_hosts) != 2 and len(party_hosts) != 3:
-  raise ValueError(f"Only 2 or 3 computation parties are supported, but got {party_hosts}")
-
-num_parties = len(party_hosts)
-
-party_ports =[8006, 8007]
-if num_parties == 3:
-  party_ports.append(8008)
+party_hosts = ["party_0", "party_1", "party_2"]
+party_ports =[8006, 8007, 8008]
 
 # write .env.consumer_api
 dot_env_consumer_api = gen_env_consumer_api(
   args.transport,
-  args.coord_host,
+  args.coord_ip,
   party_hosts,
   party_ports,
 )
@@ -273,6 +234,6 @@ dot_env_party = gen_env_party(
 write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
 
 # write docker-compose.yml
-docker_compose_yml = gen_docker_compose(num_parties)
+docker_compose_yml = gen_docker_compose(args.coord_ip)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
 

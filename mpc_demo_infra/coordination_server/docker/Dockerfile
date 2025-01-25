@@ -34,6 +34,8 @@ COPY .env.coord /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
 #COPY notary.key /root/tlsn/notary/server/fixture/notary/
 
+COPY notary.crt /root/
+
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8000-9000
 

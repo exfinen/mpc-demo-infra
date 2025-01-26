@@ -77,7 +77,7 @@ async def add_priority_user_to_queue(request: RequestAddUserToQueueRequest, x: R
 async def get_position(request: RequestGetPositionRequest, x: Request):
     position = x.app.state.user_queue.get_position(request.access_key)
     computation_key = x.app.state.user_queue.get_computation_key(request.access_key)
-    logger.info(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}")
+    logger.info(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}, queue: {x.app.state.user_queue._queue_to_str()}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)

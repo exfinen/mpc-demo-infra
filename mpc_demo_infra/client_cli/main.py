@@ -51,7 +51,7 @@ async def generate_tlsn_proof(api_key: str, api_secret: str, notary_crt_path: Op
     proof_file = PROJECT_ROOT / f"proof{timestamp}.json"
     secret_file = PROJECT_ROOT/ f"secret{timestamp}.json"
 
-    cmd = f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret}"
+    cmd = f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}"
     if notary_crt_path:
         cmd += f" {notary_crt_path}"
     logger.info(f"Executing: {cmd}")

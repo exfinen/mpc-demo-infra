@@ -2,8 +2,8 @@ FROM ubuntu:24.04
 
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:${PATH}:/root/tlsn/notary/target/release"
-ARG COORD_IP="127.0.0.1"
-ENV COORD_IP=${COORD_IP}
+ARG NOTARY_IP="127.0.0.1"
+ENV NOTARY_IP=${NOTARY_IP}
 
 WORKDIR /root
 
@@ -24,9 +24,9 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
 COPY openssl.cnf /root/tlsn/notary/server/fixture/tls/
 
 WORKDIR /root/tlsn/notary/server/fixture/tls/
-RUN sed -i "s/XXX/${COORD_IP}/" openssl.cnf
+RUN sed -i "s/XXX/${NOTARY_IP}/" openssl.cnf
 RUN openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
-    && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=${COORD_IP}" \
+    && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=${NOTARY_IP}" \
     && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req 
 
 # Copy config and cert files to release directory

@@ -61,7 +61,7 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 """
   return output
 
-def gen_docker_compose(coord_ip: str):
+def gen_docker_compose(notary_ip: str):
   return f"""\
 services:
   coord:
@@ -84,11 +84,11 @@ services:
     build:
       context: ./mpc_demo_infra/notary_server/docker
       args:
-        COORD_IP: {coord_ip}
+        NORTARY_IP: {notary_ip}
     ports:
       - "8003:8003"
     environment:
-      - COORD_IP={coord_ip}
+      - NOTARY_IP={notary_ip}
     stdin_open: true
     tty: true
     init: true
@@ -179,10 +179,10 @@ def parse_args():
     help=f"Transport to use. http is used by default",
   )
   parser.add_argument(
-    '--coord-ip',
+    '--notary-ip',
     type=str,
     default='127.0.0.1',
-    help="IP address of the server on which the coordination server runs",
+    help="IP address of the server on which the notary server runs",
   )
   parser.add_argument(
     '--dry-run',
@@ -208,7 +208,7 @@ party_ports =[8006, 8007, 8008]
 # write .env.consumer_api
 dot_env_consumer_api = gen_env_consumer_api(
   args.transport,
-  args.coord_ip,
+  args.notary_ip,
   party_hosts,
   party_ports,
 )
@@ -227,13 +227,13 @@ write_file(mpc_demo_infra / 'coordination_server' / 'docker' / '.env.coord', dot
 # write .env.party for partys
 dot_env_party = gen_env_party(
   args.transport,
-  args.coord_ip,
+  args.notary_ip,
   party_hosts,
   party_ports,
 )
 write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
 
 # write docker-compose.yml
-docker_compose_yml = gen_docker_compose(args.coord_ip)
+docker_compose_yml = gen_docker_compose(args.notary_ip)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
 

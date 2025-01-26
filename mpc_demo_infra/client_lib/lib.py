@@ -375,7 +375,9 @@ async def fetch_parties_certs(
     party_ports: list[int],
 ):
     async def get_party_cert(session, host: str, port: int, party_id: int):
-        async with session.get(f"{party_web_protocol}://{host}:{port}/get_party_cert") as response:
+        url = f"{party_web_protocol}://{host}:{port}/get_party_cert"
+        logger.info(f"Fetching party cert with {url}...")
+        async with session.get(url) as response:
             if response.status != 200:
                 raise Exception(f"Failed to get party cert: {response.status=}, {await response.text()=}")
             data = await response.json()

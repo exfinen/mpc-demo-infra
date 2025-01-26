@@ -158,6 +158,7 @@ async def validate_computation_key(coordination_server_url: str, access_key: str
 
 async def mark_queue_computation_to_be_finished(coordination_server_url: str, access_key: str, computation_key: str) -> bool:
     async with aiohttp.ClientSession() as session:
+        logger.info(f"Marking computation to be finished with {computation_key=}...")
         async with session.post(f"{coordination_server_url}/finish_computation", json={
             "access_key": access_key,
             "computation_key": computation_key,
@@ -324,6 +325,7 @@ async def query_computation_from_data_consumer_api(
             computation_key,
         )
     finally:
+        logger.info("Query computation finished")
         await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)
 
 

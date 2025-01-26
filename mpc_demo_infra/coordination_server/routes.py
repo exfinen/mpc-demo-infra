@@ -175,24 +175,26 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                 logger.info(f"Requesting sharing data MPC for {eth_address=}")
                 async with aiohttp.ClientSession() as session:
                     tasks = []
-                    for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
+                    for party_id, (party_host, party_port) in enumerate(zip(settings.party_hosts, settings.party_ports)):
                         url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
                         logger.info(f"Sending: {url}")
                         headers = {"X-API-Key": settings.party_api_key}
+                        client_port = mpc_client_port_base + party_id
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
                             "mpc_port_base": mpc_server_port_base,
                             "secret_index": secret_index,
                             "client_id": client_id,
-                            "client_port_base": mpc_client_port_base,
+                            "client_port_base": client_port,
                             "client_cert_file": client_cert_file,
                         }, headers=headers)
                         tasks.append(task)
                     # l.set()
-                    logger.info(f"Concurrently sent sharing data request to all parties")
 
                     # Send all requests concurrently
+                    logger.info(f"Concurrently sending sharing data request to all parties")
                     responses = await asyncio.gather(*tasks)
+                    logger.info(f"Sent sharing data requests to all parties")
                     logger.info(f"Received responses for sharing data MPC for {eth_address=}")
                     # Check if all responses are successful
                     for party_id, response in enumerate(responses):

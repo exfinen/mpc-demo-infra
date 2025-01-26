@@ -159,15 +159,15 @@ async def validate_computation_key(coordination_server_url: str, access_key: str
 async def mark_queue_computation_to_be_finished(coordination_server_url: str, access_key: str, computation_key: str) -> bool:
     async with aiohttp.ClientSession() as session:
         logger.info(f"Marking computation to be finished with {computation_key=}...")
-        async with session.post(f"{coordination_server_url}/finish_computation", json={
-            "access_key": access_key,
-            "computation_key": computation_key,
-        }) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise Exception(f"Failed to finish computation with {computation_key}. Response: {response.status} {response.reason}")
-            data = await response.json()
-            return data["is_finished"]
+        # async with session.post(f"{coordination_server_url}/finish_computation", json={
+        #     "access_key": access_key,
+        #     "computation_key": computation_key,
+        # }) as response:
+        #     if response.status != 200:
+        #         text = await response.text()
+        #         raise Exception(f"Failed to finish computation with {computation_key}. Response: {response.status} {response.reason}")
+        #     data = await response.json()
+        #     return data["is_finished"]
 
 
 async def share_data(

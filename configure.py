@@ -134,7 +134,7 @@ services:
         NUM_PARTIES: 3
     ports:
       - "8007:8007"
-      - "8019:8020"
+      - "8020:8020"
       - "8026:8026"
     environment:
       - PARTY_ID=1
@@ -154,7 +154,7 @@ services:
         NUM_PARTIES: 3
     ports:
       - "8008:8008"
-      - "8019:8021"
+      - "8021:8021"
       - "8027:8027"
     environment:
       - PARTY_ID=2

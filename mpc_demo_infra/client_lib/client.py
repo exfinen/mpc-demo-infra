@@ -35,12 +35,15 @@ def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
 
+logging.basicConfig(level=logging.DEBUG)
+
 class Client:
     def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
         ctx.verify_mode = ssl.CERT_OPTIONAL
+        ctx.check_hostname = False
 
         self.sockets = []
         for i, hostname in enumerate(hosts):
@@ -65,7 +68,7 @@ class Client:
 
             logger.info(f"Wrapping socket...")
             try:
-                wrapped_socket = ctx.wrap_socket(plain_socket) #, server_hostname='P%d' % i)
+                wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
             except Exception  as e:
                 logger.error(f"Error wrapping socket: {e}")
                 raise

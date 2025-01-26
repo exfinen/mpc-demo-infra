@@ -66,6 +66,7 @@ class Client:
             logger.info(f"Wrapping and storing socket...")
             self.sockets.append(ctx.wrap_socket(plain_socket,
                                                 server_hostname='P%d' % i))
+            time.sleep(1)
 
         self.specification = octetStream()
         self.specification.Receive(self.sockets[0])

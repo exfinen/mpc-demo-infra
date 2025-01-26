@@ -64,7 +64,7 @@ class Client:
                     print("Established")
                     break
                 except Exception  as e:
-                    print(".")
+                    print(".", end="")
                     time.sleep(1)
 
         self.specification = octetStream()

@@ -47,25 +47,21 @@ class Client:
 
         self.sockets = []
         for i, hostname in enumerate(hosts):
+            logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
             while True:
-                logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
                 try:
                     plain_socket = socket.create_connection(
                             (hostname, port_base + i), timeout=timeout)
 
-                    logger.info(f"Setting keepalive...")
                     if platform.system() == "Linux":
                         set_keepalive_linux(plain_socket)
                     elif platform.system() == "Darwin":
                         set_keepalive_osx(plain_socket)
 
-                    logger.info(f"Creating octectstream...")
                     octetStream(b'%d' % client_id).Send(plain_socket)
-
-                    logger.info(f"Wrapping socket...")
                     wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
                     self.sockets.append(wrapped_socket)
-                    logger.inof("Added socket to list")
+                    print("Established")
                     break
                 except Exception  as e:
                     print(".")

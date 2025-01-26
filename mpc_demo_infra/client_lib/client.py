@@ -71,7 +71,7 @@ class Client:
                 wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
             except Exception  as e:
                 logger.error(f"Error wrapping socket: {e}")
-                raise
+
             self.sockets.append(wrapped_socket)
             logger.inof("Added socket to list")
 

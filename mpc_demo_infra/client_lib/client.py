@@ -44,18 +44,15 @@ class Client:
 
         self.sockets = []
         for i, hostname in enumerate(hosts):
-            for j in range(10000):
+            while True:
                 try:
                     logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
                     plain_socket = socket.create_connection(
                         (hostname, port_base + i), timeout=timeout)
                     logging.info("Socket connection to %s:%d established", hostname, port_base + i)
                     break
-                except ConnectionRefusedError:
-                    if j < 600:
-                       time.sleep(5)
-                    else:
-                        raise
+                except Exception as e:
+                    time.sleep(2)
 
             if platform.system() == "Linux":
                 set_keepalive_linux(plain_socket)

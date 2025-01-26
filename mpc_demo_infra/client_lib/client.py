@@ -45,6 +45,7 @@ class Client:
         ctx.verify_mode = ssl.CERT_OPTIONAL
         ctx.check_hostname = False
 
+        time.sleep(60)
         self.sockets = []
         for i, hostname in enumerate(hosts):
             logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)

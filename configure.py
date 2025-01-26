@@ -215,17 +215,17 @@ def write_file(file_path: Path, content: str, args):
 party_hosts = ["party_0", "party_1", "party_2"]
 party_ports =[8006, 8007, 8008]
 
-if args.data_consumer_api:
-    # write .env.consumer_api
-    dot_env_consumer_api = gen_env_consumer_api(
-      args.transport,
-      args.notary_ip,
-      party_hosts,
-      party_ports,
-    )
-
 mpc_demo_infra = Path('mpc_demo_infra')
-write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
+
+# write .env.consumer_api if needed
+if args.data_consumer_api:
+  dot_env_consumer_api = gen_env_consumer_api(
+    args.transport,
+    args.notary_ip,
+    party_hosts,
+    party_ports,
+  )
+  write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
 
 # write .env.coord
 dot_env_coord = gen_env_coord(

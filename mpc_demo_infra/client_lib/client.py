@@ -52,7 +52,7 @@ class Client:
                     logging.info("Socket connection to %s:%d established", hostname, port_base + i)
                     break
                 except Exception as e:
-                    time.sleep(2)
+                    time.sleep(1)
 
             if platform.system() == "Linux":
                 set_keepalive_linux(plain_socket)

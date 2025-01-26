@@ -61,8 +61,8 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 """
   return output
 
-def gen_docker_compose(notary_ip: str):
-  return f"""\
+def gen_docker_compose(notary_ip: str, add_data_consumer_api: bool):
+  s = f"""\
 services:
   coord:
     build:
@@ -94,7 +94,10 @@ services:
     init: true
     extra_hosts:
       - "tlsnotaryserver.io:127.0.0.1"
+"""
 
+  if add_data_consumer_api:
+    s += """\
   data_consumer_api:
     build:
       context: ./mpc_demo_infra/data_consumer_api/docker
@@ -103,7 +106,9 @@ services:
     stdin_open: true
     tty: true
     init: true
+"""
 
+  s += """\
   party_0:
     build:
       context: ./mpc_demo_infra/computation_party_server/docker
@@ -189,6 +194,11 @@ def parse_args():
     action='store_true',
     help='Print out the contents of config files',
   )
+  parser.add_argument(
+    '--data-consumer-api',
+    action='store_true',
+    help='Add Data Consumer API server',
+  )
   return parser.parse_args()
 
 args = parse_args()
@@ -205,13 +215,14 @@ def write_file(file_path: Path, content: str, args):
 party_hosts = ["party_0", "party_1", "party_2"]
 party_ports =[8006, 8007, 8008]
 
-# write .env.consumer_api
-dot_env_consumer_api = gen_env_consumer_api(
-  args.transport,
-  args.notary_ip,
-  party_hosts,
-  party_ports,
-)
+if args.data_consumer_api:
+    # write .env.consumer_api
+    dot_env_consumer_api = gen_env_consumer_api(
+      args.transport,
+      args.notary_ip,
+      party_hosts,
+      party_ports,
+    )
 
 mpc_demo_infra = Path('mpc_demo_infra')
 write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
@@ -234,6 +245,6 @@ dot_env_party = gen_env_party(
 write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
 
 # write docker-compose.yml
-docker_compose_yml = gen_docker_compose(args.notary_ip)
+docker_compose_yml = gen_docker_compose(args.notary_ip, args.data_consumer_api)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
 

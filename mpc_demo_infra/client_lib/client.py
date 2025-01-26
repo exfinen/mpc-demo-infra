@@ -47,7 +47,7 @@ class Client:
 
         self.sockets = []
         for i, hostname in enumerate(hosts):
-            logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i, end="", flush=True)
+            logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
             while True:
                 try:
                     plain_socket = socket.create_connection(

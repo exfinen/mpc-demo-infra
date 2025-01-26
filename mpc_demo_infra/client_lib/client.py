@@ -65,7 +65,7 @@ class Client:
 
             logger.info(f"Wrapping socket...")
             try:
-                wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                wrapped_socket = ctx.wrap_socket(plain_socket) #, server_hostname='P%d' % i)
             except Exception  as e:
                 logger.error(f"Error wrapping socket: {e}")
                 raise

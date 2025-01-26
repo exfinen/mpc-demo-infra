@@ -113,8 +113,7 @@ services:
         NUM_PARTIES: 3
     ports:
       - "8006:8006"
-      - "8019:8019"
-      - "8025:8025"
+      - "8013:8013"
     environment:
       - PARTY_ID=0
     volumes:
@@ -134,8 +133,7 @@ services:
         NUM_PARTIES: 3
     ports:
       - "8007:8007"
-      - "8020:8020"
-      - "8026:8026"
+      - "8014:8014"
     environment:
       - PARTY_ID=1
     volumes:
@@ -154,8 +152,7 @@ services:
         NUM_PARTIES: 3
     ports:
       - "8008:8008"
-      - "8021:8021"
-      - "8027:8027"
+      - "8015:8015"
     environment:
       - PARTY_ID=2
     volumes:

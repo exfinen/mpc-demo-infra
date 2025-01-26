@@ -67,10 +67,12 @@ class Client:
             octetStream(b'%d' % client_id).Send(plain_socket)
 
             logger.info(f"Wrapping socket...")
-            try:
-                wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
-            except Exception  as e:
-                logger.error(f"Error wrapping socket: {e}")
+            while True:
+                try:
+                    wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                    break
+                except Exception  as e:
+                    logger.error(f"Error wrapping socket: {e}")
 
             self.sockets.append(wrapped_socket)
             logger.inof("Added socket to list")

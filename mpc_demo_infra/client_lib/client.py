@@ -40,7 +40,7 @@ class Client:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
-
+        ctx.verify_mode = ssl.CERT_OPTIONAL
 
         self.sockets = []
         for i, hostname in enumerate(hosts):

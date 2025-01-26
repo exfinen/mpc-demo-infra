@@ -88,8 +88,10 @@ async def validate_computation_key(request: RequestValidateComputationKeyRequest
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
-    is_finished = x.app.state.user_queue.finish_computation(request.access_key, request.computation_key)
-    logger.info(f"finish_computation: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
+    access_key = request.access_key
+    computation_key = request.computation_key
+    is_finished = x.app.state.user_queue.finish_computation(access_key, computation_key)
+    logger.info(f"Finished computation: {is_finished=}, {access_key=}, {computation_key=}. Current queue: {x.app.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)

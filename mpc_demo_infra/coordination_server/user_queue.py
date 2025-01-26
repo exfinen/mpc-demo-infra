@@ -173,9 +173,14 @@ class UserQueue:
             return position is not None and position == 0 and user.computation_key == computation_key
 
     def finish_computation(self, access_key: str, computation_key: str) -> bool:
-        logger.info(f"Finishing computation: {access_key=}, {computation_key=} ...")
+        logger.info(f"Finishing computation: {access_key=}, {computation_key=}, Current queue: {self._queue_to_str()}") 
         with self.locker.gen_wlock():
             position, user = self.user_positions.get(access_key, (None, None))
+            if user is None:
+                logger.warn(f"User '{access_key}' is no longer in the queue")
+                return False
+
+            logger.info(f"Current position of the user '{user}' is {position}")
             logger.info(f"Current position of the user '{user}' is {position}")
             if position is not None and position == 0 and user.computation_key == computation_key:
                 user = self._pop_user()

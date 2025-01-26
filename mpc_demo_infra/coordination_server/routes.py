@@ -163,8 +163,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     logger.info(f"Registration verified for voucher code: {eth_address}, {client_id=}")
 
-    # FIXME: use rotated ports for now
-    mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
+    mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
     logger.info(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     try:
@@ -373,8 +372,10 @@ def get_data_sharing_mpc_ports() -> tuple[int, int]:
         free_ports_start + num_parties, ..., free_ports_start + 2 * num_parties - 1,
     ]
     """
+    logger.info(f"Assigning sharing mpc ports: {settings.free_ports_start=}, end: {settings.num_parties=}")
     server_port_base = settings.free_ports_start
     client_port_base = settings.free_ports_start + settings.num_parties
+    logger.info(f"Share data port allocation: {settings.free_ports_start=}, end: {settings.num_parties=}, {server_port_base=}, {client_port_base=}")
     return server_port_base, client_port_base
 
 
@@ -396,5 +397,5 @@ def get_computation_query_mpc_ports() -> tuple[int, int]:
         next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
     else:
         next_query_port_base = client_port_base + settings.num_parties
-    logger.info(f"Computation party ports: {server_port_base=}, {client_port_base=}")
+    logger.info(f"Computation party port allocation: {server_port_base=}, {client_port_base=}")
     return server_port_base, client_port_base

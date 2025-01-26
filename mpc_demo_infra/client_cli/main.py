@@ -110,8 +110,11 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
             computation_key,
             timestamp,
         )
-    finally:
         logger.info("Sharing data fisnihed")
+
+    except Exception as e:
+        logger.error(f"Faield to share data: {e}")
+    finally:
         # Call the server to mark the computation as finished whether it succeeds or not.
         await mark_queue_computation_to_be_finished(settings.coordination_server_url, eth_address, computation_key)
     logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
@@ -139,6 +142,9 @@ async def query_computation_and_verify():
             access_key,
             computation_key,
         )
+        logger.info("Query computation fisnihed")
+    except Exception as e:
+        logger.error(f"Faield to query computation: {e}")
     finally:
         await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
     logger.info(f"{results=}")

@@ -102,7 +102,7 @@ def main():
     print_ln('Now closing this connection')
     #print_ln('Num data providers: %s', client_values[0].reveal())
 
-    closeclientconnection(client_socket_id)
+    #closeclientconnection(client_socket_id)
 
 
 main()

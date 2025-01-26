@@ -53,7 +53,7 @@ async def generate_tlsn_proof(api_key: str, api_secret: str, notary_crt_path: Op
 
     cmd = f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret}"
     if notary_crt_path:
-        cmd += f" --notary-crt-path {notary_crt_path}"
+        cmd += f" {notary_crt_path}"
     logger.info(f"Executing: {cmd}")
 
     process = await asyncio.create_subprocess_shell(

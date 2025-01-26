@@ -66,6 +66,7 @@ class Client:
             logger.info(f"Wrapping and storing socket...")
             self.sockets.append(ctx.wrap_socket(plain_socket,
                                                 server_hostname='P%d' % i))
+            logger.inof("Added socket to list")
             time.sleep(1)
 
         self.specification = octetStream()

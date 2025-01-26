@@ -88,6 +88,7 @@ async def validate_computation_key(request: RequestValidateComputationKeyRequest
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
+    logger.info("'finish_computation' endpoint called")
     access_key = request.access_key
     computation_key = request.computation_key
     is_finished = x.app.state.user_queue.finish_computation(access_key, computation_key)

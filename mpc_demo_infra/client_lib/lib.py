@@ -45,6 +45,7 @@ def run_data_sharing_client(
 ):
     logger.info(f"Setting up data sharing client with {party_hosts=}, {port_base=}...")
     client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
+    logger.info(f"Created Client instance")
 
     for socket in client.sockets:
         os = octetStream()

@@ -63,11 +63,11 @@ class Client:
             logger.info(f"Creating octectstream...")
             octetStream(b'%d' % client_id).Send(plain_socket)
 
-            logger.info(f"Wrapping and storing socket...")
-            self.sockets.append(ctx.wrap_socket(plain_socket,
-                                                server_hostname='P%d' % i))
+            logger.info(f"Wrapping socket...")
+            wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+            logger.info(f"Wrapped socket")
+            self.sockets.append(wrapped_socket)
             logger.inof("Added socket to list")
-            time.sleep(1)
 
         self.specification = octetStream()
         self.specification.Receive(self.sockets[0])

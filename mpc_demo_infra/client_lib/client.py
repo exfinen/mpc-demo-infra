@@ -68,6 +68,7 @@ class Client:
                     logger.inof("Added socket to list")
                     break
                 except Exception  as e:
+                    print(".")
                     time.sleep(1)
 
         self.specification = octetStream()

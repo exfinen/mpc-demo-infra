@@ -166,7 +166,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     logger.info(f"Registration verified for voucher code: {eth_address}, {client_id=}")
 
-    mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
+    mpc_server_port_base, mpc_client_port_base = get_fixed_mpc_ports()
     logger.info(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     try:
@@ -283,7 +283,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
         raise HTTPException(status_code=400, detail="Client ID is out of range")
 
     logger.info(f"Getting computation query MPC ports")
-    mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
+    mpc_server_port_base, mpc_client_port_base = get_fixed_mpc_ports()
     logger.info(f"Using computation query MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     num_data_providers = db.query(MPCSession).count()
@@ -363,11 +363,8 @@ def get_data_commitment_hash_from_tlsn_proof(tlsn_proof: str) -> str:
 # if num_parties = 3, free_ports_start = 8010, free_ports_end = 8100
 # free_ports = [8010, 8011, 8012, ..., 8100]
 
-def get_data_sharing_mpc_ports() -> tuple[int, int]:
+def get_fixed_mpc_ports() -> tuple[int, int]:
     """
-    Ports for data sharing MPC server/client are fixed since we can reuse the same ports,
-    since only one data provider can share data at a time.
-
     data_sharing_mpc_server_ports = [
         free_ports_start, ..., free_ports_start + num_parties - 1,
     ]

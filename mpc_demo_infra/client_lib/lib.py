@@ -189,13 +189,14 @@ async def share_data(
     access_key: str,
     computation_key: str,
     client_id: int,
+    max_client_count: int,
 ):
     if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
         raise Exception(f"Computation key is invalid")
     else:
         logger.info(f"Validated computation key: {computation_key}")
 
-    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path, client_id)
+    client_id, cert_path, key_path = await generate_client_cert(MAX_CLIENT_ID, all_certs_path, client_id, max_client_count)
     with open(cert_path, "r") as cert_file:
         cert_file_content = cert_file.read()
 

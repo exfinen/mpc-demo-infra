@@ -35,10 +35,8 @@ def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
 
-logging.basicConfig(level=logging.DEBUG)
-
 class Client:
-    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout):
+    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout, max_client_wait):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
@@ -67,7 +65,7 @@ class Client:
                 except Exception  as e:
                     print(".", end="", flush=True)
                     plain_socket.close()
-                    if wait_count == settings.max_client_wait:
+                    if wait_count == max_client_wait:
                         logging.error("Party servers are not responding")
                         raise
                     wait_count += 1

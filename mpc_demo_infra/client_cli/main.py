@@ -142,6 +142,7 @@ async def query_computation_and_verify():
             settings.party_hosts,
             access_key,
             computation_key,
+            settings.max_client_wait,
         )
         logger.info("Query computation fisnihed")
     except Exception as e:
@@ -169,7 +170,6 @@ def query_computation_and_verify_cli():
     try:
         logger.info(f"Started with settings: {settings}")
         asyncio.run(query_computation_and_verify())
-        logger.info("Computation finished")
     except Exception as e:
         logger.error(e)
 

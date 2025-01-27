@@ -37,6 +37,7 @@ async def update_cache():
         certs_path=Path(settings.certs_path),
         party_hosts=settings.party_hosts,
         party_ports=settings.party_ports,
+        max_client_wait=settings.max_client_wait,
     )
     _computation_cache = QueryComputationResponse(
         num_data_providers=results.num_data_providers,

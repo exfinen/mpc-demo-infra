@@ -109,7 +109,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
             access_key,
             computation_key,
             timestamp,
-            settins.max_client_wait,
+            settings.max_client_wait,
         )
         logger.info("Sharing data fisnihed")
 

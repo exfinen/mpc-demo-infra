@@ -141,6 +141,12 @@ async def generate_client_cert(max_client_id: int, certs_path: Path, client_id: 
     await process.wait()
     if process.returncode != 0:
         raise Exception(f"Failed to generate client cert for {client_id}")
+
+    subprocess.run(
+        f"c_rehash {certs_path}",
+        check=True,
+        shell=True,
+    )
     return client_id, cert_path, key_path
 
 

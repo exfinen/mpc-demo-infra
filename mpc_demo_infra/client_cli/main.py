@@ -5,6 +5,7 @@ import json
 import secrets
 import logging
 from datetime import datetime
+from typing import Optional
 
 from ..client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready, mark_queue_computation_to_be_finished
 from .config import settings
@@ -42,7 +43,7 @@ def locate_binance_prover():
     logger.info(f"Found binance_prover in {binance_prover_dir}")
     return binance_prover_dir, binance_prover_exec_cmd
 
-async def generate_tlsn_proof(api_key: str, api_secret: str):
+async def generate_tlsn_proof(api_key: str, api_secret: str, notary_crt_path: Optional[str]):
     binance_prover_dir, binance_prover_exec_cmd = locate_binance_prover()
 
     logger.info(f"Generating Binance ETH balance TLSN proof with notary server {settings.notary_server_host}:{settings.notary_server_port}...")
@@ -50,8 +51,13 @@ async def generate_tlsn_proof(api_key: str, api_secret: str):
     proof_file = PROJECT_ROOT / f"proof{timestamp}.json"
     secret_file = PROJECT_ROOT/ f"secret{timestamp}.json"
 
+    cmd = f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}"
+    if notary_crt_path:
+        cmd += f" {notary_crt_path}"
+    logger.info(f"Executing: {cmd}")
+
     process = await asyncio.create_subprocess_shell(
-        f"{binance_prover_exec_cmd} {settings.notary_server_host} {settings.notary_server_port} {api_key} {api_secret} {str(proof_file.resolve())} {str(secret_file.resolve())}",
+        cmd,
         cwd=binance_prover_dir,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -68,7 +74,7 @@ async def generate_tlsn_proof(api_key: str, api_secret: str):
         nonce = bytes(secret_data["nonce"]).hex()
     return tlsn_proof, secret_input, nonce, timestamp
 
-async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str):
+async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str, notary_crt_path: Optional[str]):
     logger.info(f"Sharing Binance ETH balance data to MPC parties...")
 
     # Wait to get the computation key
@@ -78,7 +84,7 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
 
     try:
         # Generate TLSN proof
-        tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret)
+        tlsn_proof, secret_input, nonce, timestamp = await generate_tlsn_proof(api_key, api_secret, notary_crt_path)
         logger.info(f"Generated TLSN proof")
 
         # Fetch party certificates
@@ -103,10 +109,15 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
             access_key,
             computation_key,
             timestamp,
+            settings.max_client_wait,
         )
+        logger.info("Sharing data fisnihed")
+
+    except Exception as e:
+        logger.error(f"Faield to share data: {e}")
     finally:
         # Call the server to mark the computation as finished whether it succeeds or not.
-        await mark_queue_computation_to_be_finished(settings.coordination_server_url, eth_address, computation_key)
+        await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
     logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 
@@ -132,6 +143,9 @@ async def query_computation_and_verify():
             access_key,
             computation_key,
         )
+        logger.info("Query computation fisnihed")
+    except Exception as e:
+        logger.error(f"Faield to query computation: {e}")
     finally:
         await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
     logger.info(f"{results=}")
@@ -142,15 +156,18 @@ def notarize_and_share_data_cli():
     parser.add_argument("eth_address", type=str, help="The voucher code")
     parser.add_argument("api_key", type=str, help="The API key")
     parser.add_argument("api_secret", type=str, help="The API secret")
+    parser.add_argument("--notary-crt-path", type=str, default=None, help="Path to notary.crt file")
     args = parser.parse_args()
     try:
-        asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret))
+        logger.info(f"Started with settings: {settings}")
+        asyncio.run(notarize_and_share_data(args.eth_address, args.api_key, args.api_secret, args.notary_crt_path))
     except Exception as e:
         logger.error(e)
 
 
 def query_computation_and_verify_cli():
     try:
+        logger.info(f"Started with settings: {settings}")
         asyncio.run(query_computation_and_verify())
         logger.info("Computation finished")
     except Exception as e:

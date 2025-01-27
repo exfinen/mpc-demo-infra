@@ -6,6 +6,8 @@ ARG PORT=8006
 ENV PORT=${PORT}
 ARG PARTY_ID=0
 ENV PARTY_ID=${PARTY_ID}
+ARG NUM_PARTIES=3
+ENV NUM_PARTIES=${NUM_PARTIES}
 
 WORKDIR /root
 
@@ -15,8 +17,13 @@ RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl p
     && pipx ensurepath
 
 # Install mpc-demo-infra
-RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
+# RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
+#     && cd mpc-demo-infra \
+#     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
+RUN git clone https://github.com/exfinen/mpc-demo-infra.git \
     && cd mpc-demo-infra \
+    && git fetch \
+    && git checkout add-docker-compose \
     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 # Install rust
@@ -38,10 +45,9 @@ RUN cd MP-SPDZ \
 
 COPY .env.party /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-COPY P${PARTY_ID}.key /root/MP-SPDZ/Player-Data/
-COPY P0.pem /root/MP-SPDZ/Player-Data/
-COPY P1.pem /root/MP-SPDZ/Player-Data/
-COPY P2.pem /root/MP-SPDZ/Player-Data/
+
+RUN cd /root/MP-SPDZ \
+    && ./Scripts/setup-ssl.sh ${NUM_PARTIES}
 
 RUN sed -i "s/^PORT=.*/PORT=${PORT}/" /root/mpc-demo-infra/.env.party \
     && sed -i "s/^PARTY_ID=.*/PARTY_ID=${PARTY_ID}/" /root/mpc-demo-infra/.env.party

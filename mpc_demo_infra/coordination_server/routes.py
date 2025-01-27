@@ -77,7 +77,7 @@ async def add_priority_user_to_queue(request: RequestAddUserToQueueRequest, x: R
 async def get_position(request: RequestGetPositionRequest, x: Request):
     position = x.app.state.user_queue.get_position(request.access_key)
     computation_key = x.app.state.user_queue.get_computation_key(request.access_key)
-    logger.info(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}")
+    logger.info(f"get_position: {request.access_key}; position={position}, computation_key={computation_key}, queue: {x.app.state.user_queue._queue_to_str()}")
     return RequestGetPositionResponse(position=position, computation_key=computation_key)
 
 @router.post("/validate_computation_key", response_model=RequestValidateComputationKeyResponse)
@@ -88,8 +88,11 @@ async def validate_computation_key(request: RequestValidateComputationKeyRequest
 
 @router.post("/finish_computation", response_model=RequestFinishComputationResponse)
 async def finish_computation(request: RequestFinishComputationRequest, x: Request):
-    is_finished = x.app.state.user_queue.finish_computation(request.access_key, request.computation_key)
-    logger.info(f"finish_computation: {request.access_key}; {x.app.state.user_queue._queue_to_str()}")
+    logger.info("'finish_computation' endpoint called")
+    access_key = request.access_key
+    computation_key = request.computation_key
+    is_finished = x.app.state.user_queue.finish_computation(access_key, computation_key)
+    logger.info(f"Finished computation: {is_finished=}, {access_key=}, {computation_key=}. Current queue: {x.app.state.user_queue._queue_to_str()}")
     return RequestFinishComputationResponse(is_finished=is_finished)
 
 @router.post("/share_data", response_model=RequestSharingDataResponse)
@@ -115,11 +118,12 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     # Verify TLSN proof.
     with tempfile.NamedTemporaryFile(delete=False) as temp_tlsn_proof_file:
+        #logger.info(f"TLSN proof: {request.tlsn_proof}")
         logger.info(f"Writing TLSN proof to temporary file: {temp_tlsn_proof_file.name}")
         # Store TLSN proof in temporary file.
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
 
-        logger.info(f"Running TLSN proof verifier: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
+        logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
         binance_verifier_locations = [
             (Path('.').resolve(), CMD_TLSN_VERIFIER),
@@ -146,11 +150,11 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
         logger.info(f"TLSN proof verification passed")
 
-    # Check if uid already in db. If so, raise an error.
-    if settings.prohibit_multiple_contributions:
-        if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-            logger.error(f"UID {uid} already in database")
-            raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+        if settings.prohibit_multiple_contributions:
+            # Check if uid already in db. If so, raise an error.
+            if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+                logger.error(f"UID {uid} already in database")
+                raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {eth_address=}")
@@ -162,8 +166,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
 
     logger.info(f"Registration verified for voucher code: {eth_address}, {client_id=}")
 
-    # FIXME: use rotated ports for now
-    mpc_server_port_base, mpc_client_port_base = get_computation_query_mpc_ports()
+    mpc_server_port_base, mpc_client_port_base = get_data_sharing_mpc_ports()
     logger.info(f"Acquired lock. Using data sharing MPC ports: {mpc_server_port_base=}, {mpc_client_port_base=}")
 
     try:
@@ -176,6 +179,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                     tasks = []
                     for party_host, party_port in zip(settings.party_hosts, settings.party_ports):
                         url = f"{settings.party_web_protocol}://{party_host}:{party_port}/request_sharing_data_mpc"
+                        logger.info(f"Sending: {url}")
                         headers = {"X-API-Key": settings.party_api_key}
                         task = session.post(url, json={
                             "tlsn_proof": tlsn_proof,
@@ -187,15 +191,15 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
                         }, headers=headers)
                         tasks.append(task)
                     # l.set()
-                    logger.info(f"Concurrently sent sharing data request to all parties")
 
                     # Send all requests concurrently
+                    logger.info(f"Concurrently sent sharing data request to all parties")
                     responses = await asyncio.gather(*tasks)
                     logger.info(f"Received responses for sharing data MPC for {eth_address=}")
                     # Check if all responses are successful
                     for party_id, response in enumerate(responses):
                         if response.status != 200:
-                            logger.error(f"Failed to request sharing data MPC from {party_id}: {response.status}")
+                            logger.error(f"Failed to request sharing data MPC from party {party_id}: {response.status}")
                             raise HTTPException(status_code=500, detail=f"Failed to request sharing data MPC from {party_id}. Details: {await response.text()}")
                     # Check if all data commitments are the same
                     data_commitments = [(await response.json())["data_commitment"] for response in responses]
@@ -338,9 +342,8 @@ def get_uid_from_tlsn_proof_verifier(stdout_from_tlsn_proof_verifier: str) -> in
         uid = uid_match.group(1)
         logger.info(f"UID: {uid}")
     else:
-        print(f"stdout: {stdout_from_tlsn_proof_verifier}");
         raise ValueError(
-            f"UID not found in stdout from TLSN proof verifier: {stdout_from_tlsn_proof_verifier}"
+            f"UID not found in stdout from TLSN proof verifier. Verifier stdout: {stdout_from_tlsn_proof_verifier}"
         )
     return int(uid)
 
@@ -372,8 +375,10 @@ def get_data_sharing_mpc_ports() -> tuple[int, int]:
         free_ports_start + num_parties, ..., free_ports_start + 2 * num_parties - 1,
     ]
     """
+    logger.info(f"Assigning sharing mpc ports: {settings.free_ports_start=}, end: {settings.num_parties=}")
     server_port_base = settings.free_ports_start
     client_port_base = settings.free_ports_start + settings.num_parties
+    logger.info(f"Share data port allocation: {settings.free_ports_start=}, end: {settings.num_parties=}, {server_port_base=}, {client_port_base=}")
     return server_port_base, client_port_base
 
 
@@ -395,5 +400,5 @@ def get_computation_query_mpc_ports() -> tuple[int, int]:
         next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
     else:
         next_query_port_base = client_port_base + settings.num_parties
-    logger.info(f"Computation party ports: {server_port_base=}, {client_port_base=}")
+    logger.info(f"Computation party port allocation: {server_port_base=}, {client_port_base=}")
     return server_port_base, client_port_base

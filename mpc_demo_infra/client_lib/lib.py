@@ -5,6 +5,7 @@ import random
 from pathlib import Path
 import secrets
 import logging
+import subprocess
 
 from .client import Client, octetStream
 from ..constants import MAX_CLIENT_ID, MAX_DATA_PROVIDERS, CLIENT_TIMEOUT
@@ -42,9 +43,11 @@ def run_data_sharing_client(
     key_file: str,
     input_value: int,
     nonce: str,
+    max_client_wait: int,
 ):
     logger.info(f"Setting up data sharing client with {party_hosts=}, {port_base=}...")
-    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
+    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT, max_client_wait)
+    logger.info(f"Created Client instance")
 
     for socket in client.sockets:
         os = octetStream()
@@ -140,6 +143,12 @@ async def generate_client_cert(max_client_id: int, certs_path: Path, client_id: 
     await process.wait()
     if process.returncode != 0:
         raise Exception(f"Failed to generate client cert for {client_id}")
+
+    subprocess.run(
+        f"c_rehash {certs_path}",
+        check=True,
+        shell=True,
+    )
     return client_id, cert_path, key_path
 
 
@@ -158,6 +167,7 @@ async def validate_computation_key(coordination_server_url: str, access_key: str
 
 async def mark_queue_computation_to_be_finished(coordination_server_url: str, access_key: str, computation_key: str) -> bool:
     async with aiohttp.ClientSession() as session:
+        logger.info(f"Marking computation to be finished with {computation_key=}...")
         async with session.post(f"{coordination_server_url}/finish_computation", json={
             "access_key": access_key,
             "computation_key": computation_key,
@@ -180,6 +190,7 @@ async def share_data(
     access_key: str,
     computation_key: str,
     client_id: int,
+    max_client_wait: int,
 ):
     if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
         raise Exception(f"Computation key is invalid")
@@ -218,7 +229,8 @@ async def share_data(
         str(cert_path),
         str(key_path),
         int(value*10*BINANCE_DECIMAL_SCALE),
-        nonce
+        nonce,
+        max_client_wait,
     )
     return result
 
@@ -270,26 +282,26 @@ async def poll_queue_until_ready(coordination_server_url: str, access_key: str, 
                     position = data["position"]
                     if position is None:
                         if use_print:
-                            print("The queue is currently full. Please wait for your turn.", end='\r', flush=True)
+                            print("| The queue is currently full. Please wait for your turn.", end='\r', flush=True)
                         else:
-                            logger.warn("The queue is currently full. Please wait for your turn.")
+                            logger.warn("| The queue is currently full. Please wait for your turn.")
                     else:
                         if position == 0:
                             if use_print:
-                                print(f"Computation servers are ready. Your requested computation will begin shortly.", end='\r', flush=True)
+                                print(f"| Computation servers are ready. Your requested computation will begin shortly.", end='\r', flush=True)
                             else:
-                                logger.info("Computation servers are ready. Your requested computation will begin shortly.")
+                                logger.info("| Computation servers are ready. Your requested computation will begin shortly.")
                             return data["computation_key"]
                         else:
                             if use_print:
-                                print(f"You're #{position} in line", end='\r', flush=True)
+                                print(f"| You're #{position} in line", end='\r', flush=True)
                             else:
-                                logger.info(f"You're #{position} in line")
+                                logger.info(f"| You're #{position} in line")
                 else:
                     if use_print:
-                        print(f"Server error. Status {response.status}", end='\r', flush=True)
+                        print(f"| Server error. Status {response.status}", end='\r', flush=True)
                     else:
-                        logger.error(f"Server error. Status {response.status}")
+                        logger.error(f"| Server error. Status {response.status}")
         await asyncio.sleep(poll_duration)
 
 
@@ -324,6 +336,7 @@ async def query_computation_from_data_consumer_api(
             computation_key,
         )
     finally:
+        logger.info("Query computation finished")
         await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key)
 
 
@@ -375,7 +388,9 @@ async def fetch_parties_certs(
     party_ports: list[int],
 ):
     async def get_party_cert(session, host: str, port: int, party_id: int):
-        async with session.get(f"{party_web_protocol}://{host}:{port}/get_party_cert") as response:
+        url = f"{party_web_protocol}://{host}:{port}/get_party_cert"
+        logger.info(f"Fetching party cert with {url}...")
+        async with session.get(url) as response:
             if response.status != 200:
                 raise Exception(f"Failed to get party cert: {response.status=}, {await response.text()=}")
             data = await response.json()

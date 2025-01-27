@@ -11,8 +11,13 @@ RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl p
     && pipx ensurepath
 
 # Install mpc-demo-infra
-RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
+# RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
+#     && cd mpc-demo-infra \
+#     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
+RUN git clone https://github.com/exfinen/mpc-demo-infra.git \
     && cd mpc-demo-infra \
+    && git fetch \
+    && git checkout add-docker-compose \
     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 # Install rust
@@ -21,13 +26,12 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Install binance_verifier
 RUN git clone https://github.com/ZKStats/tlsn.git \
     && cd tlsn \
-    && git checkout mpspdz-compat-binance \
+    && git checkout mpspdz-compat \
     && cd tlsn \
     && cargo build --release --example binance_verifier
 
 COPY .env.coord /root/mpc-demo-infra/
 COPY ssl_certs/ /root/mpc-demo-infra/ssl_certs/
-COPY notary.key /root/tlsn/notary/server/fixture/notary/
 
 WORKDIR /root/mpc-demo-infra
 EXPOSE 8000-9000

@@ -36,35 +36,40 @@ def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
     sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
 
 class Client:
-    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout):
+    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout, max_client_wait):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
         ctx.load_verify_locations(capath=certs_path)
-
+        ctx.verify_mode = ssl.CERT_OPTIONAL
+        ctx.check_hostname = False
 
         self.sockets = []
+        wait_count = 0
         for i, hostname in enumerate(hosts):
-            for j in range(10000):
+            logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
+            while True:
                 try:
-                    logging.info("Establishing socket connection to %s:%d...", hostname, port_base + i)
                     plain_socket = socket.create_connection(
-                        (hostname, port_base + i), timeout=timeout)
-                    logging.info("Etablished")
+                            (hostname, port_base + i), timeout=timeout)
+
+                    if platform.system() == "Linux":
+                        set_keepalive_linux(plain_socket)
+                    elif platform.system() == "Darwin":
+                        set_keepalive_osx(plain_socket)
+
+                    octetStream(b'%d' % client_id).Send(plain_socket)
+                    ssl_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                    self.sockets.append(ssl_socket)
+                    print("Established")
                     break
-                except ConnectionRefusedError:
-                    if j < 600:
-                       time.sleep(5)
-                    else:
+                except Exception  as e:
+                    print(".", end="", flush=True)
+                    plain_socket.close()
+                    if wait_count == max_client_wait:
+                        logging.error("Party servers are not responding")
                         raise
-
-            if platform.system() == "Linux":
-                set_keepalive_linux(plain_socket)
-            elif platform.system() == "Darwin":
-                set_keepalive_osx(plain_socket)
-
-            octetStream(b'%d' % client_id).Send(plain_socket)
-            self.sockets.append(ctx.wrap_socket(plain_socket,
-                                                server_hostname='P%d' % i))
+                    wait_count += 1
+                    time.sleep(1)
 
         self.specification = octetStream()
         self.specification.Receive(self.sockets[0])

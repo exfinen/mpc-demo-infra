@@ -45,7 +45,6 @@ class Client:
         ctx.verify_mode = ssl.CERT_OPTIONAL
         ctx.check_hostname = False
 
-        
         self.sockets = []
         wait_count = 0
         for i, hostname in enumerate(hosts):
@@ -70,7 +69,7 @@ class Client:
                     plain_socket.close()
                     if wait_count == settings.max_client_wait:
                         logging.error("Party servers are not responding")
-                        raise e
+                        raise
                     wait_count += 1
                     time.sleep(1)
 

@@ -66,6 +66,7 @@ class Client:
                     break
                 except Exception  as e:
                     print(".", end="", flush=True)
+                    plain_socket.close()
                     time.sleep(1)
 
         self.specification = octetStream()

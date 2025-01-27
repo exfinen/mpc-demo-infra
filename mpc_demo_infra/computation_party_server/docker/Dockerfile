@@ -17,13 +17,8 @@ RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl p
     && pipx ensurepath
 
 # Install mpc-demo-infra
-# RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
-#     && cd mpc-demo-infra \
-#     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
-RUN git clone https://github.com/exfinen/mpc-demo-infra.git \
+RUN git clone https://github.com/ZKStats/mpc-demo-infra.git \
     && cd mpc-demo-infra \
-    && git fetch \
-    && git checkout add-docker-compose \
     && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 # Install rust
@@ -40,7 +35,7 @@ RUN git clone https://github.com/ZKStats/tlsn.git \
 RUN git clone --recursive https://github.com/ZKStats/MP-SPDZ.git
 COPY CONFIG.mine /root/MP-SPDZ
 RUN cd MP-SPDZ \
-    && git checkout demo_client \
+    && git checkout mpcstats-lib \
     && make -j$(nproc) malicious-rep-ring-party.x
 
 COPY .env.party /root/mpc-demo-infra/

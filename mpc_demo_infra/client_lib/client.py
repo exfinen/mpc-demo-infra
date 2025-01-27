@@ -60,8 +60,8 @@ class Client:
                         set_keepalive_osx(plain_socket)
 
                     octetStream(b'%d' % client_id).Send(plain_socket)
-                    wrapped_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
-                    self.sockets.append(wrapped_socket)
+                    #ssl_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                    self.sockets.append(plain_socket)
                     print("Established")
                     break
                 except Exception  as e:

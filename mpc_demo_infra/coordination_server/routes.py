@@ -381,21 +381,21 @@ def get_fixed_mpc_ports() -> tuple[int, int]:
 
 # NOTE: Shouldn't need a lock since it's all async and thus `get_computation_query_mpc_ports` is atomic.
 # If any thread is used, we should use a lock here.
-next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
+# next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
 
-def get_computation_query_mpc_ports() -> tuple[int, int]:
-    """
-    Ports for computation query MPC server/client are dynamic since there can be multiple clients querying at the same time.
-    """
-    global next_query_port_base
-    # server_ports =[next_query_port_base, ..., next_query_port_base + num_parties - 1]
-    server_port_base = next_query_port_base
-    # client_ports = [next_query_port_base + num_parties, ..., next_query_port_base + 2 * num_parties - 1]
-    client_port_base = next_query_port_base + settings.num_parties
-    if client_port_base + settings.num_parties > settings.free_ports_end:
-        # Used up all ports, wrap around
-        next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
-    else:
-        next_query_port_base = client_port_base + settings.num_parties
-    logger.info(f"Computation party port allocation: {server_port_base=}, {client_port_base=}")
-    return server_port_base, client_port_base
+# def get_computation_query_mpc_ports() -> tuple[int, int]:
+#     """
+#     Ports for computation query MPC server/client are dynamic since there can be multiple clients querying at the same time.
+#     """
+#     global next_query_port_base
+#     # server_ports =[next_query_port_base, ..., next_query_port_base + num_parties - 1]
+#     server_port_base = next_query_port_base
+#     # client_ports = [next_query_port_base + num_parties, ..., next_query_port_base + 2 * num_parties - 1]
+#     client_port_base = next_query_port_base + settings.num_parties
+#     if client_port_base + settings.num_parties > settings.free_ports_end:
+#         # Used up all ports, wrap around
+#         next_query_port_base = settings.free_ports_start + 2 * settings.num_parties
+#     else:
+#         next_query_port_base = client_port_base + settings.num_parties
+#     logger.info(f"Computation party port allocation: {server_port_base=}, {client_port_base=}")
+#     return server_port_base, client_port_base

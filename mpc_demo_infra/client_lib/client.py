@@ -45,8 +45,9 @@ class Client:
         ctx.verify_mode = ssl.CERT_OPTIONAL
         ctx.check_hostname = False
 
-        time.sleep(30)
+        
         self.sockets = []
+        wait_count = 0
         for i, hostname in enumerate(hosts):
             logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
             while True:
@@ -67,6 +68,10 @@ class Client:
                 except Exception  as e:
                     print(".", end="", flush=True)
                     plain_socket.close()
+                    if wait_count == settings.max_client_wait:
+                        logging.error("Party servers are not responding")
+                        raise e
+                    wait_count += 1
                     time.sleep(1)
 
         self.specification = octetStream()

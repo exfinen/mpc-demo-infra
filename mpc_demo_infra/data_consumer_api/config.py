@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     max_bytes_mb = 20
     backup_count = 10
     
+    max_client_wait = 1000
+
     class Config:
         env_file = ".env.consumer_api"
 

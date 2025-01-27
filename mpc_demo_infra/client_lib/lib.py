@@ -89,9 +89,10 @@ def run_computation_query_client(
     cert_file: str,
     key_file: str,
     max_data_providers: int,
+    max_client_wait: int,
 ):
     # client id should be assigned by our server
-    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT)
+    client = Client(party_hosts, port_base, client_id, certs_path, cert_file, key_file, CLIENT_TIMEOUT, max_client_wait)
 
     for socket in client.sockets:
         os = octetStream()
@@ -314,6 +315,7 @@ async def query_computation_from_data_consumer_api(
     certs_path: Path,
     party_hosts: list[str],
     party_ports: list[int],
+    max_client_wait: int,
 ):
     access_key = secrets.token_urlsafe(16)
     await add_priority_user_to_queue(coordination_server_url, access_key, poll_duration)
@@ -334,6 +336,7 @@ async def query_computation_from_data_consumer_api(
             computation_party_hosts,
             access_key,
             computation_key,
+            max_client_wait,
         )
     finally:
         logger.info("Query computation finished")
@@ -346,6 +349,7 @@ async def query_computation(
     computation_party_hosts: list[str],
     access_key: str,
     computation_key: str,
+    max_client_wait: int,
 ):
     if await validate_computation_key(coordination_server_url, access_key, computation_key) == False:
         raise Exception(f"Error: Computation key is invalid")
@@ -376,6 +380,7 @@ async def query_computation(
         str(cert_path),
         str(key_path),
         MAX_DATA_PROVIDERS,
+        max_client_wait,
     )
     return results
 

@@ -45,7 +45,7 @@ class Client:
         ctx.verify_mode = ssl.CERT_OPTIONAL
         ctx.check_hostname = False
 
-        time.sleep(60)
+        time.sleep(30)
         self.sockets = []
         for i, hostname in enumerate(hosts):
             logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
@@ -60,8 +60,8 @@ class Client:
                         set_keepalive_osx(plain_socket)
 
                     octetStream(b'%d' % client_id).Send(plain_socket)
-                    #ssl_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
-                    self.sockets.append(plain_socket)
+                    ssl_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                    self.sockets.append(ssl_socket)
                     print("Established")
                     break
                 except Exception  as e:

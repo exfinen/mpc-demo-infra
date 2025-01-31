@@ -31,6 +31,44 @@ To participate in our demo [ETH Inequality @ DevCon 2024](https://demo.mpcstats.
 
 ## Getting Started
 
+### Run it using `docker-compose`
+#### Running all the servers locally
+1. Install `docker-compose` following the instructions [here](https://docs.docker.com/compose/install/).
+2. Start the servers with the following commands:
+   ```bash
+   ./configure.py
+   docker-compose up --build
+   ```
+3. Share your ETH balance at Binance with `client-cli`
+   1. Install [poetry](https://python-poetry.org/docs/#installation)
+   2. Install dependencies with:
+   ```
+   poetry install
+   ```
+   3. Run the following command to share data:
+   ```
+   poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
+   ```
+
+#### Running servers on a separate machine
+1. Follow the README file to set up and run below five servers:
+   - Coordination Server [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/coordination_server/docker/README.md)
+   - Computation Party Server 1 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
+   - Computation Party Server 2 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
+   - Computation Party Server 3 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
+   - Notary Server [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/notary_server/docker/README.md)
+
+2. Share your ETH balance at Binance with `client-cli`
+   1. Install [poetry](https://python-poetry.org/docs/#installation)
+   2. Install dependencies with:
+   ```
+   poetry install
+   ```
+   3. Run the following command to share data:
+   ```
+   poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
+   ```
+
 ### Run it using tests folder
 
 - Here, we already prepopulate corresponding proof and secret file for two input providers from https://github.com/ZKStats/tlsn/tree/mpspdz-compat.
@@ -39,7 +77,7 @@ To participate in our demo [ETH Inequality @ DevCon 2024](https://demo.mpcstats.
 poetry run pytest -s tests/test_integration.py
 ```
 
-### Run it locally
+### Run it locally with `poetry` and manual setup
 
 **Note**: This section is for running the MPC demo locally. For cloud deployment, you'll need to adjust network configurations.
 
@@ -124,3 +162,10 @@ If you encounter issues:
   - you've added `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`.
   - you've generated certificates for computation parties. If not, run `Scripts/setup-ssl.sh` under `../MP-SPDZ`.
   - you've rebuilt the VM. If not, run `make replicated-ring-party.x` under `../MP-SPDZ`.
+5. Clean up the Docker environment by running the following commands for Docker-related issues:
+   ```bash
+   docker system prune -a --volumes
+   docker rm -f $(docker ps -aq)
+   docker volume prune -a -f
+   docker image prune -f
+   ```

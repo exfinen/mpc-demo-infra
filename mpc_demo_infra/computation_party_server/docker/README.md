@@ -1,86 +1,63 @@
-# Running Computation Party Server
+# Running Computation Party Server with Docker
 
-## Assumptions
-This document assumes that:
-1. Coordinbation server URL is:
-   ```
-   https://prod-coord.mpcstats.org:8005
-   ```
-2. 3-party computation is to be run.
-3. Computation party server addresses and ports are:
-| Party ID | Address | Port |
-|----------|---------|------|
-| 0 | prod-party-0.mpcstats.org | 8006 |
-| 1 | prod-party-1.mpcstats.org | 8007 |
-| 2 | prod-party-2.mpcstats.org | 8008 |
- 
-## Configuring server
-### Common configuration
+## Assumtion
+This document assumes that each computation party server runs on a separate machine.
+
+## Common preparation
 1. Clone the `MP-SPDZ` repository
    ```bash
    git clone git@github.com:ZKStats/MP-SPDZ.git
    ```
 
-2. Create certificates
+2. Create pem and key files
    ```bash
    cd MP-SPDZ
    ./Scripts/setup-ssl.sh 3
    ```
 
-3. Copy the certificates to the `<mpc-demo-infra repository root>/computation_party_server/docker/` directory
+3. Copy the pem and key files to the `<mpc-demo-infra repository root>/computation_party_server/docker/` directory
    ```bash
    cp Player-Data/P*.{pem,key} <mp-demo-infra repository root>/mpc_demo_infra/computation_party_server/docker/
    ```
 
-4. Edit `mpc_demo_infra/computation_party_server/docker/.env.party` as follows:
-   ```
-   PARTY_HOSTS=["prod-party-0.mpcstats.org","prod-party-1.mpcstats.org","prod-party-2.mpcstats.org"]
-   PARTY_PORTS=["8006","8007","8008"]
-   ```
-
-   ```
-   COORDINATION_SERVER_URL=https://prod-coord.mpcstats.org:8005
-   ```
-
-### Per-server configuration
-
-- Transport Protocol
-If `PARTY_WEB_PROTOCOL` is set to `https`, the following configuration will be necessary:
-1. Add the .pem files for your HTTPS domain to the `mpc_demo_infra/computation_party_server/docker/ssl_certs directory`.
-2. Update the following variables in the `mpc_demo_infra/data_consumer_api/docker/.env.party file`:
+4. If you intend to use HTTPS, update the following parameters:
+   - `PARTY_WEB_PROTOCOL`: Set to `https`.
    - `PRIVKEY_PEM_PATH`: Path to your private key PEM file.
    - `FULLCHAIN_PEM_PATH`: Path to your full chain PEM file.
-   Ensure the paths are relative to the repository root.
+   The paths need to be relative to the repository root.
 
-- MPC Scheme
-Different MPC schemes can be used for the computation party server.
+   Also add the `privkey.pem` and `fullchain.pem` files for your HTTPS domain to the `mpc_demo_infra/computation_party_server/docker/ssl_certs` directory.
 
-To use a different MPC scheme:
-1. Modify the following line in `mpc_demo_infra/computation_party_server/docker/Dockerfile`:
-   ```
-   && make -j$(nproc) malicious-rep-ring-party.x \
-   ```
-2. Add the following line to `mpc_demo_infra/computation_party_server/docker/.env.party`:
-   ```
-   MPSPDZ_PROTOCOL=<Protocol Name>
-   ```
-   The protocol name should be the name of the `.x` file generated in the previous step with `-party.x` suffix removed. i.e. `malicious-rep-ring` for `malicious-rep-ring-party.x`.
 
-For the list of available schemes, refer to the `Protocols` section in the [MP-SPDZ README](https://github.com/ZKStats/MP-SPDZ?tab=readme-ov-file).
+5. Edit `mpc_demo_infra/computation_party_server/docker/.env.party`:
+   1. Set the hostnames or IP addresses of the three computation party servers to `PARTY_HOSTS` e.g.:
+   ```
+   PARTY_HOSTS=["123.123.123.1","123.123.123.2","123.123.123.3"]
+   ```
+   2. Set the `COORDINATION_SERVER_URL` to the URL of the coordination server. For example, if the coordination server is running on `123.123.123.100` and HTTP is being used, you would set it as follows:
+   ```
+   COORDINATION_SERVER_URL=http://123.123.123.100:8005
+   ```
+
+## Configuring each server
+Three computation party servers are required for the MPC scheme used in the demo infra. Each server should be configured with a unique party ID (0, 1, or 2).
+
+1. Edit `mpc_demo_infra/computation_party_server/docker/.env.party`:
+   `PARTY_ID`: Set the party ID assigned to the server.
 
 ## Running the servers
-To run the servers on each party’s host, follow these steps:
+On each party’s machine, follow below steps:
 
-1. Navigate to the `mpc-demo-infra/mpc_demo_infra/computation_party_server/docker` directory:
+1. Move to the Docker directory:
 ```bash
 cd mpc-demo-infra/mpc_demo_infra/computation_party_server/docker
 ```
 
-2. Run the following commands, replacing %PORT%,  %PARTY_ID%, %NUM_PARTIES with the port, party ID, number of parties for the server:
+2. Run the following commands, replacing %PORT% and %PARTY_ID%. Party 0, Party 1, and Party 2 should use ports 8005, 8006, and 8007, respectively.
 ```bash
 export PORT=%PORT%
 export PARTY_ID=%PARTY_ID%
-export NUM_PARTIES=%NUM_PARTIES%
+export NUM_PARTIES=3
 docker build --build-arg PORT=${PORT} --build-arg PARTY_ID=${PARTY_ID} --build-arg NUM_PARTIES=${NUM_PARTIES} -t party .
 docker run --init -it -v party-data:/root/MP-SPDZ/ -p 8000-8100:8000-8100 -e PARTY_ID=${PARTY_ID} party
 ```

@@ -48,6 +48,7 @@ class Client:
         for i, hostname in enumerate(hosts):
             logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
             while True:
+                plain_socket = None
                 try:
                     plain_socket = socket.create_connection(
                             (hostname, port_base + i), timeout=timeout)
@@ -64,7 +65,8 @@ class Client:
                     break
                 except Exception  as e:
                     print(".", end="", flush=True)
-                    plain_socket.close()
+                    if plain_socket is not None:
+                        plain_socket.close()
                     if wait_count == max_client_wait:
                         logging.error("Party servers are not responding")
                         raise

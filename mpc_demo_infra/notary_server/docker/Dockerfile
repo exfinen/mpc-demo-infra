@@ -33,6 +33,9 @@ RUN openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048
 RUN cp -R /root/tlsn/notary/server/fixture /root/tlsn/notary/target/release/
 RUN cp -R /root/tlsn/notary/server/config /root/tlsn/notary/target/release/
 
+COPY ssl_certs/notary.crt /root/tlsn/notary/target/release/fixture/tls/
+COPY ssl_certs/notary.key /root/tlsn/notary/target/release/fixture/tls/
+
 COPY config.yaml /root/tlsn/notary/target/release/config/
 
 WORKDIR /root/tlsn/notary/target/release

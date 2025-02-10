@@ -1,6 +1,15 @@
 # Share-Data Client Installation Guide
 Welcome to the installation guide for the Share-Data Client on our MPC demo platform. This guide outlines three different installation methods, allowing you to choose based on your security concerns and bandwidth requirements.
 
+## Configuration
+This client is currently configured to share data with the MPC demo infrastructure. To configure the client for your environemnt, edit the following parameters in `mpc_demo_infra/client_cli/.env.client_cli` to suit your need:
+
+- COORDINATION_SERVER_URL
+- PARTY_HOSTS
+- PARTY_WEB_PROTOCOL
+
+If you intend to use HTTPS, also rename the private key and certificate files of your domain as `privkey.pem` and `fullchain.pem` respectively and add them to `mpc_demo_infra/ssl_certs` directory.
+
 ## Installation Methods
 ### TL;DR
 Available installation methods are A, B and C. In summary:

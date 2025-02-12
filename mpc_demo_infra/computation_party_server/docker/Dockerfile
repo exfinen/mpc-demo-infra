@@ -35,7 +35,6 @@ RUN cd tlsn/tlsn \
 COPY MP-SPDZ /root/MP-SPDZ/
 COPY $DOCKERFILE_DIR/CONFIG.mine /root/MP-SPDZ
 RUN cd MP-SPDZ \
-    && git checkout mpcstats-lib \
     && make -j$(nproc) malicious-rep-ring-party.x
 
 COPY $DOCKERFILE_DIR/.env.party /root/mpc-demo-infra/

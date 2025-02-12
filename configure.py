@@ -63,7 +63,7 @@ FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 """
   return output
 
-def gen_docker_compose(notary_ip: str, add_data_consumer_api: bool):
+def gen_docker_compose(notary_ip: str):
   s = f"""\
 services:
   coord:
@@ -96,18 +96,21 @@ services:
     init: true
     extra_hosts:
       - "tlsnotaryserver.io:127.0.0.1"
-"""
-
-  if add_data_consumer_api:
-    s += """\
-  data_consumer_api:
+  consumer_api:
     build:
-      context: ./mpc_demo_infra/data_consumer_api/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/data_consumer_api/docker/Dockerfile
     ports:
       - "8004:8004"
+    volumes:
+      - consumer_api-data:/root/mpc-demo-infra/
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
+    depends_on:
+      - coord
 """
 
   s += """\
@@ -174,6 +177,7 @@ volumes:
   party0-data:
   party1-data:
   party2-data:
+  consumer_api-data:
 """
   return s
 
@@ -196,11 +200,6 @@ def parse_args():
     action='store_true',
     help='Print out the contents of config files',
   )
-  parser.add_argument(
-    '--data-consumer-api',
-    action='store_true',
-    help='Add Data Consumer API server',
-  )
   return parser.parse_args()
 
 args = parse_args()
@@ -219,15 +218,14 @@ party_ports =[8006, 8007, 8008]
 
 mpc_demo_infra = Path('mpc_demo_infra')
 
-# write .env.consumer_api if needed
-if args.data_consumer_api:
-  dot_env_consumer_api = gen_env_consumer_api(
-    args.transport,
-    args.notary_ip,
-    party_hosts,
-    party_ports,
-  )
-  write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
+# write .env.consumer_api 
+dot_env_consumer_api = gen_env_consumer_api(
+  args.transport,
+  args.notary_ip,
+  party_hosts,
+  party_ports,
+)
+write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
 
 # write .env.coord
 dot_env_coord = gen_env_coord(
@@ -247,6 +245,6 @@ dot_env_party = gen_env_party(
 write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party', dot_env_party, args)
 
 # write docker-compose.yml
-docker_compose_yml = gen_docker_compose(args.notary_ip, args.data_consumer_api)
+docker_compose_yml = gen_docker_compose(args.notary_ip)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
 

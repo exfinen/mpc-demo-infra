@@ -1,0 +1,43 @@
+name: mpcstats
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-on-ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out MP-SPDZ
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install MP-SPDZ dependencies
+        run: sudo apt-get install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool
+
+      - name: Build MP-SPDZ
+        run: make setup
+
+      - name: Build semi-party.x
+        run: make -j8 semi-party.x
+
+      - name: Run tests
+        run: cd mpcstats && pytest tests -v

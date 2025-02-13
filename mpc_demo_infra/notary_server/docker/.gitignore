@@ -1,2 +1,3 @@
 ssl_certs/*
-!ssl_certs/.gitkeep
+!ssl_certs/notary.key
+!ssl_certs/notary.crt

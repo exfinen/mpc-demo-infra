@@ -51,13 +51,3 @@ You can use `.env.xxx` to override the default configs.
 - `.env.party`: computation party server. Example in [.env.party.example](.env.party.example)
 - `.env.client_cli`: client CLI. Example in [.env.client_cli.example](.env.client_cli.example)
 
-## Troubleshooting
-
-If you encounter issues:
-1. Ensure all dependencies are correctly installed.
-2. Check that the required ports (8005-8008, 8010-8100) are not in use.
-3. Verify that TLSN and MP-SPDZ are cloned in the correct locations (`../tlsn` and `../MP-SPDZ`).
-4. For MP-SPDZ issues, ensure
-  - you've added `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`.
-  - you've generated certificates for computation parties. If not, run `Scripts/setup-ssl.sh` under `../MP-SPDZ`.
-  - you've rebuilt the VM. If not, run `make replicated-ring-party.x` under `../MP-SPDZ`.

@@ -104,9 +104,15 @@ services:
       dockerfile: ./mpc_demo_infra/data_consumer_api/docker/Dockerfile
     ports:
       - "8004:8004"
+    volumes:
+      - consumer_api-data:/root/mpc-demo-infra/
     stdin_open: true
     tty: true
     init: true
+    extra_hosts:
+      - "tlsnotaryserver.io:127.0.0.1"
+    depends_on:
+      - coord
   party_0:
     build:
       context: .
@@ -173,6 +179,7 @@ volumes:
   party0-data:
   party1-data:
   party2-data:
+  consumer_api-data:
 """
   return s
 
@@ -213,12 +220,12 @@ party_ports =[8006, 8007, 8008]
 
 mpc_demo_infra = Path('mpc_demo_infra')
 
-# write .env.consumer_api
+# write .env.consumer_api 
 dot_env_consumer_api = gen_env_consumer_api(
-args.transport,
-args.notary_ip,
-party_hosts,
-party_ports,
+  args.transport,
+  args.notary_ip,
+  party_hosts,
+  party_ports,
 )
 write_file(mpc_demo_infra / 'data_consumer_api' / 'docker' / '.env.consumer_api', dot_env_consumer_api, args)
 

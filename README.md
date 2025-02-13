@@ -31,113 +31,14 @@ To participate in our demo [ETH Inequality @ DevCon 2024](https://demo.mpcstats.
 
 ## Getting Started
 
-### Run it using `docker-compose`
-#### Running all the servers locally
-1. Install `docker-compose` following the instructions [here](https://docs.docker.com/compose/install/).
-2. Start the servers with the following commands:
-   ```bash
-   ./configure.py
-   docker-compose up --build
-   ```
-3. Share your ETH balance at Binance with `client-cli`
-   1. Install [poetry](https://python-poetry.org/docs/#installation)
-   2. Install dependencies with:
-   ```
-   poetry install
-   ```
-   3. Run the following command to share data:
-   ```
-   poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
-   ```
-
-#### Running servers on a separate machine
-1. Follow the README file to set up and run below five servers:
-   - Coordination Server [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/coordination_server/docker/README.md)
-   - Computation Party Server 1 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
-   - Computation Party Server 2 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
-   - Computation Party Server 3 [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/computation_party_server/docker/README.md)
-   - Notary Server [[README]](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/notary_server/docker/README.md)
-
-2. Share your ETH balance at Binance with `client-cli`
-   1. Install [poetry](https://python-poetry.org/docs/#installation)
-   2. Install dependencies with:
-   ```
-   poetry install
-   ```
-   3. Run the following command to share data:
-   ```
-   poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
-   ```
-
+### Deploying the infrastructure
+Refer to the [documentation website](https://docs.mpcstats.org/category/deploying-the-infrastructure)
+ 
 ### Run it using tests folder
-
 - Here, we already prepopulate corresponding proof and secret file for two input providers from https://github.com/ZKStats/tlsn/tree/mpspdz-compat.
 
 ```
 poetry run pytest -s tests/test_integration.py
-```
-
-### Run it locally with `poetry` and manual setup
-
-**Note**: This section is for running the MPC demo locally. For cloud deployment, you'll need to adjust network configurations.
-
-The demo consists of three main components:
-
-1. Coordination Server: Coordinates the MPC process.
-2. Computation Party Servers: Run by 3 trusted parties and perform the actual MPC computations.
-3. Client CLI: Used by data provider to share data and query results.
-
-Install dependencies:
-
-```bash
-./setup_env.sh --setup-mpspdz
-```
-
-Default ports:
-- 8005: coordination server
-- 8006~8008: computation party server 0~2
-- 8010~8100: ports used by MPC servers during sharing data and querying results
-
-Please make sure these ports are not used by other services.
-
-#### Setup coordination server:
-
-In a terminal, run coordination server:
-
-```bash
-poetry run coord-run
-```
-
-#### Setup computation party server:
-
-In a terminal, run party 0:
-
-```bash
-PORT=8006 PARTY_ID=0 poetry run party-run
-```
-
-In another terminal, run party 1:
-
-```bash
-PORT=8007 PARTY_ID=1 poetry run party-run
-```
-
-In another terminal, run party 2:
-
-```bash
-PORT=8008 PARTY_ID=2 poetry run party-run
-```
-
-#### Data provider share data with a generated voucher.
-
-```bash
-poetry run client-share-data <eth_address> <binance_api_key> <binance_api_secret>
-```
-
-#### Query computation result
-
-```bash
-poetry run client-query
 ```
 
 ## Configurations
@@ -162,10 +63,3 @@ If you encounter issues:
   - you've added `MOD = -DGFP_MOD_SZ=5` to `CONFIG.mine`.
   - you've generated certificates for computation parties. If not, run `Scripts/setup-ssl.sh` under `../MP-SPDZ`.
   - you've rebuilt the VM. If not, run `make replicated-ring-party.x` under `../MP-SPDZ`.
-5. Clean up the Docker environment by running the following commands for Docker-related issues:
-   ```bash
-   docker system prune -a --volumes
-   docker rm -f $(docker ps -aq)
-   docker volume prune -a -f
-   docker image prune -f
-   ```

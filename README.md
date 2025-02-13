@@ -4,8 +4,8 @@ A demonstration infrastructure for Multi-Party Computation (MPC) using TLSN and 
 
 ## Table of Contents
 - [Dependencies](#dependencies)
-- [Getting Started](#getting-started)
-  - [Run it locally](#run-it-locally)
+- [Documentation](#documentation)
+- [Run it using test folder](#run-it-using-tests-folder)
 - [Configurations](#configurations)
 - [Troubleshooting](#troubleshooting)
 
@@ -29,10 +29,8 @@ To participate in our demo [ETH Inequality @ DevCon 2024](https://demo.mpcstats.
   - install: `make setup`
   - build vm: `make replicated-ring-party.x`
 
-## Getting Started
-
-### Deploying the infrastructure
-Refer to the [documentation website](https://docs.mpcstats.org/category/deploying-the-infrastructure)
+## Documentation 
+Visit the [Documentation Website](https://docs.mpcstats.org/) for more details.
  
 ### Run it using tests folder
 - Here, we already prepopulate corresponding proof and secret file for two input providers from https://github.com/ZKStats/tlsn/tree/mpspdz-compat.

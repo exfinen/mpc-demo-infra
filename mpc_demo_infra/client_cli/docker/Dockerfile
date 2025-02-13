@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 SHELL ["/bin/bash", "-c"]
 ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
 
-ENV DOCKERFILE_DIR="mpc_demo_infra/client_cli/docker"
+ENV DOCKERFILE_DIR="./mpc_demo_infra/client_cli/docker"
 
 WORKDIR /root
 

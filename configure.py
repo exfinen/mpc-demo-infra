@@ -68,7 +68,8 @@ def gen_docker_compose(notary_ip: str):
 services:
   coord:
     build:
-      context: ./mpc_demo_infra/coordination_server/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/coordination_server/docker/Dockerfile
     ports:
       - "8005:8005"
     volumes:
@@ -84,7 +85,8 @@ services:
       - party_2
   notary:
     build:
-      context: ./mpc_demo_infra/notary_server/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/notary_server/docker/Dockerfile
       args:
         NORTARY_IP: {notary_ip}
     ports:
@@ -96,7 +98,7 @@ services:
     init: true
     extra_hosts:
       - "tlsnotaryserver.io:127.0.0.1"
-  consumer_api:
+  data_consumer_api:
     build:
       context: .
       dockerfile: ./mpc_demo_infra/data_consumer_api/docker/Dockerfile
@@ -111,12 +113,10 @@ services:
       - "tlsnotaryserver.io:127.0.0.1"
     depends_on:
       - coord
-"""
-
-  s += """\
   party_0:
     build:
-      context: ./mpc_demo_infra/computation_party_server/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/computation_party_server/docker/Dockerfile
       args:
         PORT: 8006
         PARTY_ID: 0
@@ -136,7 +136,8 @@ services:
 
   party_1:
     build:
-      context: ./mpc_demo_infra/computation_party_server/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/computation_party_server/docker/Dockerfile
       args:
         PORT: 8007
         PARTY_ID: 1
@@ -155,7 +156,8 @@ services:
       - "tlsnotaryserver.io:127.0.0.1"
   party_2:
     build:
-      context: ./mpc_demo_infra/computation_party_server/docker
+      context: .
+      dockerfile: ./mpc_demo_infra/computation_party_server/docker/Dockerfile
       args:
         PORT: 8008
         PARTY_ID: 2

@@ -9,7 +9,7 @@ ENV PARTY_ID=${PARTY_ID}
 ARG NUM_PARTIES=3
 ENV NUM_PARTIES=${NUM_PARTIES}
 
-ENV DOCKERFILE_DIR="mpc_demo_infra/computation_party_server/docker"
+ENV DOCKERFILE_DIR="./mpc_demo_infra/computation_party_server/docker"
 
 WORKDIR /root
 

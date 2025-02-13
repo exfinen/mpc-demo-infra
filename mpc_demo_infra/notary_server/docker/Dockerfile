@@ -5,7 +5,7 @@ ENV PATH="/root/.cargo/bin:${PATH}:/root/tlsn/notary/target/release"
 ARG NOTARY_IP="127.0.0.1"
 ENV NOTARY_IP=${NOTARY_IP}
 
-ENV DOCKERFILE_DIR="mpc_demo_infra/notary_server/docker"
+ENV DOCKERFILE_DIR="./mpc_demo_infra/notary_server/docker"
 
 WORKDIR /root
 

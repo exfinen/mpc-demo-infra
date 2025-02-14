@@ -144,6 +144,7 @@ if [ "$setup_local" = true ]; then
     pushd notary/server
     cargo build --release
     cp -R fixture ../target/release
+    cp -R config ../target/release
     popd
 
     # Build binance_prover/verifier

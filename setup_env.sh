@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e 
+
 MPC_PROTOCOL="malicious-rep-ring"
 NUM_PARTIES=3
 
@@ -74,7 +76,7 @@ if ! command_exists cargo; then
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     source $HOME/.cargo/env
 else
-    reustup update
+    rustup update
 fi
 
 # Install pkg-config (used by TLSN)

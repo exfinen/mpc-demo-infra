@@ -39,6 +39,12 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+if [ "$setup_local" = true ]; then
+    echo  "Setting up the environment for local deployment..."
+else
+    echo  "Setting up the environment for remote deployment..."
+fi
+
 # Update system
 if [ "$(detect_os)" == "linux" ]; then
     sudo apt update

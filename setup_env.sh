@@ -85,6 +85,14 @@ if [ "$(detect_os)" == "linux" ]; then
     sudo apt install -y pkg-config
 fi
 
+# Install openssl
+if [ "$(detect_os)" == "linux" ]; then
+    echo "Installing openssl..."
+    sudo apt install -y openssl
+else
+    brew install openssl
+fi
+
 # Install Python dependencies
 if [ "$(detect_os)" == "linux" ]; then
     # setting PYTHON_KEYRING_BACKEND to avoid potential keyring

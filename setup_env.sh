@@ -75,13 +75,13 @@ if [ "$(detect_os)" == "linux" ]; then
     sudo apt install -y pkg-config
 fi
 
-# Install poetry and Python dependencies
+# Install Python dependencies
 if [ "$(detect_os)" == "linux" ]; then
     # setting PYTHON_KEYRING_BACKEND to avoid potential keyring
     # https://github.com/python-poetry/poetry/issues/1917#issuecomment-1235998997
     PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 else
-    poetry install
+    $HOME/.local/bin/poetry install
 fi
 
 # Create tlsn symbolic link if missing

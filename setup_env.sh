@@ -127,6 +127,8 @@ if [ "$setup_local" = true ]; then
         #brew list boost &>/dev/null && brew upgrade boost || brew install boost
     fi
 
+    MPC_DEMO_INFRA_ROOT=$(pwd)
+
     # Setup MP-SPDZ
     echo "Setting up MP-SPDZ..."
     pushd ../MP-SPDZ
@@ -154,7 +156,8 @@ if [ "$setup_local" = true ]; then
     pushd notary/server
     cargo build --release
     cp -R fixture ../target/release
-    cp -R config ../target/release
+    mkdir -p ../target/release/config
+    cp $MPC_DEMO_INFRA_ROOT/mpc_demo_infra/notary_server/docker/config.yaml ../target/release/config
     popd
 
     # Build binance_prover/verifier

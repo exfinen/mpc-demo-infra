@@ -68,11 +68,13 @@ if ! command_exists poetry; then
     fi
 fi
 
-# Install Rust and Cargo if not present
+# Update or newly install Rust
 if ! command_exists cargo; then
     echo "Installing Rust and Cargo..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     source $HOME/.cargo/env
+else
+    reustup update
 fi
 
 # Install pkg-config (used by TLSN)

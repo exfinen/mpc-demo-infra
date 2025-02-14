@@ -111,8 +111,7 @@ if [ "$setup_local" = true ]; then
         sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
         sudo apt install -y libboost-all-dev
     else
-        echo "macOS depedency installtion not implemented"
-        #exit 1
+        brew list boost &>/dev/null && brew upgrade boost || brew install boost
     fi
 
     # Setup MP-SPDZ

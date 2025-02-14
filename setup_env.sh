@@ -118,7 +118,8 @@ if [ "$setup_local" = true ]; then
     pushd ../MP-SPDZ
     git submodule update --init --recursive
 
-    # Add MOD to CONFIG.mine if not already present
+    # Add CONFIG.mine with MOD if not already present
+    touch CONFIG.mine
     if ! grep -q "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" CONFIG.mine; then
         echo "MOD = -DGFP_MOD_SZ=5 -DRING_SIZE=257" >> CONFIG.mine
     fi

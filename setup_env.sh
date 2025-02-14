@@ -91,13 +91,13 @@ else
 fi
 
 # Create tlsn symbolic link if missing
-if [ ! -e "../tlsn" ]; then
+if [ ! -L "../tlsn" ]; then
     echo "Creating symbolic link: ../tlsn -> ./tlsn"
     ln -s ./tlsn ..
 fi
 
 # Create MP-SPDZ symbolic link if missing
-if [ ! -e "../MP-SPDZ" ]; then
+if [ ! -L "../MP-SPDZ" ]; then
     echo "Creating symbolic link: ../MP-SPDZ -> ./MP-SPDZ"
     ln -s ./MP-SPDZ ..
 fi
@@ -110,7 +110,7 @@ if [ "$setup_local" = true ]; then
         sudo apt install -y libboost-all-dev
     else
         echo "macOS depedency installtion not implemented"
-        exit 1
+        #exit 1
     fi
 
     # Setup MP-SPDZ

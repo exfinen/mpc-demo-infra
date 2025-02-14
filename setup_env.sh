@@ -62,12 +62,12 @@ fi
 
 # Install Poetry if not present
 if ! command_exists poetry; then
-    echo "Installing Poetry..."
-    if [ "$(detect_os)" == "linux" ]; then
-        sudo apt install -y python3-poetry
-    else
-        curl -sSL https://install.python-poetry.org | python3 -
-    fi
+   if [ ! -e venv ]; then
+       python3 -m venv venv
+   fi
+   source venv/bin/activate
+   venv/bin/pip install -U pip setuptools
+   venv/bin/pip install poetry
 fi
 
 # Update or newly install Rust

@@ -171,5 +171,5 @@ if [ "$setup_local" = true ]; then
     popd
 fi
 
-echo "Environment setup complete. Please ensure you have the correct versions of all dependencies."
+echo -e "\nEnvironment setup is complete.\nPlease ensure you have the correct versions of all dependencies."
 

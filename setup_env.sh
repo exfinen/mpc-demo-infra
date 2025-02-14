@@ -91,7 +91,7 @@ if [ "$(detect_os)" == "linux" ]; then
     # https://github.com/python-poetry/poetry/issues/1917#issuecomment-1235998997
     PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 else
-    $HOME/.local/bin/poetry install
+    poetry install
 fi
 
 # Create tlsn symbolic link if missing

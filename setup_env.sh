@@ -93,13 +93,13 @@ fi
 # Create tlsn symbolic link if missing
 if [ ! -L "../tlsn" ]; then
     echo "Creating symbolic link: ../tlsn -> ./tlsn"
-    ln -s ./tlsn ..
+    ln -s $(pwd)/tlsn ..
 fi
 
 # Create MP-SPDZ symbolic link if missing
 if [ ! -L "../MP-SPDZ" ]; then
     echo "Creating symbolic link: ../MP-SPDZ -> ./MP-SPDZ"
-    ln -s ./MP-SPDZ ..
+    ln -s $(pwd)/MP-SPDZ ..
 fi
 
 # Setup MP-SPDZ and tlsn if local flag is set

@@ -21,7 +21,7 @@
 class CryptoPlayer : public MultiPlayer<ssl_socket*>
 {
     ssl_ctx ctx;
-    boost::asio::io_service io_service;
+    boost::asio::io_context io_service;
 
     vector<ssl_socket*> other_sockets;
 

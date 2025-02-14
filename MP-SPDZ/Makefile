@@ -358,7 +358,7 @@ cmake:
 	./bootstrap --parallel=8 --prefix=../local && make && make install
 
 mac-setup: mac-machine-setup
-	brew install openssl boost@1.76 libsodium gmp yasm ntl cmake
+	brew install openssl boost libsodium gmp yasm ntl cmake
 
 linux-machine-setup:
 mac-machine-setup:

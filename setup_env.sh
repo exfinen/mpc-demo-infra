@@ -32,7 +32,7 @@ get_num_cores() {
 }
 
 # Parse command line arguments
-setu_local=false
+setup_local=false
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --setup-local) setup_local=true ;;
@@ -57,7 +57,11 @@ fi
 # Install Python 3 if not present
 if ! command_exists python3; then
     echo "Installing Python 3..."
-    sudo apt install -y python3 python3-venv python3-pip
+    if [ "$(detect_os)" == "linux" ]; then
+        sudo apt install -y python3 python3-venv python3-pip
+    else
+        brew install python
+    fi 
 fi
 
 # Install Poetry if not present
@@ -87,8 +91,8 @@ fi
 
 # Install openssl
 if ! command_exists openssl; then
+    echo "Installing openssl..."
     if [ "$(detect_os)" == "linux" ]; then
-        echo "Installing openssl..."
         sudo apt install -y openssl
     else
         brew install openssl
@@ -119,12 +123,10 @@ fi
 # Setup MP-SPDZ and tlsn if local flag is set
 if [ "$setup_local" = true ]; then
     # Install dependencies
+    # MP-SPDZ Makefile takes care of installing dependencis for macOS
     if [ "$(detect_os)" == "linux" ]; then
         sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
         sudo apt install -y libboost-all-dev
-    else
-        echo "Skipping boost installation on macOS..."
-        #brew list boost &>/dev/null && brew upgrade boost || brew install boost
     fi
 
     MPC_DEMO_INFRA_ROOT=$(pwd)

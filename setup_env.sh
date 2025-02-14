@@ -86,11 +86,13 @@ if [ "$(detect_os)" == "linux" ]; then
 fi
 
 # Install openssl
-if [ "$(detect_os)" == "linux" ]; then
-    echo "Installing openssl..."
-    sudo apt install -y openssl
-else
-    brew install openssl
+if ! command_exists openssl; then
+    if [ "$(detect_os)" == "linux" ]; then
+        echo "Installing openssl..."
+        sudo apt install -y openssl
+    else
+        brew install openssl
+    fi
 fi
 
 # Install Python dependencies

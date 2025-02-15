@@ -52,6 +52,10 @@ spopd() {
     eval "popd >/dev/null $OUT_REDIR"
 }
 
+inst_pp() {
+    [ "$1" = true ] && echo "Installed" || echo "Not Installed"
+}
+
 # Parse command line arguments
 if [ "$#" -gt 1 ]; then
     echo "Usage: ./setup_env.sh [--setup-coord|--setup-party|--setup-client|--setup-consumer-api]"
@@ -69,7 +73,7 @@ install_mpspdz=true
 install_prover=true
 install_verifier=true
 install_notary=true
-install_target="all servers"
+install_target="All servers"
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
@@ -124,11 +128,11 @@ else
 fi
 
 echo "Installation target: $install_target"
-echo "  - MP-SPDZ: $install_mpspdz"
-echo "  - Rust: $install_rust"
-echo "    - Binance Prover: $install_prover"
-echo "    - Binance Verifier: $install_verifier"
-echo "    - notary server: $install_notary"
+echo "  - MP-SPDZ: $(inst_pp "$install_mpspdz")"
+echo "  - Rust: $(inst_pp "$install_rust")"
+echo "    - Binance Prover: $(inst_pp "$install_prover")"
+echo "    - Binance Verifier: $(inst_pp "$install_verifier")"
+echo "    - notary server: $(inst_pp "$install_notary")"
 echo ""
 
 # Update package manager
@@ -286,5 +290,5 @@ if [ "$install_rust" = true ]; then
     spopd # pushd ../tlsn
 fi
 
-echo -e "\nEnvironment setup is complete.\nPlease ensure you have the correct versions of all dependencies."
+echo -e "\nEnvironment setup is complete."
 

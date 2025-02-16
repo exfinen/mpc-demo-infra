@@ -5,15 +5,6 @@ set -e
 MPC_PROTOCOL="malicious-rep-ring"
 NUM_PARTIES=3
 
-is_debug=false
-
-if [ "$is_debug" = true ]; then
-    set -x
-    OUT_REDIR=""
-else
-    OUT_REDIR=">/dev/null 2>&1"
-fi
-
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -56,8 +47,15 @@ inst_pp() {
     [ "$1" = true ] && echo "Installed" || echo "Not Installed"
 }
 
-# Parse command line arguments
-if [ "$#" -gt 1 ]; then
+append_target() {
+    if [ -z "$install_target" ]; then
+        install_target="$1"
+    else
+        install_target="$install_target, $1"
+    fi
+}
+
+print_usage() {
     echo "Usage: ./setup_env.sh [--setup-coord|--setup-party|--setup-client|--setup-consumer-api]"
     echo "Options:"
     echo "  --coord: Setup environment for Coordination Server"
@@ -65,61 +63,67 @@ if [ "$#" -gt 1 ]; then
     echo "  --client: Setup environment for Client CLI"
     echo "  --consumer: Setup environment for Data Consumer API Server"
     echo "  --notary: Setup environment for Notary Server"
-    echo "  No argument: Setup environment for all servers"
-    exit 1
-fi
+    echo "  --verbose: Show outputs from subprocesses"
+    echo "  No option: Setup environment for all servers"
+}
 
-install_mpspdz=true
-install_prover=true
-install_verifier=true
-install_notary=true
-install_target="All servers"
+# Parse command line arguments
+install_mpspdz=false
+install_prover=false
+install_verifier=false
+install_notary=false
+install_target=""
+
+is_verbose=false
 
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --coord)
-            install_mpspdz=false
-            install_prover=false
             install_verifier=true
-            install_notary=false
-            install_target="Coordination Server"
+            append_target "Coordination Server"
             ;;
         --party)
             install_mpspdz=true
-            install_prover=false
             install_verifier=true
-            install_notary=false
-            install_target="Computation Party Server"
+            append_target "Computation Party Server"
             ;;
         --client)
-            install_mpspdz=false
             install_prover=true
-            install_verifier=false
             install_rust=true
-            install_notary=false
-            install_target="Client CLI"
+            append_target "Client CLI"
             ;;
         --consumer)
-            install_mpspdz=false
-            install_prover=false
-            install_verifier=false
-            install_notary=false
-            install_target="Data Consumer API Server"
+            append_target "Data Consumer API Server"
             ;;
         --notary)
-            install_mpspdz=false
-            install_prover=false
-            install_verifier=false
             install_notary=true
-            install_target="Notary Server"
+            append_target "Notary Server"
+            ;;
+        --verbose)
+            is_verbose=true
             ;;
         *)
-            echo "Unknown argument: $1"
+            print_usage
             exit 1
             ;;
     esac
     shift
 done
+
+if [ "$is_verbose" = true ]; then
+    set -x
+    OUT_REDIR=""
+else
+    OUT_REDIR=">/dev/null 2>&1"
+fi
+
+if [ -z "$install_target" ]; then
+    install_mpspdz=true
+    install_prover=true
+    install_verifier=true
+    install_notary=true
+    install_target="All servers"
+fi
 
 if [ "$install_prover" = true ] || [ "$install_verifier" = true ] || [ "$install_notary" = true ]; then
     install_rust=true
@@ -127,12 +131,12 @@ else
     install_rust=false
 fi
 
-echo "Installation target: $install_target"
+echo "Installation Target: $install_target"
 echo "  - MP-SPDZ: $(inst_pp "$install_mpspdz")"
 echo "  - Rust: $(inst_pp "$install_rust")"
 echo "    - Binance Prover: $(inst_pp "$install_prover")"
 echo "    - Binance Verifier: $(inst_pp "$install_verifier")"
-echo "    - notary server: $(inst_pp "$install_notary")"
+echo "    - Notary Server: $(inst_pp "$install_notary")"
 echo ""
 
 # Update package manager

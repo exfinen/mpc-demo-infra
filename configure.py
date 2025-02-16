@@ -215,6 +215,25 @@ def write_file(file_path: Path, content: str, args):
       f.write(content)
     print(f"Created {str(file_path)}")
 
+
+def create_symlink(target: str, link_name: str):
+  target_path = Path(target).resolve()
+  link_path = Path(link_name)
+
+  if link_path.is_symlink():
+    return  # Symlink already exists, no action needed
+
+  if link_path.exists():
+    print(f"Unable to create a symbolic link {link_path} because {link_path} directory or file already exists", file=sys.stderr)
+    sys.exit(1)
+
+  print(f"Creating symbolic link: {link_path} -> {target_path}")
+  try:
+    link_path.symlink_to(target_path)
+  except OSError as e:
+    print(f"Failed to create symbolic link {link_path}: {e}", file=sys.stderr)
+    sys.exit(1)
+
 party_hosts = ["party_0", "party_1", "party_2"]
 party_ports =[8006, 8007, 8008]
 
@@ -249,4 +268,8 @@ write_file(mpc_demo_infra / 'computation_party_server' / 'docker' / '.env.party'
 # write docker-compose.yml
 docker_compose_yml = gen_docker_compose(args.notary_ip)
 write_file(Path('docker-compose.yml'), docker_compose_yml, args)
+
+# create tlsn and MP-SPDZ symbolic links
+create_symlink("./tlsn", "../tlsn")
+create_symlink("./MP-SPDZ", "../MP-SPDZ")
 

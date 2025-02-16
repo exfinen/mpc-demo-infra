@@ -181,9 +181,9 @@ fi
 if ! command_exists openssl; then
     print "Installing openssl..."
     if [ "$(detect_os)" == "linux" ]; then
-        sudo apt install -y openssl
+        eval "sudo apt install -y openssl $OUT_REDIR"
     else
-        brew install openssl
+        eval "brew install openssl $OUT_REDIR"
     fi
 fi
 
@@ -201,7 +201,7 @@ if [ "$install_rust" = true ]; then
     # Install pkg-config (used by TLSN)
     if [ "$(detect_os)" == "linux" ]; then
         print "Installing pkg-config..."
-        sudo apt install -y pkg-config
+        eval "sudo apt install -y pkg-config $OUT_REDIR"
     fi
 fi
 
@@ -234,8 +234,8 @@ if [ "$install_mpspdz" = true ]; then
     # Install dependencies
     # MP-SPDZ Makefile takes care of installing dependencis for macOS
     if [ "$(detect_os)" == "linux" ]; then
-        sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
-        sudo apt install -y libboost-all-dev
+        eval "sudo apt install -y automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3 $OUT_REDIR"
+        eval "sudo apt install -y libboost-all-dev $OUT_REDIR"
     fi
 
     # Setup MP-SPDZ

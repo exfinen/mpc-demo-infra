@@ -14,7 +14,7 @@ WORKDIR /root
 
 # Install mpc-demo-infra
 COPY . mpc-demo-infra/
-RUN cd mpc-demo-infra \
+RUN cd mpc-demo-infra && \
     PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 # Install rust

@@ -14,8 +14,7 @@ WORKDIR /root
 
 # Install mpc-demo-infra
 COPY . .
-RUN cd mpc-demo-infra \
-    && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
+RUN PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 COPY $DOCKERFILE_DIR/.env.consumer_api /root/mpc-demo-infra/
 COPY $DOCKERFILE_DIR/ssl_certs/ /root/mpc-demo-infra/ssl_certs/

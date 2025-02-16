@@ -10,7 +10,6 @@ venv/
 
 *.example
 .gitignore
-README.md
 docker-compose.yml
 setup_env.sh
 sim-demo.sh

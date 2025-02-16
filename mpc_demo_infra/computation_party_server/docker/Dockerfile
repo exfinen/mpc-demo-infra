@@ -19,9 +19,9 @@ RUN apt-get update && apt-get install -y python3 python3-venv python3-pip curl p
 WORKDIR /root
 
 # Install mpc-demo-infra
-COPY . .
-RUN cd mpc-demo-infra \
-    && PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
+COPY . mpc-demo-infra/
+RUN cd mpc-demo-infra && \
+    PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring poetry install
 
 # Install rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y

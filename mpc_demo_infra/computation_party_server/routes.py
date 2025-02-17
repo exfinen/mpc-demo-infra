@@ -9,6 +9,7 @@ from datetime import datetime
 import asyncio
 import os
 import glob
+from filelock import FileLock
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -464,7 +465,11 @@ def fetch_other_parties_certs():
             logger.error(f"party_id mismatch, expected {party_id}, got {data['party_id']}")
             raise HTTPException(status_code=500, detail=f"Party ID mismatch, expected {party_id}, got {data['party_id']}")
         logger.info(f"Fetched party cert from {host}:{port}")
-        (CERTS_PATH / f"P{party_id}.pem").write_text(data["cert_file"])
+        pem_file = CERTS_PATH / f"P{party_id}.pem"
+        lock_file = f"{pem_file}.lock"
+        with FileLock(lock_file):
+            pem_file.write_text(data["cert_file"])
+
         logger.info(f"Saved party cert to {CERTS_PATH / f'P{party_id}.pem'}")
 
     with ThreadPoolExecutor() as executor:

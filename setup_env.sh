@@ -117,12 +117,14 @@ else
     OUT_REDIR=">/dev/null 2>&1"
 fi
 
+ALL_SERVERS="All servers"
+
 if [ -z "$install_target" ]; then
     install_mpspdz=true
     install_prover=true
     install_verifier=true
     install_notary=true
-    install_target="All servers"
+    install_target=ALL_SERVERS
 fi
 
 if [ "$install_prover" = true ] || [ "$install_verifier" = true ] || [ "$install_notary" = true ]; then
@@ -269,6 +271,20 @@ if [ "$install_rust" = true ]; then
       print "Building Notary Server..."
       spushd notary/server
       eval "cargo build --release $OUT_REDIR"
+
+      # Generate self-signed certificate if all servers configuration
+      if [ "$install_target" = "$ALL_SERVERS" ]; then
+        spushd fixture/tls
+
+        openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
+        && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
+        && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
+
+        # copy notary.crt to repository root so that binance prover can use
+        cp notary.crt $MPC_DEMO_INFRA_ROOT
+        spopd # pushd fixture/tls
+      fi
+
       cp -R fixture ../target/release
       mkdir -p ../target/release/config
       cp $MPC_DEMO_INFRA_ROOT/mpc_demo_infra/notary_server/docker/config.yaml ../target/release/config

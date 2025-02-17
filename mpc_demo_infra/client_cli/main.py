@@ -56,23 +56,27 @@ async def generate_tlsn_proof(api_key: str, api_secret: str, notary_crt_path: Op
         cmd += f" {notary_crt_path}"
     logger.info(f"Executing: {cmd}")
 
-    process = await asyncio.create_subprocess_shell(
-        cmd,
-        cwd=binance_prover_dir,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
-    if process.returncode != 0:
-        raise Exception(f"TLSN proof generation failed with return code {process.returncode}, {stdout=}, {stderr=}")
+    try:
+        process = await asyncio.create_subprocess_shell(
+            cmd,
+            cwd=binance_prover_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+        if process.returncode != 0:
+            raise Exception(f"TLSN proof generation failed with return code {process.returncode}, {stdout=}, {stderr=}")
 
-    with open(proof_file, "r") as f:
-        tlsn_proof = f.read()
-    with open(secret_file, "r") as f_secret:
-        secret_data = json.load(f_secret)
-        secret_input = float(secret_data["eth_free"])
-        nonce = bytes(secret_data["nonce"]).hex()
-    return tlsn_proof, secret_input, nonce, timestamp
+        with open(proof_file, "r") as f:
+            tlsn_proof = f.read()
+        with open(secret_file, "r") as f_secret:
+            secret_data = json.load(f_secret)
+            secret_input = float(secret_data["eth_free"])
+            nonce = bytes(secret_data["nonce"]).hex()
+        return tlsn_proof, secret_input, nonce, timestamp
+    finally:
+        proof_file.unlink(missing_ok=True)
+        secret_file.unlink(missing_ok=True)
 
 async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str, notary_crt_path: Optional[str]):
     logger.info(f"Sharing Binance ETH balance data to MPC parties...")

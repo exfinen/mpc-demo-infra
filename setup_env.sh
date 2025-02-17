@@ -44,7 +44,7 @@ spopd() {
 }
 
 inst_pp() {
-    [ "$1" = true ] && echo "Installed" || echo "-"
+    [ "$1" = true ] && echo "*Install*" || echo "-"
 }
 
 append_target() {

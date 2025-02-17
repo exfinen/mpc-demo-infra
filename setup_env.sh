@@ -117,14 +117,14 @@ else
     OUT_REDIR=">/dev/null 2>&1"
 fi
 
-ALL_SERVERS="All servers"
+all_servers="All servers"
 
 if [ -z "$install_target" ]; then
     install_mpspdz=true
     install_prover=true
     install_verifier=true
     install_notary=true
-    install_target=ALL_SERVERS
+    install_target=$all_servers
 fi
 
 if [ "$install_prover" = true ] || [ "$install_verifier" = true ] || [ "$install_notary" = true ]; then
@@ -273,7 +273,8 @@ if [ "$install_rust" = true ]; then
       eval "cargo build --release $OUT_REDIR"
 
       # Generate self-signed certificate if all servers configuration
-      if [ "$install_target" = "$ALL_SERVERS" ]; then
+      if [ "$install_target" = "$all_servers" ]; then
+        print "Generating self-signed cert..."
         spushd fixture/tls
 
         openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \

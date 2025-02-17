@@ -22,7 +22,7 @@ PORT=8004
 """
   return output
 
-def gen_env_coord(
+def gen_env_coord(
   transport: str,
   party_hosts: list[str],
   party_ports: list[int],

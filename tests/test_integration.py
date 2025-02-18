@@ -232,7 +232,6 @@ async def query_computation_cli():
 
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
-    print(f"{settings}")
     # Clean up the existing shares
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)

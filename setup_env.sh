@@ -277,9 +277,9 @@ if [ "$install_rust" = true ]; then
         print "Generating self-signed cert..."
         spushd fixture/tls
 
-        openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
-        && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
-        && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
+        # openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
+        # && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
+        # && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
 
         # copy notary.crt to repository root so that binance prover can use
         cp notary.crt $MPC_DEMO_INFRA_ROOT

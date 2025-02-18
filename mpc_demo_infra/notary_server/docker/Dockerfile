@@ -24,11 +24,11 @@ RUN cd tlsn/notary/server \
 # Generate self-signed certificate 
 COPY $DOCKERFILE_DIR/openssl.cnf /root/tlsn/notary/server/fixture/tls/
 
-WORKDIR /root/tlsn/notary/server/fixture/tls/
-RUN sed -i "s/XXX/${NOTARY_IP}/" openssl.cnf
-RUN openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
-    && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=${NOTARY_IP}" \
-    && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req 
+# WORKDIR /root/tlsn/notary/server/fixture/tls/
+# RUN sed -i "s/XXX/${NOTARY_IP}/" openssl.cnf
+# RUN openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
+#     && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=${NOTARY_IP}" \
+#     && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req 
 
 # Copy config and cert files to release directory
 RUN cp -R /root/tlsn/notary/server/fixture /root/tlsn/notary/target/release/

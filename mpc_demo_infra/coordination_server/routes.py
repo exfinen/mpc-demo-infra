@@ -123,16 +123,17 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
         # Store TLSN proof in temporary file.
         temp_tlsn_proof_file.write(request.tlsn_proof.encode('utf-8'))
 
-        logger.info(f"Executing TLSN proof verifier with: {CMD_VERIFY_TLSN_PROOF} {temp_tlsn_proof_file.name}")
         # Run TLSN proof verifier
         binance_verifier_locations = [
             (Path('.').resolve(), CMD_TLSN_VERIFIER),
-            (TLSN_VERIFIER_BUILD_PATH, CMD_TLSN_VERIFIER),
+            (TLSN_VERIFIER_BUILD_PATH, TLSN_VERIFIER_BUILD_PATH / CMD_TLSN_VERIFIER),
             (TLSN_VERIFIER_PATH, CMD_VERIFY_TLSN_PROOF),
         ]
         binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
+        verify_cmd = f"{binance_verifier_exec_cmd} {temp_tlsn_proof_file.name}"
+        logger.info(f"Verifying TLSN proof with: {verify_cmd}")
         process = await asyncio.create_subprocess_shell(
-            f"{binance_verifier_exec_cmd} {temp_tlsn_proof_file.name}",
+            verify_cmd,
             cwd=binance_verifier_dir,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
@@ -338,6 +339,7 @@ async def query_computation(request: RequestQueryComputationRequest, x: Request,
 
 
 def get_uid_from_tlsn_proof_verifier(stdout_from_tlsn_proof_verifier: str) -> int:
+    logger.info(f"Verifier returned: {stdout_from_tlsn_proof_verifier}")
     uid_match = re.search(r'"uid":(\d+)[,}]', stdout_from_tlsn_proof_verifier)
     if uid_match:
         uid = uid_match.group(1)

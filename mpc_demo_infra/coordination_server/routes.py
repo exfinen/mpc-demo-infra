@@ -138,24 +138,24 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             stderr=asyncio.subprocess.PIPE
         )
         uid = 0
-        # logger.info(f"Getting TLSN proof verification result...")
-        # stdout, stderr = await process.communicate()
-        # try:
-        #     uid = get_uid_from_tlsn_proof_verifier(stdout.decode('utf-8'))
-        #     logger.info(f"Got UID from TLSN proof verifier: {uid}")
-        # except ValueError as e:
-        #     logger.error(f"Failed to get UID from TLSN proof verifier: {e}, {stdout.decode('utf-8')=}, {stderr.decode('utf-8')=}")
-        #     raise HTTPException(status_code=400, detail="Failed to get UID from TLSN proof verifier")
-        # if process.returncode != 0:
-        #     logger.error(f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
-        #     raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
-        # logger.info(f"TLSN proof verification passed")
-        # 
-        # if settings.prohibit_multiple_contributions:
-        #     # Check if uid already in db. If so, raise an error.
-        #     if db.query(MPCSession).filter(MPCSession.uid == uid).first():
-        #         logger.error(f"UID {uid} already in database")
-        #         raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
+        logger.info(f"Getting TLSN proof verification result...")
+        stdout, stderr = await process.communicate()
+        try:
+            uid = get_uid_from_tlsn_proof_verifier(stdout.decode('utf-8'))
+            logger.info(f"Got UID from TLSN proof verifier: {uid}")
+        except ValueError as e:
+            logger.error(f"Failed to get UID from TLSN proof verifier: {e}, {stdout.decode('utf-8')=}, {stderr.decode('utf-8')=}")
+            raise HTTPException(status_code=400, detail="Failed to get UID from TLSN proof verifier")
+        if process.returncode != 0:
+            logger.error(f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
+            raise HTTPException(status_code=400, detail=f"TLSN proof verification failed with return code {process.returncode}, {stdout=}, {stderr=}")
+        logger.info(f"TLSN proof verification passed")
+
+        if settings.prohibit_multiple_contributions:
+            # Check if uid already in db. If so, raise an error.
+            if db.query(MPCSession).filter(MPCSession.uid == uid).first():
+                logger.error(f"UID {uid} already in database")
+                raise HTTPException(status_code=400, detail=f"UID {uid} already shared data")
 
     # Acquire lock to prevent concurrent sharing data requests
     logger.info(f"Acquiring lock for sharing data for {eth_address=}")

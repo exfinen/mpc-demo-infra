@@ -421,7 +421,7 @@ def locate_binance_verifier(binance_verifier_locations):
             binance_verifier_exec_cmd = exec_cmd
             break
     if binance_verifier_dir is None:
-        raise FileNotFoundError(f"binance_verifier not found in {binance_verifiers}. Please build it in TLSN repo.")
+        raise FileNotFoundError(f"binance_verifier not found in {binance_verifier_locations}. Please build it in TLSN repo.")
     logger.info(f"Found binance_verifier in {binance_verifier_dir}")
     return binance_verifier_dir, binance_verifier_exec_cmd
 

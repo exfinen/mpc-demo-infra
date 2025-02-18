@@ -75,9 +75,8 @@ async def generate_tlsn_proof(api_key: str, api_secret: str, notary_crt_path: Op
             nonce = bytes(secret_data["nonce"]).hex()
         return tlsn_proof, secret_input, nonce, timestamp
     finally:
-        pass
-        # proof_file.unlink(missing_ok=True)
-        # secret_file.unlink(missing_ok=True)
+        proof_file.unlink(missing_ok=True)
+        secret_file.unlink(missing_ok=True)
 
 async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: str, notary_crt_path: Optional[str]):
     logger.info(f"Sharing Binance ETH balance data to MPC parties...")

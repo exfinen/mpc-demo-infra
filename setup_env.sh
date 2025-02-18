@@ -271,23 +271,17 @@ if [ "$install_rust" = true ]; then
     MPC_DEMO_INFRA_ROOT=$(pwd)
     spushd ../tlsn
 
+    if [ "$install_prover" = true ] || [ "$install_verifier" = true ]; then
+        spushd tlsn
+        eval "cargo clean $OUT_REDIR"
+        spopd # pushd tlsn
+    fi
+
     # Install Notary Server if so specified
     if [ "$install_notary" = true ]; then
       print "Building Notary Server..."
       spushd notary/server
       eval "cargo build --release $OUT_REDIR"
-
-      # Generate self-signed certificate if all servers configuration
-      if [ "$install_target" = "$all_servers" ]; then
-        print "Generating self-signed cert..."
-        spushd fixture/tls
-
-        # openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
-        # && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
-        # && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
-
-        spopd # pushd fixture/tls
-      fi
 
       cp -R fixture ../target/release
       mkdir -p ../target/release/config
@@ -299,7 +293,6 @@ if [ "$install_rust" = true ]; then
     if [ "$install_prover" = true ]; then
         print "Building Binance Prover..."
         spushd tlsn
-        eval "cargo clean $OUT_REDIR"
         eval "cargo build --release --example binance_prover $OUT_REDIR"
 
         spushd notary/target/release
@@ -311,14 +304,12 @@ if [ "$install_rust" = true ]; then
 
         # copy notary.crt to repository root
         cp notary/server/fixture/tls/notary.crt $(MPC_DEMO_INFRA_ROOT)
-
     fi
 
     # Install Binance Verifier if so specified
     if [ "$install_verifier" = true ]; then
         print "Building Binance Verifier..."
         spushd tlsn
-        eval "cargo clean $OUT_REDIR"
         eval "cargo build --release --example binance_verifier $OUT_REDIR"
         spopd # pushd tlsn
 

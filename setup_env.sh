@@ -292,11 +292,16 @@ if [ "$install_rust" = true ]; then
       spopd # pushd notary/server
     fi
 
+    if [ "$install_prover" = true ] || [ "$install_verifier" = true ]; then
+        spushd tlsn
+        eval "cargo clean $OUT_REDIR"
+        spopd # pushd tlsn
+    fi
+
     # Install Binance Prover if so specified
     if [ "$install_prover" = true ]; then
         print "Building Binance Prover..."
         spushd tlsn
-        eval "cargo clean $OUT_REDIR"
         eval "cargo build --release --example binance_prover $OUT_REDIR"
 
         spushd notary/target/release
@@ -311,7 +316,6 @@ if [ "$install_rust" = true ]; then
     if [ "$install_verifier" = true ]; then
         print "Building Binance Verifier..."
         spushd tlsn
-        eval "cargo clean $OUT_REDIR"
         eval "cargo build --release --example binance_verifier $OUT_REDIR"
         spopd # pushd tlsn
 

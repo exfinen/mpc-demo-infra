@@ -301,9 +301,6 @@ if [ "$install_rust" = true ]; then
         fi
         spopd # pushd notary/target/release
         spopd # pushd tlsn
-
-        # copy notary.crt to repository root
-        cp notary/server/fixture/tls/notary.crt $(MPC_DEMO_INFRA_ROOT)
     fi
 
     # Install Binance Verifier if so specified

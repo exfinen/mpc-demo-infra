@@ -92,7 +92,6 @@ async def start_coordination_server(cmd: list[str], port: int, tlsn_proofs_dir: 
     return process
 
 async def start_computation_party_server(cmd: list[str], party_id: int, port: int):
-    print(f"----> Starting computation party {party_id} on port {port}...")
     process = await asyncio.create_subprocess_exec(
         *cmd,
         env={
@@ -138,7 +137,6 @@ def tlsn_proofs_dir(tmp_path):
 @pytest.fixture
 @pytest.mark.asyncio
 async def servers(tlsn_proofs_dir):
-    print(f"------> Setting up servers")
     # Remove the existing coordination.db file
     # Extract the coordination.db path from the database URL
     coordination_db_path = settings.database_url.split(":///")[1]
@@ -235,7 +233,6 @@ async def query_computation_cli():
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
     print(f"{settings}")
-    print(f"------> Starting test_basic_integration")
     # Clean up the existing shares
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)

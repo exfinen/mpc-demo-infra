@@ -63,6 +63,7 @@ print_usage() {
     echo "  --client: Setup environment for Client CLI"
     echo "  --consumer: Setup environment for Data Consumer API Server"
     echo "  --notary: Setup environment for Notary Server"
+    echo "  --integration: Setup environment for integration test"
     echo "  --verbose: Show outputs from subprocesses"
     echo "  No option: Setup environment for all servers"
 }
@@ -98,6 +99,10 @@ while [[ "$#" -gt 0 ]]; do
         --notary)
             install_notary=true
             append_target "Notary Server"
+            ;;
+        --integration)
+            install_verifier=true
+            append_target "Integration Test"
             ;;
         --verbose)
             is_verbose=true
@@ -277,12 +282,10 @@ if [ "$install_rust" = true ]; then
         print "Generating self-signed cert..."
         spushd fixture/tls
 
-        openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
-        && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
-        && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
+        # openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \
+        # && openssl req -new -key notary.key -out request.csr -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=127.0.0.1" \
+        # && openssl x509 -req -in request.csr -signkey notary.key -out notary.crt -days 365 -extfile openssl.cnf -extensions v3_req
 
-        # copy notary.crt to repository root so that binance prover can use
-        cp notary.crt $MPC_DEMO_INFRA_ROOT
         spopd # pushd fixture/tls
       fi
 
@@ -304,6 +307,10 @@ if [ "$install_rust" = true ]; then
             mv -f binance_prover-* binance_prover
         fi
         spopd # pushd notary/target/release
+
+        # copy notary.crt to repository root
+        cp notary/server/fixture/tls/notary.crt $(MPC_DEMO_INFRA_ROOT)
+
         spopd # pushd tlsn
     fi
 

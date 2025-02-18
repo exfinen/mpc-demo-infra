@@ -177,7 +177,7 @@ class UserQueue:
         with self.locker.gen_wlock():
             position, user = self.user_positions.get(access_key, (None, None))
             if user is None:
-                logger.warn(f"User '{access_key}' is no longer in the queue")
+                logger.info(f"User '{access_key}' is no longer in the queue")
                 return False
 
             logger.info(f"Current position of the user '{user}' is {position}")

@@ -137,6 +137,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
+        uid = 0
         logger.info(f"Getting TLSN proof verification result...")
         stdout, stderr = await process.communicate()
         try:
@@ -261,7 +262,7 @@ async def share_data(request: RequestSharingDataRequest, x: Request, db: Session
     except Exception as e:
         logger.error(f"Failed to share data: {str(e)}")
         sharing_data_lock.release()
-        logger.info(f"Released lock for sharing data for {eth_address=}")
+        logger.info(f"Released lock for sharing data for {eth_address=} after getting exception")
         raise HTTPException(status_code=400, detail="Failed to share data")
 
 @router.post("/query_computation", response_model=RequestQueryComputationResponse)

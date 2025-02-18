@@ -4,12 +4,14 @@ import aiohttp
 import pytest
 import asyncio
 import secrets
+from datetime import datetime
 
 from pathlib import Path
 import json
 
 from mpc_demo_infra.coordination_server.config import settings
-from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready
+from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query_computation, add_user_to_queue, poll_queue_until_ready, mark_queue_computation_to_be_finished
+
 
 FILE_DIR = Path(__file__).parent
 proof_file_1 = FILE_DIR / f"proof.json"
@@ -50,11 +52,11 @@ PROTOCOL = "http"
 COMPUTATION_DB_URL_TEMPLATE = "sqlite:///./party_{party_id}.db"
 NUM_PARTIES = 3
 # Adjust these ports as needed
-COORDINATION_PORT = 5565
-DATA_CONSUMER_API_PORT = 5577
+COORDINATION_PORT = 8005
+DATA_CONSUMER_API_PORT = 8004
 FREE_PORTS_START = 8010
 FREE_PORTS_END = 8100
-COMPUTATION_HOSTS = ["localhost"] * NUM_PARTIES
+COMPUTATION_HOSTS = ["127.0.0.1"] * NUM_PARTIES
 COMPUTATION_PARTY_PORTS = [COORDINATION_PORT + 1 + party_id for party_id in range(NUM_PARTIES)]
 MPSPDZ_PROJECT_ROOT = Path(__file__).parent.parent.parent / "MP-SPDZ"
 TLSN_PROJECT_ROOT = Path(__file__).parent.parent.parent / "tlsn"
@@ -135,7 +137,6 @@ def tlsn_proofs_dir(tmp_path):
 @pytest.fixture
 @pytest.mark.asyncio
 async def servers(tlsn_proofs_dir):
-    print(f"Setting up servers")
     # Remove the existing coordination.db file
     # Extract the coordination.db path from the database URL
     coordination_db_path = settings.database_url.split(":///")[1]
@@ -238,38 +239,33 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     eth_address_1 = secrets.token_hex(20)
     eth_address_2 = secrets.token_hex(20)
 
-    coordination_server_url = f"{PROTOCOL}://localhost:{COORDINATION_PORT}"
+    coordination_server_url = f"{PROTOCOL}://127.0.0.1:{COORDINATION_PORT}"
 
     # Add user to queue and get position to get the computation key
     await add_user_to_queue(coordination_server_url, eth_address_1, 1)
     computation_key_1 = await poll_queue_until_ready(coordination_server_url, eth_address_1, 1)
 
     await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
+    client_id = 0
+    access_key = eth_address_1
+    max_client_wait = 1000
 
-    await share_data(
-        CERTS_PATH,
-        coordination_server_url,
-        COMPUTATION_HOSTS,
-        eth_address_1,
-        TLSN_PROOF_1,
-        value_1,
-        nonce_1,
-        computation_key_1,
-    )
-
-    # # Add user to queue and get position to get the computation key
-    # await add_user_to_queue(coordination_server_url, eth_address_2, 1)
-    # computation_key_2 = await poll_queue_until_ready(coordination_server_url, eth_address_2, 1)
-    # await share_data(
-    #     CERTS_PATH,
-    #     coordination_server_url,
-    #     COMPUTATION_HOSTS,
-    #     eth_address_2,
-    #     TLSN_PROOF_5,
-    #     value_5,
-    #     nonce_5,
-    #     computation_key_2,
-    # )
+    try:
+        await share_data(
+            CERTS_PATH,
+            coordination_server_url,
+            COMPUTATION_HOSTS,
+            eth_address_1,
+            TLSN_PROOF_1,
+            value_1,
+            nonce_1,
+            access_key,
+            computation_key_1,
+            client_id,
+            max_client_wait,
+        )
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, access_key, computation_key_1)
 
     # get the computation key again
     access_key_3 = secrets.token_urlsafe(16)
@@ -278,20 +274,24 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
 
     # Query computation concurrently
     num_queries = 1
-    # computation_index = 1
-    res_queries = await asyncio.gather(*[
-        query_computation(
-            CERTS_PATH,
-            coordination_server_url,
-            COMPUTATION_HOSTS,
-            access_key_3,
-            computation_key_3,
-        ) for _ in range(num_queries)
-        # query_computation_cli()
-    ])
+    try:
+        # computation_index = 1
+        res_queries = await asyncio.gather(*[
+            query_computation(
+                CERTS_PATH,
+                coordination_server_url,
+                COMPUTATION_HOSTS,
+                access_key_3,
+                computation_key_3,
+                max_client_wait,
+            ) for _ in range(num_queries)
+            # query_computation_cli()
+        ])
 
-    assert len(res_queries) == num_queries
-    results_0 = res_queries[0]
+        assert len(res_queries) == num_queries
+        results_0 = res_queries[0]
+    finally:
+        await mark_queue_computation_to_be_finished(coordination_server_url, access_key_3, computation_key_3)
 
     # Query data consumer api
     data_consumer_api_url = f"{PROTOCOL}://localhost:{DATA_CONSUMER_API_PORT}"

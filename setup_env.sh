@@ -274,7 +274,7 @@ if [ "$install_rust" = true ]; then
 
       # Generate self-signed certificate if all servers configuration
       if [ "$install_target" = "$all_servers" ]; then
-        print "Generating self-signed cert..."
+        # print "Generating self-signed cert..."
         spushd fixture/tls
 
         # openssl genpkey -algorithm RSA -out notary.key -pkeyopt rsa_keygen_bits:2048 \

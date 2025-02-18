@@ -4,6 +4,7 @@ import aiohttp
 import pytest
 import asyncio
 import secrets
+from datetime import datetime
 
 from pathlib import Path
 import json
@@ -231,6 +232,7 @@ async def query_computation_cli():
 
 @pytest.mark.asyncio
 async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path):
+    print(f"{settings}")
     # Clean up the existing shares
     for party_id in range(NUM_PARTIES):
         (MPSPDZ_PROJECT_ROOT / "Persistence" /f"Transactions-P{party_id}.data").unlink(missing_ok=True)
@@ -245,6 +247,9 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
     computation_key_1 = await poll_queue_until_ready(coordination_server_url, eth_address_1, 1)
 
     await fetch_parties_certs(PROTOCOL, CERTS_PATH, COMPUTATION_HOSTS, COMPUTATION_PARTY_PORTS)
+    client_id = 0
+    access_key = eth_address_1
+    max_client_wait = 1000
 
     await share_data(
         CERTS_PATH,
@@ -254,22 +259,11 @@ async def test_basic_integration(servers, tlsn_proofs_dir: Path, tmp_path: Path)
         TLSN_PROOF_1,
         value_1,
         nonce_1,
+        access_key,
         computation_key_1,
+        client_id,
+        max_client_wait,
     )
-
-    # # Add user to queue and get position to get the computation key
-    # await add_user_to_queue(coordination_server_url, eth_address_2, 1)
-    # computation_key_2 = await poll_queue_until_ready(coordination_server_url, eth_address_2, 1)
-    # await share_data(
-    #     CERTS_PATH,
-    #     coordination_server_url,
-    #     COMPUTATION_HOSTS,
-    #     eth_address_2,
-    #     TLSN_PROOF_5,
-    #     value_5,
-    #     nonce_5,
-    #     computation_key_2,
-    # )
 
     # get the computation key again
     access_key_3 = secrets.token_urlsafe(16)

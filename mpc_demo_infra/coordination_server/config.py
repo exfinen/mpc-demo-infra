@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     party_api_key: str = "1234567890"
     party_web_protocol: str = "http"
     # Party IPs. Used to whitelist IPs that can access party-server-only APIs.
-    party_hosts: List[str] = ["localhost", "localhost", "localhost"]
+    party_hosts: List[str] = ["127.0.0.1", "127.0.0.1", "127.0.0.1"]
     party_ports: List[int] = [8006, 8007, 8008]
 
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"

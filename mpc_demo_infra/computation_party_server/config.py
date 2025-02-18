@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///./party_0.db"
 
     # Coordination server settings
-    coordination_server_url: str = "http://localhost:8005"
+    coordination_server_url: str = "http://127.0.0.1:8005"
     # API key that coordination server uses in order to be able to access
     # `request_sharing_data_mpc` and `request_querying_computation_mpc` endpoints.
     # In production, we need https to protect the API key from being exposed.
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     port: int = 8006
     party_web_protocol: str = "http"
-    party_hosts: list[str] = ["localhost", "localhost", "localhost"]
+    party_hosts: list[str] = ["127.0.0.1", "127.0.0.1", "127.0.0.1"]
     party_ports: list[int] = [8006, 8007, 8008]
     mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
 

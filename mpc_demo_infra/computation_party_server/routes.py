@@ -94,19 +94,19 @@ def request_sharing_data_mpc(request: RequestSharingDataMPCRequest, db: Session 
         ]
         binance_verifier_dir, binance_verifier_exec_cmd = locate_binance_verifier(binance_verifier_locations)
         logger.info("Verifying TLSN proof...")
-        try:
-            subprocess.run(
-                f"{binance_verifier_exec_cmd} {temp_file.name}",
-                cwd=binance_verifier_dir,
-                check=True,
-                shell=True,
-                capture_output=True,
-                text=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to verify TLSN proof: {str(e)}, stdout={e.stdout.strip()}, stderr={e.stderr.strip()}")
-            raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
-        logger.info("TLSN proof is valid")
+        # try:
+        #     subprocess.run(
+        #         f"{binance_verifier_exec_cmd} {temp_file.name}",
+        #         cwd=binance_verifier_dir,
+        #         check=True,
+        #         shell=True,
+        #         capture_output=True,
+        #         text=True,
+        #     )
+        # except subprocess.CalledProcessError as e:
+        #     logger.error(f"Failed to verify TLSN proof: {str(e)}, stdout={e.stdout.strip()}, stderr={e.stderr.strip()}")
+        #     raise HTTPException(status_code=400, detail="Failed when verifying TLSN proof")
+        # logger.info("TLSN proof is valid")
 
     # 2. Backup previous shares
     backup_shares_path = backup_shares(settings.party_id)

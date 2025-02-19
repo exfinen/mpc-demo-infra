@@ -73,6 +73,7 @@ install_mpspdz=false
 install_prover=false
 install_verifier=false
 install_notary=false
+install_client_cfg=false
 install_target=""
 
 is_verbose=false
@@ -91,6 +92,7 @@ while [[ "$#" -gt 0 ]]; do
         --client)
             install_prover=true
             install_rust=true
+            install_client_cfg=true
             append_target "Client CLI"
             ;;
         --consumer)
@@ -319,6 +321,19 @@ if [ "$install_rust" = true ]; then
     fi
 
     spopd # pushd ../tlsn
+fi
+
+# Create client_cli config file if installing client
+if [ "$install_client_cfg" = true ]; then
+
+cat << EOF > .env.client_cli
+COORDINATION_SERVER_URL=http://127.0.0.1:8005
+PARTY_HOSTS=["127.0.0.1", "127.0.0.1", "127.0.0.1"]
+PARTY_PORTS=[8006,8007,8008]
+PARTY_WEB_PROTOCOL=http
+NOTARY_SERVER_HOST=127.0.0.1
+EOF
+
 fi
 
 echo -e "\nEnvironment setup is complete."

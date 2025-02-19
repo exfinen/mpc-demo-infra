@@ -14,8 +14,8 @@ from mpc_demo_infra.client_lib.lib import fetch_parties_certs, share_data, query
 
 
 FILE_DIR = Path(__file__).parent
-proof_file_1 = FILE_DIR / f"proof230.json"
-secret_file_1 = FILE_DIR / f"secret230.json"
+proof_file_1 = FILE_DIR / f"proof.json"
+secret_file_1 = FILE_DIR / f"secret.json"
 
 def process_proof_file(proof_file):
     with open(proof_file, "r") as f:

@@ -297,8 +297,9 @@ if [ "$install_rust" = true ]; then
         spushd tlsn
         eval "cargo build --release --example binance_prover $OUT_REDIR"
 
-        spushd notary/target/release
-        if ls binance_prover-* > /dev/null 2>&1; then
+        spushd target/release/examples
+        if ls binance_prover-* > /dev/null 2>&1 && [ ! -e binance_prover ]; then
+            rm -rf *.d
             mv -f binance_prover-* binance_prover
         fi
         spopd # pushd notary/target/release
@@ -312,8 +313,9 @@ if [ "$install_rust" = true ]; then
         eval "cargo build --release --example binance_verifier $OUT_REDIR"
         spopd # pushd tlsn
 
-        spushd notary/target/release
-        if ls binance_verifier-* > /dev/null 2>&1; then
+        spushd target/release/examples
+        if ls binance_verifier-* > /dev/null 2>&1 && [ ! -e binance_verifier ]; then
+            rm -rf *.d
             mv -f binance_verifier-* release/binance_verifier
         fi
         spopd # pushd notary/target/release
@@ -325,7 +327,7 @@ fi
 
 # Create client_cli config file if installing client
 if [ "$install_client_cfg" = true ]; then
-
+    print "Creating .env.client_cli..."
 cat << EOF > .env.client_cli
 COORDINATION_SERVER_URL=http://127.0.0.1:8005
 PARTY_HOSTS=["127.0.0.1", "127.0.0.1", "127.0.0.1"]
@@ -333,7 +335,6 @@ PARTY_PORTS=[8006,8007,8008]
 PARTY_WEB_PROTOCOL=http
 NOTARY_SERVER_HOST=127.0.0.1
 EOF
-
 fi
 
 echo -e "\nEnvironment setup is complete."

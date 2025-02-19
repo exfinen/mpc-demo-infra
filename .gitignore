@@ -178,8 +178,6 @@ sim-demo.sh
 binance_prover
 .DS_Store
 logs/
-secret*.json
-proof*.json
 stress-test.sh
 docker-compose.yml
 venv

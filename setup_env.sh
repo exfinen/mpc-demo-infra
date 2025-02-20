@@ -331,9 +331,8 @@ if [ "$install_target" = "$all_servers" ]; then
     for server in coord party consumer_api client_cli; do
         mv -f .env.${server}.example .env.${server} $OUT_REDIR
     done
-fi
-
-if [ "$install_client_cfg" = true ]; then
+else
+    if [ "$install_client_cfg" = true ]; then
 cat << EOF > .env.client_cli
 COORDINATION_SERVER_URL=http://127.0.0.1:8005
 PARTY_HOSTS=["127.0.0.1", "127.0.0.1", "127.0.0.1"]
@@ -341,8 +340,10 @@ PARTY_PORTS=[8006,8007,8008]
 PARTY_WEB_PROTOCOL=http
 NOTARY_SERVER_HOST=127.0.0.1
 EOF
-    print "Created .env.client_cli"
+        print "Created .env.client_cli"
+    fi
 fi
+
 
 echo -e "\nEnvironment setup is complete."
 

@@ -64,7 +64,7 @@ fn main() {
         "Successfully verified that the bytes below came from a session with {:?} at {}.",
         session_info.server_name, time
     );
-    println!("Note that the bytes which the Prover chose not to disclose are shown as X.");
+    println!("Note that the bytes which the Prover chose not to disclose (redacted) are shown as X, while those which the Prover chose to privatize (redacted & include sha3 commitment in the proof) are shown as Y");
     println!();
     println!("Bytes sent:");
     println!();

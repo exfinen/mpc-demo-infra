@@ -1,6 +1,6 @@
 # Examples of TLSN usage that works with MP-SPDZ
 
-Here, we provide example of notarization that can generate the proof with sha3 commitment of private part in order to use with MP-SPDZ
+Here, we provide example of notarization that can generate the proof with sha3 commitment of private part in order to use with MP-SPDZ. (Recommend to start with simple one)
 
 - [simple](./simple/README.md) shows how to perform a simple notarization for plain html page.
 

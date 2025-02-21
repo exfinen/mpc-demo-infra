@@ -2,20 +2,32 @@
 
 This example demonstrates using TLSNotary with Binance API.
 
-1. Notarize: Fetch <https://api.binance.com/api/v3/account?/> followed by time, signature, and omitZeroBalances=true to query all non-zero balance of this user. Then we create a proof of the amount of free ETH token in spot account. Most parts of the proof are redacted, while the amount of free ETH in spot account up to 2 decimal points is redacted and included in the proof for further mpspdz usage.
+1. Run local notary server
+2. Notarize: Fetch <https://api.binance.com/api/v3/account?/> followed by time, signature, and omitZeroBalances=true to query all non-zero balance of this user. Then we create a proof of the amount of free ETH token in spot account. Most parts of the proof are redacted, while the amount of free ETH in spot account up to 2 decimal points is redacted and included in the proof for further mpspdz usage.
+3. Verify the proof.
 
-2. Verify the proof.
+### 1. Run local notary server
 
-### 1. Notarize <https://api.binance.com/api/v3/account?> with the queries
+Run this command line in mpc-demo-infra/ folder
 
-Run a simple prover:
+```
+./setup_env.sh --notary
+cd tlsn/notary/target/release
+./notary-server
+```
+
+This will run local notary server, to be used with testing prover & verifier.
+
+### 2. Notarize <https://api.binance.com/api/v3/account?> with the queries
+
+Now open another terminal & Run a binance prover: (Make sure you run command line in mpc-demo-infra/tlsn/tlsn/examples/)
 
 ```shell
-cargo run --release --example binance_prover <notary_host> <notary_port> <api_key> <api_secret> <file_dest> <secret_file_dest>
+cargo run --release --example binance_prover <notary_host> <notary_port> <api_key> <api_secret> <file_dest> <secret_file_dest> ../../../notary.crt
 ```
 
 where
-<notary_host> <notary_port> can be easily used as prod-notary.mpcstats.org 8003 since we already deployed remote notary to use with MPCStats
+<notary_host> <notary_port> can be easily used as 127.0.0.1 8003 since we already deployed local notary server to use with MPCStats with the previous step
 <api_key> <api_secret> can be optained from your Binance account by following this [guide](https://github.com/ZKStats/mpc-demo-infra/blob/main/mpc_demo_infra/client_cli/docker/README.md#step-1-get-your-binance-api-key).
 <file_dest> specifies the file destination (in json) to store the proof
 <secret_file_dest> specifies the file destination to store private data like free ETH balance & its corresponding Nonce needed for proving the secret value in MP-SPDZ later on.
@@ -32,9 +44,9 @@ Notarization completed successfully!
 
 ### 2. Verify the Proof
 
-When you open `proof.json` in an editor, you will see a JSON file with lots of non-human-readable byte arrays. You can decode this file by running:
+When you open `proof.json` in an editor, you will see a JSON file with lots of non-human-readable byte arrays. You can decode this file by running: (Make sure you run command line in mpc-demo-infra/tlsn/tlsn/examples/)
 
-```shell
+```
 cargo run --release --example binance_verifier <proof_file>
 ```
 

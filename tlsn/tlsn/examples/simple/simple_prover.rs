@@ -9,21 +9,37 @@ use std::ops::Range;
 use tlsn_core::{proof::TlsProof, transcript::get_value_ids};
 use tokio::io::AsyncWriteExt as _;
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
-
+use notary_client::{Accepted, NotarizationRequest, NotaryClient};
 use tlsn_examples::run_notary;
 use tlsn_prover::tls::{state::Notarize, Prover, ProverConfig};
+use mpz_core::commit::Nonce;
+use serde_json::json;
 
 // Setting of the application server
 const SERVER_DOMAIN: &str = "jernkunpittaya.github.io";
 const USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
 
+// P/S: If the following limits are increased, please ensure max-transcript-size of
+// the notary server's config (../../../notary/server) is increased too, where
+// max-transcript-size = MAX_SENT_DATA + MAX_RECV_DATA
+//
+// Maximum number of bytes that can be sent from prover to server
+const MAX_SENT_DATA: usize = 1 << 12;
+// Maximum number of bytes that can be received by prover from server
+const MAX_RECV_DATA: usize = 1 << 14;
 use std::{env, str};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
     // Get party index from command line argument
-    let party_index = match env::args().nth(1) {
+    let args: Vec<String> = env::args().collect();
+    let notary_host = args.get(1).expect("Please provide notary host as first argument");
+    let notary_port = args.get(2)
+        .expect("Please provide notary port as second argument")
+        .parse::<u16>()
+        .expect("Port must be a valid number");
+    let party_index = match args.get(3) {
         Some(index) => match index.as_str() {
             "0" | "1" | "2" => index,
             _ => {
@@ -36,25 +52,54 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    let notary_crt_path = args.get(6); // optional
 
     let (prover_socket, notary_socket) = tokio::io::duplex(1 << 16);
 
     // Start a local simple notary service
     tokio::spawn(run_notary(notary_socket.compat()));
 
-    // A Prover configuration
-    let config = ProverConfig::builder()
-        .id("example")
-        .server_dns(SERVER_DOMAIN)
+    // Build a client to connect to the notary server.
+    let notary_client = NotaryClient::builder()
+        .host(notary_host)
+        .port(notary_port)
+        // WARNING: Always use TLS to connect to notary server, except if notary is running locally
+        .enable_tls(true)
+        .root_cert_store(build_root_store(&notary_crt_path))
         .build()
         .unwrap();
 
-    // Create a Prover and set it up with the Notary
-    // This will set up the MPC backend prior to connecting to the server.
-    let prover = Prover::new(config)
-        .setup(prover_socket.compat())
+    // Send requests for configuration and notarization to the notary server.
+    let notarization_request = NotarizationRequest::builder()
+        .max_sent_data(MAX_SENT_DATA)
+        .max_recv_data(MAX_RECV_DATA)
+        .build()
+        .unwrap();
+
+    let Accepted {
+        io: notary_connection,
+        id: session_id,
+        ..
+    } = notary_client
+        .request_notarization(notarization_request)
         .await
         .unwrap();
+
+    // Configure a new prover with the unique session id returned from notary client.
+    let prover_config = ProverConfig::builder()
+        .id(session_id)
+        .server_dns(SERVER_DOMAIN)
+        .max_sent_data(MAX_SENT_DATA)
+        .max_recv_data(MAX_RECV_DATA)
+        .build()
+        .unwrap();
+
+    // Create a new prover and set up the MPC backend.
+    let prover = Prover::new(prover_config)
+        .setup(notary_connection.compat())
+        .await
+        .unwrap();
+
 
     // Connect to the Server via TCP. This is the TLS client socket.
     let client_socket = tokio::net::TcpStream::connect((SERVER_DOMAIN, 443))
@@ -129,22 +174,34 @@ async fn main() {
 
     // Build proof (with or without redactions)
     let redact = true;
-    let proof = if !redact {
-        build_proof_without_redactions(prover).await
+    let (proof, nonce) = if !redact {
+        (build_proof_without_redactions(prover).await, None)
     } else {
         build_proof_with_redactions(prover).await
     };
 
     // Write the proof to a file
-    let args: Vec<String> = std::env::args().collect();
-    let file_dest = args.get(2).expect("Please provide a file destination as the second argument");
+    let file_dest = args.get(4).expect("Please provide a file destination as the second argument");
     let mut file = tokio::fs::File::create(file_dest).await.unwrap();
     file.write_all(serde_json::to_string_pretty(&proof).unwrap().as_bytes())
         .await
         .unwrap();
+    if nonce.is_none(){
+        println!("No redaction, no need to write to secret file");
+    }
+    else{
+        let secret_file_dest = args.get(5).expect("Please provide a file destination for secret values as the third argument");
+        let mut secret_file = tokio::fs::File::create(secret_file_dest).await.unwrap();
+        let data = json!({
+            "follower": followers_count,
+            "nonce": nonce.unwrap()
+        });
+        let json_string = serde_json::to_string_pretty(&data).unwrap();
 
+        // Write the JSON string to a secret file
+        secret_file.write_all(json_string.as_bytes()).await.unwrap();
+    }
     println!("Notarization completed successfully!");
-    println!("The proof has been written to {}", file_dest);
 }
 
 /// Find the ranges of the public and private parts of a sequence.
@@ -240,7 +297,7 @@ async fn build_proof_without_redactions(mut prover: Prover<Notarize>) -> TlsProo
     }
 }
 
-async fn build_proof_with_redactions(mut prover: Prover<Notarize>) -> TlsProof {
+async fn build_proof_with_redactions(mut prover: Prover<Notarize>) -> (TlsProof, Option<Nonce>) {
     // Identify the ranges in the outbound data which contain data which we want to disclose
     let (sent_public_ranges, _) = find_ranges(
         prover.sent_transcript().data(),
@@ -293,11 +350,15 @@ async fn build_proof_with_redactions(mut prover: Prover<Notarize>) -> TlsProof {
         proof_builder.reveal_by_id(commitment_id).unwrap();
     }
 
-    for commitment_id in recv_private_commitments {
-        println!("Revealing private commitment {:?}", commitment_id);
-        proof_builder.reveal_private_by_id(commitment_id).await.unwrap();
-    }
+    // for commitment_id in recv_private_commitments {
+    //     println!("Revealing private commitment {:?}", commitment_id);
+    //     proof_builder.reveal_private_by_id(commitment_id).await.unwrap();
+    // }
 
+    // Here only support revealing one private_commitment (if multiple can modify to use for-loop as shown above)
+    let commitment_id = recv_private_commitments[0];
+    println!("Revealing private commitment {:?}", commitment_id);
+    let nonce = proof_builder.reveal_private_by_id(commitment_id).await.unwrap();
     let substrings_proof = proof_builder.build().unwrap();
     // [712..724]
     println!("Received private ranges: {:?}", recv_private_ranges);
@@ -309,9 +370,47 @@ async fn build_proof_with_redactions(mut prover: Prover<Notarize>) -> TlsProof {
             .map(|id| notarized_session.header().encode(&id))
             .collect::<Vec<_>>();
 
-    TlsProof {
+    (TlsProof {
         session: notarized_session.session_proof(),
         substrings: substrings_proof,
         encodings: received_private_encodings,
-    }
+    }, Some(nonce))
 }
+
+
+use std::{
+    fs::File,
+    io::BufReader,
+  };
+  use rustls::{Certificate, OwnedTrustAnchor, RootCertStore};
+  use rustls_pemfile::certs;
+  
+  fn build_root_store(notary_crt_path: &Option<&String>) -> RootCertStore {
+      let mut root_store = RootCertStore::empty();
+      root_store.add_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.iter().map(|ta| {
+          OwnedTrustAnchor::from_subject_spki_name_constraints(
+              ta.subject.as_ref(),
+              ta.subject_public_key_info.as_ref(),
+              ta.name_constraints.as_ref().map(|nc| nc.as_ref()),
+          )
+      }));
+  
+      if let Some(notary_crt_path) = notary_crt_path {
+          if let Ok(f) = File::open(notary_crt_path) {
+              let mut reader = BufReader::new(f);
+              if let Ok(xs) = certs(&mut reader) {
+                  for x in xs {
+                      match root_store.add(&Certificate(x.clone())) {
+                        Ok(_) => print!("Added cert: {:?}", x),
+                        Err(err) => panic!("Failed load cert: {}", err),
+                      }
+                  }
+              } else {
+                  panic!("Failed to load certificates from file");
+              }
+          } else {
+              panic!("Failed to open file: {}", notary_crt_path);
+          }
+      }
+      root_store
+  }

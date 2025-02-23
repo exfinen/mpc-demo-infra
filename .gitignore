@@ -181,5 +181,4 @@ logs/
 stress-test.sh
 docker-compose.yml
 venv
-shutdown-all-servers.sh
 

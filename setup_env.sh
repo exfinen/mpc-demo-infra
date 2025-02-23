@@ -302,7 +302,7 @@ if [ "$install_rust" = true ]; then
             rm -rf *.d
             mv -f binance_prover-* binance_prover
         fi
-        spopd # pushd notary/target/release
+        spopd # pushd target/release/example
         spopd # pushd tlsn
     fi
 
@@ -311,7 +311,6 @@ if [ "$install_rust" = true ]; then
         print "Building Binance Verifier..."
         spushd tlsn
         eval "cargo build --release --example binance_verifier $OUT_REDIR"
-        spopd # pushd tlsn
 
         spushd target/release/examples
         if ls binance_verifier-* > /dev/null 2>&1 && [ ! -e binance_verifier ]; then

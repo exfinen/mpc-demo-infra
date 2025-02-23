@@ -57,7 +57,7 @@ PARTY_HOSTS={json.dumps(party_hosts)}
 PARTY_PORTS={json.dumps(party_ports)}
 PARTY_WEB_PROTOCOL={transport}
 MAX_DATA_PROVIDERS=1000
-PERFORM_COMMITMENT_CHECK=False
+PERFORM_COMMITMENT_CHECK=True
 PRIVKEY_PEM_PATH=ssl_certs/privkey.pem
 FULLCHAIN_PEM_PATH=ssl_certs/fullchain.pem
 """

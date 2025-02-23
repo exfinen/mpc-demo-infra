@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     mpspdz_protocol: str = "malicious-rep-ring"
 
     # Database settings
-    database_url: str = f"sqlite:///./party_0.db"
+    database_url: str = f"sqlite:///./party_{party_id}.db"
 
     # Coordination server settings
     coordination_server_url: str = "http://127.0.0.1:8005"

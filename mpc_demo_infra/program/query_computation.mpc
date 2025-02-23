@@ -10,6 +10,8 @@ from Compiler.instructions import closeclientconnection
 from Compiler.util import if_else
 from Compiler.circuit import sha3_256
 
+from mpcstats import mpcstats_lib
+
 PORTNUM = {client_port_base}
 MAX_DATA_PROVIDERS = {max_data_providers}
 NUM_DATA_PROVIDERS = {num_data_providers}
@@ -47,7 +49,8 @@ def computation(client_values: sint.Array):
         median_even.update(median_even+(num_data_providers==2*sint(i))*data[i]/2+(num_data_providers-2==2*sint(i))*data[i]/2)
         area.update(area+(2*i+1)*data[i])
     # Median
-    result[3] = (num_data_providers%2)*median_odd + (1-num_data_providers%2)*median_even
+    # result[3] = (num_data_providers%2)*median_odd + (1-num_data_providers%2)*median_even
+    result[3] = mpcstats_lib.median(data)
 
     # Note that Gini coefficient = (area/(num_data_providers*result[1])) - 1
     # But we leave that to client side handling to optimize calculation in mpc

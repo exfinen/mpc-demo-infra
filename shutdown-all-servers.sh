@@ -10,7 +10,7 @@ kill_all() {
     fi
 
     kill -9 $pids
-    echo "$pids that matched with '$substr'"
+    echo "Killed $pids that matched with '$substr'"
   done
 }
 

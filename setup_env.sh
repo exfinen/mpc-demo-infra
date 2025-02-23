@@ -329,11 +329,11 @@ fi
 if [ "$install_target" = "$all_servers" ]; then
     print "Creating server configuration files..."
     for server in coord party consumer_api client_cli; do
-        mv -f .env.${server}.example .env.${server} $OUT_REDIR
+        eval "mv -f .env.${server}.example .env.${server} $OUT_REDIR"
     done
 else
     if [ "$install_client_cfg" = true ]; then
-        mv -f .env.client_cli.example .env.client_cli $OUT_REDIR
+        eval "mv -f .env.client_cli.example .env.client_cli $OUT_REDIR"
         print "Created .env.client_cli"
     fi
 fi

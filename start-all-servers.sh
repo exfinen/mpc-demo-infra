@@ -22,6 +22,5 @@ pushd ../tlsn/notary/target/release
 ./notary-server &
 popd
 
-wait
 echo "All servers started"
 

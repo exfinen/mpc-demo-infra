@@ -15,7 +15,7 @@ kill_all() {
     fi
 
     kill -9 $pids
-    echo "Killed $name ($pids)"
+    echo "Shut down $name ($pids)"
   done
 }
 

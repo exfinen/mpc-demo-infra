@@ -3,8 +3,12 @@ kill_all() {
 
   while true; do
     local pids
-    pids=$(ps aux | grep "$substr" | grep -v 'grep' | awk '{print $2}')
-
+    pids=$(ps aux \
+      | grep "$substr" \
+      | grep -v 'grep' \
+      | awk '{print $2}' \
+      | xargs
+    )
     if [ -z "$pids" ]; then
       break
     fi

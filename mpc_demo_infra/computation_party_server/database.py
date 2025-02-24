@@ -10,7 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_database_url():
-  return f"sqlite:///./party_{settings.party_id}.db" if settings.database_url is None else settings.database_url
+    print(f"----> DB URL: {settings.database_url}")
+    print(f"----> Party ID: {settings.party_id}")
+    return f"sqlite:///./party_{settings.party_id}.db" if settings.database_url is None else settings.database_url
 
 engine = create_engine(
     get_database_url(),

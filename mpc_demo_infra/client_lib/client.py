@@ -63,7 +63,9 @@ class Client:
                     self.sockets.append(ssl_socket)
                     print("Established")
                     break
-                except Exception  as e:
+                except KeyboardInterrupt:
+                    raise
+                except Exception as e:
                     print(".", end="", flush=True)
                     if plain_socket is not None:
                         plain_socket.close()

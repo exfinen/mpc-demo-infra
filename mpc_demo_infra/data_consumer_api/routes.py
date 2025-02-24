@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 import logging
 from datetime import datetime
 import asyncio
+from fastapi.applications import FastAPI
 
 from ..client_lib import lib as client_lib
 from .config import settings
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Add these at module level
 _computation_cache = None
 _last_cache_update = None
+_background_task = None
 _background_task_started = False
 
 async def update_cache():
@@ -51,15 +53,19 @@ async def update_cache():
 
 async def update_cache_periodically():
     global _computation_cache, _last_cache_update
-
     while True:
-        logger.info(f"Periodically updating cache at {_last_cache_update}")
         try:
             await update_cache()
+        except asyncio.CancelledError:
+            logger.info("Cache update task cancelled")
+            break
         except Exception as e:
             logger.error(f"Error updating cache: {str(e)}")
-        logger.info(f"Sleeping for {settings.cache_ttl_seconds} seconds")
-        await asyncio.sleep(settings.cache_ttl_seconds)
+        try:
+            await asyncio.sleep(settings.cache_ttl_seconds)
+        except asyncio.CancelledError:
+            logger.info("Cache update task cancelled during sleep")
+            break
 
 @router.get("/query-computation")
 async def query_computation():
@@ -69,7 +75,8 @@ async def query_computation():
     if not _background_task_started:
         await update_cache()
         # Start background task to update cache periodically
-        asyncio.create_task(update_cache_periodically())
+        _background_task = asyncio.create_task(update_cache_periodically())
+        _background_task.set_name('cache_updater')
         _background_task_started = True
         logger.info("Started background cache update task")
 
@@ -80,3 +87,25 @@ async def query_computation():
         )
 
     return _computation_cache
+
+# @router.on_event("startup")
+# async def startup_event():
+#     global _background_task, _background_task_started
+#     if not _background_task_started:
+#         _background_task = asyncio.create_task(update_cache_periodically())
+#         _background_task.set_name('cache_updater')
+#         _background_task_started = True
+#         logger.info("Started background cache update task")
+
+@router.on_event("shutdown")
+async def shutdown_event():
+    global _background_task, _background_task_started
+    if _background_task_started and _background_task:
+        logger.info("Cancelling background cache update task")
+        _background_task.cancel()
+        try:
+            await _background_task
+        except asyncio.CancelledError:
+            pass
+        _background_task_started = False
+        logger.info("Background cache update task cancelled")

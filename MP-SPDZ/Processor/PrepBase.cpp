@@ -40,6 +40,18 @@ string PrepBase::get_edabit_filename(const string& prep_data_dir,
             + to_string(my_num) + get_suffix(thread_num);
 }
 
+string PrepBase::get_matrix_prefix(const string& prep_data_dir,
+        const array<int, 3>& dim)
+{
+    return prep_data_dir + "Matrix-" + to_string(dim[0]) + "x"
+            + to_string(dim[1]) + "x" + to_string(dim[2]);
+}
+
+PrepBase::PrepBase(DataPositions& usage) :
+        usage(usage)
+{
+}
+
 void PrepBase::print_left(const char* name, size_t n, const string& type_string,
         size_t used, bool large)
 {
@@ -72,7 +84,8 @@ void PrepBase::print_left_edabits(size_t n, size_t n_batch, bool strict,
         cerr << " edaBits of size " << n_bits << " left" << endl;
     }
 
-    if (n * n_batch > used / 10)
+    if (n * n_batch > used / 10
+            and n * n_batch > size_t(usage.files[DATA_INT][DATA_DABIT]) / 10)
     {
         cerr << "Significant amount of unused edaBits of size " << n_bits
                 << ". ";

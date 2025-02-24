@@ -1,28 +1,3 @@
-# MPCStats (Powered by Multi-Protocol SPDZ)
-
-This repo is our fork of MP-SPDZ main repo (original README is below) to build MPCStats library as a framework for people to calculate statistics function with ease.
-
-## MPCStats lib
-
-All contents are in [mpcstat Folder](mpcstats/)
-
-## Miscellaneous
-
-This section consists of folder experimenting with client interface and some early flow for DevCon demo that some might prove useful. (ranked by latest to earliest)
-
-- [DevConDemo Folder](DevConDemo/): Comprehensive skeleton for DevCon Demo. This Folder is used for final draft of DevCon demo flow before migrating to the actual DevCon demo [repo](https://github.com/ZKStats/mpc-demo-infra)
-
-- [ExternalDemo Folder](ExternalDemo/): First draft of DevCon Demo. This Folder is used for validating ideas/necessary properties for our application for DevCon, mainly on save & load private shares.
-
-- [ExternalStats](ExternalStats/): Benchmarking stats operations with client interface.
-  This folder is for comparing & contrast the calculation of statistics function with and without client interface where client does nothing but getting the output. See more about client-interface [here](https://mp-spdz.readthedocs.io/en/latest/client-interface.html#client-interface)
-
-=====================================================
-
-#### After this line is the original README from MP-SPDZ master branch
-
-=====================================================
-
 # Multi-Protocol SPDZ [![Documentation Status](https://readthedocs.org/projects/mp-spdz/badge/?version=latest)](https://mp-spdz.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://dev.azure.com/data61/MP-SPDZ/_apis/build/status/data61.MP-SPDZ?branchName=master)](https://dev.azure.com/data61/MP-SPDZ/_build/latest?definitionId=7&branchName=master) [![Gitter](https://badges.gitter.im/MP-SPDZ/community.svg)](https://gitter.im/MP-SPDZ/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is a software to benchmark various secure multi-party computation
@@ -57,8 +32,8 @@ as well as information on how to solve common issues.
 
 #### TL;DR (Binary Distribution on Linux or Source Distribution on macOS)
 
-This requires either a Linux distribution originally released 2014 or
-later (glibc 2.17) or macOS High Sierra or later as well as Python 3
+This requires either a Linux distribution originally released 2018 or
+later (glibc 2.18) or macOS High Sierra or later as well as Python 3
 and basic command-line utilities.
 
 Download and unpack the
@@ -80,11 +55,9 @@ parties and malicious security.
 
 On Linux, this requires a working toolchain and [all
 requirements](#requirements). On Ubuntu, the following might suffice:
-
 ```
-sudo apt-get install automake build-essential clang cmake git libboost-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
+sudo apt-get install automake build-essential clang cmake git libboost-dev libboost-filesystem-dev libboost-iostreams-dev libboost-thread-dev libgmp-dev libntl-dev libsodium-dev libssl-dev libtool python3
 ```
-
 On MacOS, this requires [brew](https://brew.sh) to be installed,
 which will be used for all dependencies.
 It will execute [the
@@ -95,14 +68,13 @@ security.
 make setup
 echo 1 2 3 4 > Player-Data/Input-P0-0
 echo 1 2 3 4 > Player-Data/Input-P1-0
-Scripts/compile-run.py -E mascot tutorial
+Scripts/compile-run.py mascot tutorial
 ```
 
 On strong enough hardware setups (several cores and GB of RAM), you
 can speed up the last step by running `make -j8 mascot-party.x` beforehand.
 
 #### TL;DR (Docker)
-
 Build a docker image for `mascot-party.x`:
 
 ```
@@ -112,7 +84,7 @@ docker build --tag mpspdz:mascot-party --build-arg machine=mascot-party.x .
 Run the [the tutorial](Programs/Source/tutorial.mpc):
 
 ```
-docker run --rm -it mpspdz:mascot-party ./Scripts/mascot.sh tutorial
+docker run --rm -it mpspdz:mascot-party ./Scripts/compile-run.py mascot tutorial
 ```
 
 See the [`Dockerfile`](./Dockerfile) for examples of how it can be used.
@@ -129,19 +101,19 @@ with critical production code.
 
 The following table lists all protocols that are fully supported.
 
-| Security model                  | Mod prime / GF(2^n)                            | Mod 2^k                                    | Bin. SS                             | Garbling                                         |
-| ------------------------------- | ---------------------------------------------- | ------------------------------------------ | ----------------------------------- | ------------------------------------------------ |
-| Malicious, dishonest majority   | [MASCOT / LowGear / HighGear](#secret-sharing) | [SPDZ2k](#secret-sharing)                  | [Tiny / Tinier](#secret-sharing)    | [BMR](#bmr)                                      |
-| Covert, dishonest majority      | [CowGear / ChaiGear](#secret-sharing)          | N/A                                        | N/A                                 | N/A                                              |
-| Semi-honest, dishonest majority | [Semi / Hemi / Temi / Soho](#secret-sharing)   | [Semi2k](#secret-sharing)                  | [SemiBin](#secret-sharing)          | [Yao's GC](#yaos-garbled-circuits) / [BMR](#bmr) |
-| Malicious, honest majority      | [Shamir / Rep3 / PS / SY](#honest-majority)    | [Brain / Rep3 / PS / SY](#honest-majority) | [Rep3 / CCD / PS](#honest-majority) | [BMR](#bmr)                                      |
-| Semi-honest, honest majority    | [Shamir / ATLAS / Rep3](#honest-majority)      | [Rep3](#honest-majority)                   | [Rep3 / CCD](#honest-majority)      | [BMR](#bmr)                                      |
-| Malicious, honest supermajority | [Rep4](#honest-majority)                       | [Rep4](#honest-majority)                   | [Rep4](#honest-majority)            | N/A                                              |
-| Semi-honest, dealer             | [Dealer](#dealer-model)                        | [Dealer](#dealer-model)                    | [Dealer](#dealer-model)             | N/A                                              |
+| Security model | Mod prime / GF(2^n) | Mod 2^k | Bin. SS | Garbling |
+| --- | --- | --- | --- | --- |
+| Malicious, dishonest majority | [MASCOT / LowGear / HighGear](#secret-sharing) | [SPDZ2k](#secret-sharing) | [Tiny / Tinier](#secret-sharing) | [BMR](#bmr) |
+| Covert, dishonest majority | [CowGear / ChaiGear](#secret-sharing) | N/A | N/A | N/A |
+| Semi-honest, dishonest majority | [Semi / Hemi / Temi / Soho](#secret-sharing) | [Semi2k](#secret-sharing) | [SemiBin](#secret-sharing) | [Yao's GC](#yaos-garbled-circuits) / [BMR](#bmr) |
+| Malicious, honest majority | [Shamir / Rep3 / PS / SY](#honest-majority) | [Brain / Rep3 / PS / SY](#honest-majority) | [Rep3 / CCD / PS](#honest-majority) | [BMR](#bmr) |
+| Semi-honest, honest majority | [Shamir / ATLAS / Rep3](#honest-majority) | [Rep3](#honest-majority) | [Rep3 / CCD](#honest-majority) | [BMR](#bmr) |
+| Malicious, honest supermajority | [Rep4](#honest-majority) | [Rep4](#honest-majority) | [Rep4](#honest-majority) | N/A |
+| Semi-honest, dealer | [Dealer](#dealer-model) | [Dealer](#dealer-model) | [Dealer](#dealer-model) | N/A |
 
 Modulo prime and modulo 2^k are the two settings that allow
 integer-like computation. For k = 64, the latter corresponds to the
-computation available on the widely used 64-bit processors. GF(2^n)
+computation available on the widely used 64-bit processors.  GF(2^n)
 denotes Galois extension fields of order 2^n, which are different to
 computation modulo 2^n. In particular, every element has an inverse,
 which is not the case modulo 2^n. See [this
@@ -175,7 +147,7 @@ there are a few things to consider:
   addition and multiplication at low cost. However, binary circuits
   might be a better option if there is very little integer
   computation. [See below](#finding-the-most-efficient-variant) to
-  find the most efficient mixed-circuit variant. Furthermore, local
+  find the most efficient mixed-circuit variant.  Furthermore, local
   computation modulo a power of two is cheaper, but MP-SPDZ does not
   offer this domain with homomorphic encryption.
 
@@ -214,19 +186,19 @@ there are a few things to consider:
 
 - Minor variants: Some command-line options change aspects of the
   protocols such as:
-  - `--bucket-size`: In some malicious binary computation and
-    malicious edaBit generation, a smaller bucket size allows
-    preprocessing in smaller batches at a higher asymptotic cost.
-  - `--batch-size`: Preprocessing in smaller batches avoids generating
-    too much but larger batches save communication rounds.
-  - `--direct`: In dishonest-majority protocols, direct communication
-    instead of star-shaped saves communication rounds at the expense
-    of a quadratic amount. This might be beneficial with a small
-    number of parties.
-  - `--bits-from-squares`: In some protocols computing modulo a prime
-    (Shamir, Rep3, SPDZ-wise), this switches from generating random
-    bits via XOR of parties' inputs to generation using the root of a
-    random square.
+    - `--bucket-size`: In some malicious binary computation and
+      malicious edaBit generation, a smaller bucket size allows
+      preprocessing in smaller batches at a higher asymptotic cost.
+    - `--batch-size`: Preprocessing in smaller batches avoids generating
+      too much but larger batches save communication rounds.
+    - `--direct`: In protocols with any number of parties, direct communication
+      instead of star-shaped saves communication rounds at the expense
+      of a quadratic amount. This might be beneficial with a small
+      number of parties.
+    - `--bits-from-squares`: In some protocols computing modulo a prime
+      (Shamir, Rep3, SPDZ-wise), this switches from generating random
+      bits via XOR of parties' inputs to generation using the root of a
+      random square.
 
 #### Paper and Citation
 
@@ -255,10 +227,9 @@ protocol](https://eprint.iacr.org/2011/535).
 
 This repository combines the functionality previously published in the
 following repositories:
-
-- https://github.com/bristolcrypto/SPDZ-2
-- https://github.com/mkskeller/SPDZ-BMR-ORAM
-- https://github.com/mkskeller/SPDZ-Yao
+ - https://github.com/bristolcrypto/SPDZ-2
+ - https://github.com/mkskeller/SPDZ-BMR-ORAM
+ - https://github.com/mkskeller/SPDZ-Yao
 
 #### Overview
 
@@ -271,8 +242,9 @@ AES-NI pipelining (for garbled circuits).
 
 The software uses two different bytecode sets, one for
 arithmetic circuits and one for boolean circuits. The high-level code
-slightly differs between the two variants, but we aim to keep these
-differences a at minimum.
+differs between the two variants. Most computation functionality is
+available in both, but binary circuits are lacking some input-output
+functionality.
 
 In the section on computation we will explain how to compile a
 high-level program for the various computation domains and then how to
@@ -285,64 +257,60 @@ compute the preprocessing time for a particular computation.
 
 #### Requirements
 
-- GCC 5 or later (tested with up to 11) or LLVM/clang 6 or later
-  (tested with up to 14). The default is to use clang because it performs
-  better. Note that GCC 5/6 and clang 9 don't support libOTe, so you
-  need to deactivate its use for these compilers (see the next
-  section).
-- For protocols using oblivious transfer, libOTe with [the necessary
-  patches](https://github.com/mkskeller/softspoken-implementation)
-  but without SimplestOT. The easiest way is to run `make libote`,
-  which will install it as needed in a subdirectory. libOTe requires
-  CMake of version at least 3.15, which is not available by default
-  on older systems such as Ubuntu 18.04. You can run `make cmake` to
-  install it locally.
-  libOTe also requires boost of version at least 1.75, which is not
-  available by default on relatively recent systems such as Ubuntu
-  22.04. You can install it locally by running `make boost`.
-- GMP library, compiled with C++ support (use flag `--enable-cxx`
-  when running configure). Tested against 6.2.1 as supplied by
-  Ubuntu.
-- libsodium library, tested against 1.0.18
-- OpenSSL, tested against 3.0.2
-- Boost.Asio with SSL support (`libboost-dev` on Ubuntu), tested against 1.81
-- Boost.Thread for BMR (`libboost-thread-dev` on Ubuntu), tested against 1.81
-- x86 or ARM 64-bit CPU (the latter tested with AWS Gravitron and
-  Apple Silicon)
-- Python 3.5 or later
-- NTL library for homomorphic encryption (optional; tested with NTL 11.5.1)
-- If using macOS, Sierra or later
-- Windows/VirtualBox: see [this
-  issue](https://github.com/data61/MP-SPDZ/issues/557) for a discussion
+ - GCC 7 or later (tested with up to 14) or LLVM/clang 10 or later
+   (tested with up to 19). The default is to use clang because it performs
+   better.
+ - For protocols using oblivious transfer, libOTe with [the necessary
+   patches](https://github.com/mkskeller/softspoken-implementation)
+   but without SimplestOT. The easiest way is to run `make libote`,
+   which will install it as needed in a subdirectory. libOTe requires
+   CMake of version at least 3.15, which is not available by default
+   on older systems such as Ubuntu 18.04. You can run `make cmake` to
+   install it locally.
+   libOTe also requires boost of version at least 1.75, which is not
+   available by default on relatively recent systems such as Ubuntu
+   22.04. You can install it locally by running `make boost`.
+ - GMP library, compiled with C++ support (use flag `--enable-cxx`
+   when running configure). Tested against 6.2.1 as supplied by
+   Ubuntu.
+ - libsodium library, tested against 1.0.18
+ - OpenSSL, tested against 3.0.2
+ - Boost.Asio with SSL support (`libboost-dev` on Ubuntu), tested against 1.81
+ - Boost.Thread for BMR (`libboost-thread-dev` on Ubuntu), tested against 1.81
+ - x86 or ARM 64-bit CPU (the latter tested with AWS Gravitron and
+   Apple Silicon)
+ - Python 3.5 or later
+ - NTL library for homomorphic encryption (optional; tested with NTL 11.5.1)
+ - If using macOS, Sierra or later
+ - Windows/VirtualBox: see [this
+   issue](https://github.com/data61/MP-SPDZ/issues/557) for a discussion
 
 #### Compilation
 
 1. Edit `CONFIG` or `CONFIG.mine` to your needs:
 
-   - On x86, the binaries are optimized for the CPU you are compiling
-     on. For all optimizations on x86, a CPU supporting AES-NI,
-     PCLMUL, AVX2, BMI2, ADX is required. This includes mainstream
-     processors released 2014 or later. If you intend to run on a
-     different CPU than compiling, you might need to change the `ARCH`
-     variable in `CONFIG` or `CONFIG.mine` to `-march=<cpu>`. See the
-     [GCC
-     documentation](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)
-     for the possible options.
-     To run on CPUs without AVX2 (CPUs from before 2014), you should
-     also add `AVX_OT = 0` to `CONFIG.mine`.
-   - For optimal results on Linux on ARM, add `ARCH = -march=armv8.2-a+crypto`
-     to `CONFIG.mine`. This enables the hardware support for AES. See the [GCC
-     documentation](https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html#AArch64-Options) on available options.
-   - To benchmark online-only protocols or Overdrive offline phases, add the following line at the top: `MY_CFLAGS = -DINSECURE`
-   - `PREP_DIR` should point to a local, unversioned directory to store preprocessing data (the default is `Player-Data` in the current directory).
-   - `SSL_DIR` should point to a local, unversioned directory to store ssl keys (the default is `Player-Data` in the current directory).
-   - For homomorphic encryption with GF(2^40), set `USE_NTL = 1`.
-   - To use KOS instead of SoftSpokenOT, add `USE_KOS = 1` and
-     `SECURE = -DINSECURE` to `CONFIG.mine`. This is necessary with
-     GCC 5 and 6 because these compilers don't support the C++
-     standard used by libOTe.
-   - On macOS, there have been issues with non-system compilers. Add
-     `CXX = /usr/bin/g++` to fix them.
+    - On x86, the binaries are optimized for the CPU you are compiling
+      on. For all optimizations on x86, a CPU supporting AES-NI,
+      PCLMUL, AVX2, BMI2, ADX is required. This includes mainstream
+      processors released 2014 or later. If you intend to run on a
+      different CPU than compiling, you might need to change the `ARCH`
+      variable in `CONFIG` or `CONFIG.mine` to `-march=<cpu>`. See the
+      [GCC
+      documentation](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)
+      for the possible options.
+      To run on CPUs without AVX2 (CPUs from before 2014), you should
+      also add `AVX_OT = 0` to `CONFIG.mine`.
+    - For optimal results on Linux on ARM, add `ARCH = -march=armv8.2-a+crypto`
+      to `CONFIG.mine`. This enables the hardware support for AES. See the [GCC
+      documentation](https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html#AArch64-Options) on available options.
+    - To benchmark online-only protocols or Overdrive offline phases, add the following line at the top: `MY_CFLAGS = -DINSECURE`
+    - `PREP_DIR` should point to a local, unversioned directory to store preprocessing data (the default is `Player-Data` in the current directory).
+    - `SSL_DIR` should point to a local, unversioned directory to store ssl keys (the default is `Player-Data` in the current directory).
+    - For homomorphic encryption with GF(2^40), set `USE_NTL = 1`.
+    - To use KOS instead of SoftSpokenOT, add `USE_KOS = 1` and
+      `SECURE = -DINSECURE` to `CONFIG.mine`.
+    - On macOS, there have been issues with non-system compilers. Add
+      `CXX = /usr/bin/g++` to fix them.
 
 2. Run `make` to compile all the software (use the flag `-j` for faster
    compilation using multiple threads). See below on how to compile specific
@@ -396,11 +364,14 @@ There are three ways of running computation:
    ```
 
    If <path> does not start with `/` (only one `/` after the
-   hostname), the path with be relative to the home directory of the
+   hostname), the path will be relative to the home directory of the
    user. Otherwise (`//` after the hostname it will be relative to the
    root directory.
 
    It is assumed that the SSH login is possible without password.
+
+   Adding the compiler option `-t` (`--tidy_output`) groups the output prints by
+   party; however, it delays the outputs until the execution is finished.
 
 Even with the integrated execution it is important to keep in mind
 that there are two different phases, the compilation and the run-time
@@ -412,6 +383,7 @@ documentation](https://mp-spdz.readthedocs.io/en/latest/compilation.html#compila
 for what this means when using Python data structures and Python
 language features.
 
+
 ### Compiling high-level programs
 
 There are three computation domains, and the high-level programs have
@@ -419,7 +391,7 @@ to be compiled accordingly.
 
 #### Arithmetic modulo a prime
 
-`./compile.py [-F <integer bit length>] [-P <prime>] <program>`
+```./compile.py [-F <integer bit length>] [-P <prime>] <program>```
 
 The integer bit length defaults to 64, and the prime defaults to none
 given. If a prime is given, it has to be at least two bits longer than
@@ -427,8 +399,13 @@ the integer length. Note that `-P` is optional, and it involves
 algorithms that are more expensive while allowing for a wider range of
 integer lengths.
 
+The command-line options primarily affects non-linear computation such
+as comparisons. See the [documentation on non-linear
+computation](https://mp-spdz.readthedocs.io/en/latest/non-linear.html)
+for more details and pointers to relevant papers.
+
 Note that in this context integers do not wrap around according to the
-bit integer bit length but the length is used for non-linear
+integer bit length but the length is used for non-linear
 computations such as comparison.
 Overflow in secret integers might have security implications if no
 concrete prime is given.
@@ -450,7 +427,7 @@ directly. For fixed-point computation this is done via
 
 #### Arithmetic modulo 2^k
 
-`./compile.py -R <integer bit length> <program>`
+```./compile.py -R <integer bit length> <program>```
 
 The length is communicated to the virtual machines and automatically
 used if supported. By default, they support bit lengths 64, 72, and
@@ -459,7 +436,7 @@ used if supported. By default, they support bit lengths 64, 72, and
 
 #### Binary circuits
 
-`./compile.py -B <integer bit length> <program>`
+```./compile.py -B <integer bit length> <program>```
 
 The integer length can be any number up to a maximum depending on the
 protocol. All protocols support at least 64-bit integers.
@@ -485,9 +462,9 @@ several ways of achieving this as described below.
 
 You can activate this by adding `-X` when compiling arithmetic
 circuits, that is
-`./compile.py -X [-F <integer bit length>] <program>`
+```./compile.py -X [-F <integer bit length>] <program>```
 for computation modulo a prime and
-`./compile.py -X -R <integer bit length> <program>`
+```./compile.py -X -R <integer bit length> <program>```
 for computation modulo 2^k.
 
 Internally, this uses daBits described by [Rotaru and
@@ -587,6 +564,13 @@ This is particularly useful if want to add new command line arguments specifical
 
 Note that when using this approach, all objects provided in the high level interface (e.g. sint, print_ln) need to be imported, because the `.mpc` file is interpreted directly by Python (instead of being read by `compile.py`.)
 
+Furthermore, this only covers compilation, so you will need to run execution separately, for example:
+```
+Scripts/mascot.sh hello_world
+```
+
+Also note that programs in the above form are not compatible with `compile.py` and `compile-run.py`.
+
 #### Compiling and running programs from external directories
 
 Programs can also be edited, compiled and run from any directory with
@@ -611,6 +595,14 @@ $ ../MP-SPDZ/Scripts/rep-field.sh test
 ```
 
 ### TensorFlow inference
+
+**Note: All networks mentioned below are now supported by the
+[PyTorch
+interface](https://mp-spdz.readthedocs.io/en/latest/machine-learning.html#loading-pre-trained-models),
+which is better integrated and thus easier to use. This section is
+merely kept to document the approach used for [an earlier
+paper](https://eprint.iacr.org/2019/131), but it is recommended to use
+the PyTorch interface.**
 
 MP-SPDZ supports inference with selected TensorFlow graphs, in
 particular DenseNet, ResNet, and SqueezeNet as used in
@@ -647,9 +639,10 @@ contains further documentation on available layers.
 For arithmetic circuits modulo a power of two and binary circuits, you
 can emulate the computation as follows:
 
-`./emulate.x <program>`
+``` ./emulate.x <program> ```
 
-This runs the compiled bytecode in cleartext computation.
+This runs the compiled bytecode in cleartext computation, that is,
+*no* multi-party computation is performed.
 
 ## Dishonest majority
 
@@ -663,23 +656,23 @@ available.
 
 The following table shows all programs for dishonest-majority computation using secret sharing:
 
-| Program            | Protocol                                              | Domain    | Security    | Script        |
-| ------------------ | ----------------------------------------------------- | --------- | ----------- | ------------- |
-| `mascot-party.x`   | [MASCOT](https://eprint.iacr.org/2016/505)            | Mod prime | Malicious   | `mascot.sh`   |
-| `mama-party.x`     | MASCOT\*                                              | Mod prime | Malicious   | `mama.sh`     |
-| `spdz2k-party.x`   | [SPDZ2k](https://eprint.iacr.org/2018/482)            | Mod 2^k   | Malicious   | `spdz2k.sh`   |
-| `semi-party.x`     | OT-based                                              | Mod prime | Semi-honest | `semi.sh`     |
-| `semi2k-party.x`   | OT-based                                              | Mod 2^k   | Semi-honest | `semi2k.sh`   |
-| `lowgear-party.x`  | [LowGear](https://eprint.iacr.org/2017/1230)          | Mod prime | Malicious   | `lowgear.sh`  |
-| `highgear-party.x` | [HighGear](https://eprint.iacr.org/2017/1230)         | Mod prime | Malicious   | `highgear.sh` |
-| `cowgear-party.x`  | Adapted [LowGear](https://eprint.iacr.org/2017/1230)  | Mod prime | Covert      | `cowgear.sh`  |
-| `chaigear-party.x` | Adapted [HighGear](https://eprint.iacr.org/2017/1230) | Mod prime | Covert      | `chaigear.sh` |
-| `hemi-party.x`     | Semi-homomorphic encryption                           | Mod prime | Semi-honest | `hemi.sh`     |
-| `temi-party.x`     | Adapted [CDN01](https://eprint.iacr.org/2000/055)     | Mod prime | Semi-honest | `temi.sh`     |
-| `soho-party.x`     | Somewhat homomorphic encryption                       | Mod prime | Semi-honest | `soho.sh`     |
-| `semi-bin-party.x` | OT-based                                              | Binary    | Semi-honest | `semi-bin.sh` |
-| `tiny-party.x`     | Adapted SPDZ2k                                        | Binary    | Malicious   | `tiny.sh`     |
-| `tinier-party.x`   | [FKOS15](https://eprint.iacr.org/2015/901)            | Binary    | Malicious   | `tinier.sh`   |
+| Program | Protocol | Domain | Security | Script |
+| --- | --- | --- | --- | --- |
+| `mascot-party.x` | [MASCOT](https://eprint.iacr.org/2016/505) | Mod prime | Malicious | `mascot.sh` |
+| `mama-party.x` | MASCOT* | Mod prime | Malicious | `mama.sh` |
+| `spdz2k-party.x` | [SPDZ2k](https://eprint.iacr.org/2018/482) | Mod 2^k | Malicious | `spdz2k.sh` |
+| `semi-party.x` | OT-based | Mod prime | Semi-honest | `semi.sh` |
+| `semi2k-party.x` | OT-based | Mod 2^k | Semi-honest | `semi2k.sh` |
+| `lowgear-party.x` | [LowGear](https://eprint.iacr.org/2017/1230) | Mod prime | Malicious | `lowgear.sh` |
+| `highgear-party.x` | [HighGear](https://eprint.iacr.org/2017/1230) | Mod prime | Malicious | `highgear.sh` |
+| `cowgear-party.x` | Adapted [LowGear](https://eprint.iacr.org/2017/1230) | Mod prime | Covert | `cowgear.sh` |
+| `chaigear-party.x` | Adapted [HighGear](https://eprint.iacr.org/2017/1230) | Mod prime | Covert | `chaigear.sh` |
+| `hemi-party.x` | Semi-homomorphic encryption | Mod prime | Semi-honest | `hemi.sh` |
+| `temi-party.x` | Adapted [CDN01](https://eprint.iacr.org/2022/933) | Mod prime | Semi-honest | `temi.sh` |
+| `soho-party.x` | Somewhat homomorphic encryption | Mod prime | Semi-honest | `soho.sh` |
+| `semi-bin-party.x` | OT-based | Binary | Semi-honest | `semi-bin.sh` |
+| `tiny-party.x` | Adapted SPDZ2k | Binary | Malicious | `tiny.sh` |
+| `tinier-party.x` | [FKOS15](https://eprint.iacr.org/2015/901) | Binary | Malicious | `tinier.sh` |
 
 Mama denotes MASCOT with several MACs to increase the security
 parameter to a multiple of the prime length.
@@ -697,6 +690,9 @@ Tiny denotes the adaption of SPDZ2k to the binary setting. In
 particular, the SPDZ2k sacrifice does not work for bits, so we replace
 it by cut-and-choose according to [Furukawa et
 al.](https://eprint.iacr.org/2016/944)
+Tinier on the other hand denotes the protocol by [Frederiksen et
+al.](https://eprint.iacr.org/2015/901) also using the cut-and-choose
+sacrifice by Furukawa et al.
 
 The virtual machines for LowGear and HighGear run a key generation
 similar to the one by [Rotaru et
@@ -712,7 +708,8 @@ security similar to Semi, that is, generating additively shared Beaver
 triples using semi-homomorphic encryption.
 Temi in turn denotes the adaption of
 [Cramer et al.](https://eprint.iacr.org/2000/055) to LWE-based
-semi-homomorphic encryption.
+semi-homomorphic encryption as described in Appendix B of [this
+work](https://eprint.iacr.org/2022/933).
 Both Hemi and Temi use the diagonal packing by [Halevi and
 Shoup](https://eprint.iacr.org/2014/106) for matrix multiplication.
 
@@ -755,6 +752,7 @@ e.g. if this machine is name `diffie` on the local network:
 The software uses TCP ports around 5000 by default, use the `-pn`
 argument to change that.
 
+
 ### Yao's garbled circuits
 
 We use half-gate garbling as described by [Zahur et
@@ -774,8 +772,8 @@ and the high-level program:
 
 Then run as follows:
 
-- Garbler: `./yao-party.x [-I] -p 0 <program>`
-- Evaluator: `./yao-party.x [-I] -p 1 -h <garbler host> <program>`
+  - Garbler: ```./yao-party.x [-I] -p 0 <program>```
+  - Evaluator: ```./yao-party.x [-I] -p 1 -h <garbler host> <program>```
 
 When running locally, you can omit the host argument. As above, `-I`
 activates interactive input, otherwise inputs are read from
@@ -789,27 +787,27 @@ whenever received.You can activate garbling all at once by adding
 
 The following table shows all programs for honest-majority computation:
 
-| Program                       | Sharing                                   | Domain    | Malicious | \# parties | Script             |
-| ----------------------------- | ----------------------------------------- | --------- | --------- | ---------- | ------------------ |
-| `replicated-ring-party.x`     | Replicated                                | Mod 2^k   | N         | 3          | `ring.sh`          |
-| `brain-party.x`               | Replicated                                | Mod 2^k   | Y         | 3          | `brain.sh`         |
-| `ps-rep-ring-party.x`         | Replicated                                | Mod 2^k   | Y         | 3          | `ps-rep-ring.sh`   |
-| `malicious-rep-ring-party.x`  | Replicated                                | Mod 2^k   | Y         | 3          | `mal-rep-ring.sh`  |
-| `sy-rep-ring-party.x`         | SPDZ-wise replicated                      | Mod 2^k   | Y         | 3          | `sy-rep-ring.sh`   |
-| `rep4-ring-party.x`           | Replicated                                | Mod 2^k   | Y         | 4          | `rep4-ring.sh`     |
-| `replicated-bin-party.x`      | Replicated                                | Binary    | N         | 3          | `replicated.sh`    |
-| `malicious-rep-bin-party.x`   | Replicated                                | Binary    | Y         | 3          | `mal-rep-bin.sh`   |
-| `ps-rep-bin-party.x`          | Replicated                                | Binary    | Y         | 3          | `ps-rep-bin.sh`    |
-| `replicated-field-party.x`    | Replicated                                | Mod prime | N         | 3          | `rep-field.sh`     |
-| `ps-rep-field-party.x`        | Replicated                                | Mod prime | Y         | 3          | `ps-rep-field.sh`  |
-| `sy-rep-field-party.x`        | SPDZ-wise replicated                      | Mod prime | Y         | 3          | `sy-rep-field.sh`  |
-| `malicious-rep-field-party.x` | Replicated                                | Mod prime | Y         | 3          | `mal-rep-field.sh` |
-| `atlas-party.x`               | [ATLAS](https://eprint.iacr.org/2021/833) | Mod prime | N         | 3 or more  | `atlas.sh`         |
-| `shamir-party.x`              | Shamir                                    | Mod prime | N         | 3 or more  | `shamir.sh`        |
-| `malicious-shamir-party.x`    | Shamir                                    | Mod prime | Y         | 3 or more  | `mal-shamir.sh`    |
-| `sy-shamir-party.x`           | SPDZ-wise Shamir                          | Mod prime | Y         | 3 or more  | `sy-shamir.sh`     |
-| `ccd-party.x`                 | CCD/Shamir                                | Binary    | N         | 3 or more  | `ccd.sh`           |
-| `malicious-cdd-party.x`       | CCD/Shamir                                | Binary    | Y         | 3 or more  | `mal-ccd.sh`       |
+| Program | Sharing | Domain | Malicious | \# parties | Script |
+| --- | --- | --- | --- | --- | --- |
+| `replicated-ring-party.x` | Replicated | Mod 2^k | N | 3 | `ring.sh` |
+| `brain-party.x` | Replicated | Mod 2^k | Y | 3 | `brain.sh` |
+| `ps-rep-ring-party.x` | Replicated | Mod 2^k | Y | 3 | `ps-rep-ring.sh` |
+| `malicious-rep-ring-party.x` | Replicated | Mod 2^k | Y | 3 | `mal-rep-ring.sh` |
+| `sy-rep-ring-party.x` | SPDZ-wise replicated | Mod 2^k | Y | 3 | `sy-rep-ring.sh` |
+| `rep4-ring-party.x` | Replicated | Mod 2^k | Y | 4 | `rep4-ring.sh` |
+| `replicated-bin-party.x` | Replicated | Binary | N | 3 | `replicated.sh` |
+| `malicious-rep-bin-party.x` | Replicated | Binary | Y | 3 | `mal-rep-bin.sh` |
+| `ps-rep-bin-party.x` | Replicated | Binary | Y | 3 | `ps-rep-bin.sh` |
+| `replicated-field-party.x` | Replicated | Mod prime | N | 3 | `rep-field.sh` |
+| `ps-rep-field-party.x` | Replicated | Mod prime | Y | 3 | `ps-rep-field.sh` |
+| `sy-rep-field-party.x` | SPDZ-wise replicated | Mod prime | Y | 3 | `sy-rep-field.sh` |
+| `malicious-rep-field-party.x` | Replicated | Mod prime | Y | 3 | `mal-rep-field.sh` |
+| `atlas-party.x` | [ATLAS](https://eprint.iacr.org/2021/833) | Mod prime | N | 3 or more | `atlas.sh` |
+| `shamir-party.x` | Shamir | Mod prime | N | 3 or more | `shamir.sh` |
+| `malicious-shamir-party.x` | Shamir | Mod prime | Y | 3 or more | `mal-shamir.sh` |
+| `sy-shamir-party.x` | SPDZ-wise Shamir | Mod prime | Y | 3 or more | `sy-shamir.sh` |
+| `ccd-party.x` | CCD/Shamir | Binary | N | 3 or more | `ccd.sh` |
+| `malicious-cdd-party.x` | CCD/Shamir | Binary | Y | 3 or more | `mal-ccd.sh` |
 
 We use the "generate random triple optimistically/sacrifice/Beaver"
 methodology described by [Lindell and
@@ -916,9 +914,9 @@ all but one of the other parties are allowed to collude. In our
 implementation, the dealer is the party with the highest number, so
 with three parties overall, Party 0 and 1 run the online phase.
 
-| Program               | Sharing  | Domain  | Malicious | \# parties | Script           |
-| --------------------- | -------- | ------- | --------- | ---------- | ---------------- |
-| `dealer-ring-party.x` | Additive | Mod 2^k | N         | 3+         | `dealer-ring.sh` |
+| Program | Sharing | Domain | Malicious | \# parties | Script |
+| --- | --- | --- | --- | --- | --- |
+| `dealer-ring-party.x` | Additive | Mod 2^k | N | 3+ | `dealer-ring.sh` |
 
 ## BMR
 
@@ -930,14 +928,14 @@ circuits. Our implementation is based on the [SPDZ-BMR-ORAM
 construction](https://eprint.iacr.org/2017/981). The following table
 lists the available schemes.
 
-| Program                  | Protocol   | Dishonest Maj. | Malicious | \# parties | Script              |
-| ------------------------ | ---------- | -------------- | --------- | ---------- | ------------------- |
-| `real-bmr-party.x`       | MASCOT     | Y              | Y         | 2 or more  | `real-bmr.sh`       |
-| `semi-bmr-party.x`       | Semi       | Y              | N         | 2 or more  | `semi-bmr.sh`       |
-| `shamir-bmr-party.x`     | Shamir     | N              | N         | 3 or more  | `shamir-bmr.sh`     |
-| `mal-shamir-bmr-party.x` | Shamir     | N              | Y         | 3 or more  | `mal-shamir-bmr.sh` |
-| `rep-bmr-party.x`        | Replicated | N              | N         | 3          | `rep-bmr.sh`        |
-| `mal-rep-bmr-party.x`    | Replicated | N              | Y         | 3          | `mal-rep-bmr.sh`    |
+| Program | Protocol | Dishonest Maj. | Malicious | \# parties | Script |
+| --- | --- | --- | --- | --- | --- |
+| `real-bmr-party.x` | MASCOT | Y | Y | 2 or more | `real-bmr.sh` |
+| `semi-bmr-party.x` | Semi | Y | N | 2 or more | `semi-bmr.sh` |
+| `shamir-bmr-party.x` | Shamir | N | N | 3 or more | `shamir-bmr.sh` |
+| `mal-shamir-bmr-party.x` | Shamir | N | Y | 3 or more | `mal-shamir-bmr.sh` |
+| `rep-bmr-party.x` | Replicated | N | N | 3 | `rep-bmr.sh` |
+| `mal-rep-bmr-party.x` | Replicated | N | Y | 3 | `mal-rep-bmr.sh` |
 
 In the following, we will walk through running the tutorial with BMR
 based on MASCOT and two parties. The other programs work similarly.
@@ -972,7 +970,6 @@ In this section we show how to benchmark purely the data-dependent
 (often called online) phase of some protocols. This requires to
 generate the output of a previous phase. There are two options to do
 that:
-
 1. For select protocols, you can run [preprocessing as
    required](#preprocessing-as-required).
 2. You can run insecure preprocessing. For this, you will have to
@@ -1012,6 +1009,7 @@ This sets up parameters for the online phase for 2 parties with a 128-bit prime 
 Parameters can be customised by running
 
 `Scripts/setup-online.sh <nparties> <nbitsp> [<nbits2>]`
+
 
 #### To compile a program
 
@@ -1101,12 +1099,12 @@ After compiling the mpc file:
 
 You can benchmark the ORAM implementation as follows:
 
-1. Edit `Program/Source/gc_oram.mpc` to change size and to choose
-   Circuit ORAM or linear scan without ORAM.
-2. Run `./compile.py -G -D gc_oram`. The `-D` argument instructs the
-   compiler to remove dead code. This is useful for more complex programs
-   such as this one.
-3. Run `gc_oram` in the virtual machines as explained above.
+1) Edit `Program/Source/gc_oram.mpc` to change size and to choose
+Circuit ORAM or linear scan without ORAM.
+2) Run `./compile.py -G -D gc_oram`. The `-D` argument instructs the
+compiler to remove dead code. This is useful for more complex programs
+such as this one.
+3) Run `gc_oram` in the virtual machines as explained above.
 
 ## Preprocessing as required
 
@@ -1134,25 +1132,6 @@ same player number in the preprocessing and the online phase.
 
 ## Benchmarking offline phases
 
-#### SPDZ-2 offline phase
-
-This implementation is suitable to generate the preprocessed data used in the online phase.
-You need to compile with `USE_NTL = 1` in `CONFIG.mine` to run this.
-
-For quick run on one machine, you can call the following:
-
-`./spdz2-offline.x -p 0 & ./spdz2-offline.x -p 1`
-
-More generally, run the following on every machine:
-
-`./spdz2-offline.x -p <number of party> -N <total number of parties> -h <hostname of party 0> -c <covert security parameter>`
-
-The number of parties are counted from 0. As seen in the quick example, you can omit the total number of parties if it is 2 and the hostname if all parties run on the same machine. Invoke `./spdz2-offline.x` for more explanation on the options.
-
-`./spdz2-offline.x` provides covert security according to some parameter c (at least 2). A malicious adversary will get caught with probability 1-1/c. There is a linear correlation between c and the running time, that is, running with 2c takes twice as long as running with c. The default for c is 10.
-
-The program will generate every kind of randomness required by the online phase except input tuples until you stop it. You can shut it down gracefully pressing Ctrl-c (or sending the interrupt signal `SIGINT`), but only after an initial phase, the end of which is marked by the output `Starting to produce gf2n`. Note that the initial phase has been reported to take up to an hour. Furthermore, 3 GB of RAM are required per party.
-
 #### Benchmarking the MASCOT or SPDZ2k offline phase
 
 These implementations are not suitable to generate the preprocessed
@@ -1165,7 +1144,7 @@ MASCOT can be run as follows:
 
 `host2:$ ./ot-offline.x -p 1 -c`
 
-For SPDZ2k, use `-Z <k>` to set the computation domain to Z\_{2^k}, and
+For SPDZ2k, use `-Z <k>` to set the computation domain to Z_{2^k}, and
 `-S` to set the security parameter. The latter defaults to k. At the
 time of writing, the following combinations are available: 32/32,
 64/64, 64/48, and 66/48.
@@ -1178,11 +1157,11 @@ loops.
 
 We have implemented several protocols to measure the maximal throughput for the [Overdrive paper](https://eprint.iacr.org/2017/1230). As for MASCOT, these implementations are not suited to generate data for the online phase because they only generate one type at a time.
 
-| Binary               | Protocol                                                                         |
-| -------------------- | -------------------------------------------------------------------------------- |
-| `simple-offline.x`   | SPDZ-1 and High Gear (with command-line argument `-g`)                           |
-| `pairwise-offline.x` | Low Gear                                                                         |
-| `cnc-offline.x`      | SPDZ-2 with malicious security (covert security with command-line argument `-c`) |
+Binary | Protocol
+------ | --------
+`simple-offline.x` | SPDZ-1 and High Gear (with command-line argument `-g`)
+`pairwise-offline.x` | Low Gear
+`cnc-offline.x` | SPDZ-2 with malicious security (covert security with command-line argument `-c`)
 
 These programs can be run similarly to `spdz2-offline.x`, for example:
 

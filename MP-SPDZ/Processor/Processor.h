@@ -21,18 +21,24 @@
 #include "GC/Processor.h"
 #include "GC/ShareThread.h"
 #include "Protocols/SecureShuffle.h"
+#include "Tools/NamedStats.h"
 
 class Program;
+
+// synchronize in asymmetric protocols
+template<class T>
+void sync(vector<Integer>& x, Player& P);
 
 template <class T>
 class SubProcessor
 {
-  CheckVector<typename T::clear> C;
-  CheckVector<T> S;
+  StackedVector<typename T::clear> C;
+  StackedVector<T> S;
 
   DataPositions bit_usage;
+  NamedStats stats;
 
-  typename T::Protocol::Shuffler shuffler;
+  Binary_File_IO<T> binary_file_io;
 
   void resize(size_t size)       { C.resize(size); S.resize(size); }
 
@@ -40,6 +46,8 @@ class SubProcessor
       const vector<int>& dim, size_t a, size_t b);
   void matmulsm_finalize(int i, int j, const vector<int>& dim,
       typename vector<T>::iterator C);
+
+  void maybe_check();
 
   template<class sint, class sgf2n> friend class Processor;
   template<class U> friend class SPDZ;
@@ -62,6 +70,8 @@ public:
   typename BT::LivePrep bit_prep;
   vector<typename BT::LivePrep*> personal_bit_preps;
 
+  typename T::Protocol::Shuffler shuffler;
+
   SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& MC,
       Preprocessing<T>& DataF, Player& P);
   SubProcessor(typename T::MAC_Check& MC, Preprocessing<T>& DataF, Player& P,
@@ -76,8 +86,8 @@ public:
   void muls(const vector<int>& reg);
   void mulrs(const vector<int>& reg);
   void dotprods(const vector<int>& reg, int size);
-  void matmuls(const vector<T>& source, const Instruction& instruction);
-  void matmulsm(const MemoryPart<T>& source, const Instruction& instruction);
+  void matmuls(const StackedVector<T>& source, const Instruction& instruction);
+  void matmulsm(const MemoryPart<T>& source, const vector<int>& args);
 
   void matmulsm_finalize_batch(vector<int>::const_iterator startMatmul, int startI, int startJ,
                                vector<int>::const_iterator endMatmul,
@@ -88,20 +98,19 @@ public:
   void secure_shuffle(const Instruction& instruction);
   size_t generate_secure_shuffle(const Instruction& instruction,
       ShuffleStore& shuffle_store);
-  void apply_shuffle(const Instruction& instruction, int handle,
-          ShuffleStore& shuffle_store);
+  void apply_shuffle(const Instruction& instruction, ShuffleStore& shuffle_store);
   void inverse_permutation(const Instruction& instruction);
 
   void input_personal(const vector<int>& args);
   void send_personal(const vector<int>& args);
   void private_output(const vector<int>& args);
 
-  CheckVector<T>& get_S()
+  StackedVector<T>& get_S()
   {
     return S;
   }
 
-  CheckVector<typename T::clear>& get_C()
+  StackedVector<typename T::clear>& get_C()
   {
     return C;
   }
@@ -116,13 +125,24 @@ public:
     return C[i];
   }
 
-    void inverse_permutation(const Instruction &instruction, int handle);
+  void inverse_permutation(const Instruction &instruction, int handle);
+
+  void push_stack();
+  void push_args(const vector<int>& args);
+  void pop_stack(const vector<int>& results);
+
+  // Read and write secret numeric data to file (name hardcoded at present)
+  template<class U>
+  void read_shares_from_file(long start_file_pos, int end_file_pos_register,
+      const vector<int>& data_registers, size_t vector_size, U& Proc);
+  void write_shares_to_file(long start_pos, const vector<int>& data_registers,
+      size_t vector_size);
 };
 
 class ArithmeticProcessor : public ProcessorBase
 {
 protected:
-  CheckVector<Integer> Ci;
+  StackedVector<Integer> Ci;
 
   ofstream public_output;
   ofstream binary_output;
@@ -174,7 +194,7 @@ public:
     { return Ci[i]; }
   void write_Ci(size_t i, const long& x)
     { Ci[i]=x; }
-  CheckVector<Integer>& get_Ci()
+  StackedVector<Integer>& get_Ci()
     { return Ci; }
 
   virtual ofstream& get_public_output()
@@ -213,11 +233,10 @@ class Processor : public ArithmeticProcessor
   SubProcessor<sgf2n> Proc2;
   SubProcessor<sint>  Procp;
 
-  unsigned int PC;
+  unsigned int PC, last_PC;
   TempVars<sint, sgf2n> temp;
 
   ExternalClients& external_clients;
-  Binary_File_IO binary_file_io;
 
   CommStats client_stats;
   Timer& client_timer;
@@ -278,10 +297,6 @@ class Processor : public ArithmeticProcessor
   void read_socket_private(int client_id, const vector<int>& registers,
       int size, bool send_macs);
 
-  // Read and write secret numeric data to file (name hardcoded at present)
-  void read_shares_from_file(int start_file_pos, int end_file_pos_register, const vector<int>& data_registers);
-  void write_shares_to_file(long start_pos, const vector<int>& data_registers);
-  
   cint get_inverse2(unsigned m);
 
   void fixinput(const Instruction& instruction);
@@ -291,6 +306,8 @@ class Processor : public ArithmeticProcessor
 
   ofstream& get_public_output();
   ofstream& get_binary_output();
+
+  void call_tape(int tape_number, int arg, const vector<int>& results);
 
   private:
 

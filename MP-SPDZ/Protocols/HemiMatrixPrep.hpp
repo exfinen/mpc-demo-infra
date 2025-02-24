@@ -3,6 +3,9 @@
  *
  */
 
+#ifndef PROTOCOLS_HEMIMATRIXPREP_HPP_
+#define PROTOCOLS_HEMIMATRIXPREP_HPP_
+
 #include "HemiMatrixPrep.h"
 #include "MAC_Check.h"
 #include "FHE/Diagonalizer.h"
@@ -87,20 +90,29 @@ inline void matrix_rand_mult(ThreadJob, false_type)
 }
 
 template<class T>
+int HemiMatrixPrep<T>::minimum_batch()
+{
+    assert(prep);
+    return prep->get_FTD().num_slots() / n_rows;
+}
+
+template<class T>
 void HemiMatrixPrep<T>::buffer_triples()
 {
-
     assert(prep);
     auto& multipliers = prep->get_multipliers();
     auto& FTD = prep->get_FTD();
     auto& pk = prep->get_pk();
-    int n_matrices = FTD.num_slots() / n_rows;
-#ifdef VERBOSE_HE
-    fprintf(stderr, "creating %d %dx%d * %dx%d triples\n", n_matrices, n_rows, n_inner,
-            n_inner, n_cols);
-    fflush(stderr);
+    int n_matrices = minimum_batch();
+
+    if (OnlineOptions::singleton.has_option("verbose_he"))
+    {
+        fprintf(stderr, "creating %d %dx%d * %dx%d triples\n", n_matrices,
+                n_rows, n_inner, n_inner, n_cols);
+        fflush(stderr);
+    }
+
     RunningTimer timer;
-#endif
     AddableVector<ValueMatrix<gfpvar>> A(n_matrices, {n_rows, n_inner}),
             B(n_matrices, {n_inner, n_cols});
     SeededPRNG G;
@@ -217,3 +229,5 @@ void HemiMatrixPrep<T>::buffer_triples()
     fflush(stderr);
 #endif
 }
+
+#endif

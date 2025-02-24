@@ -13,8 +13,18 @@ from .program import Program, defaults
 
 
 class Compiler:
+    singleton = None
+
     def __init__(self, custom_args=None, usage=None, execute=False,
                  split_args=False):
+        if Compiler.singleton:
+            raise CompilerError(
+                "Cannot have more than one compiler instance. "
+                "It's not possible to run direct compilation programs with "
+                "compile.py or compile-run.py.")
+        else:
+            Compiler.singleton = self
+
         if usage:
             self.usage = usage
         else:
@@ -165,7 +175,8 @@ class Compiler:
             dest="prime",
             default=defaults.prime,
             help="use bit decomposition with a specifed prime modulus "
-            "for non-linear computation (default: use the masking approach)",
+            "for non-linear computation (default: use the masking approach). "
+            "Don't use this unless you're certain that you need it.",
         )
         parser.add_option(
             "-I",
@@ -252,6 +263,13 @@ class Compiler:
                 dest="hostfile",
                 help="hosts to execute with",
             )
+            parser.add_option(
+                "-t",
+                "--tidy_output",
+                action="store_true",
+                dest="tidy_output",
+                help="make output prints tidy and grouped by party (note: delays the prints)",
+            )
         else:
             parser.add_option(
                 "-E",
@@ -263,6 +281,14 @@ class Compiler:
 
     def parse_args(self):
         self.options, self.args = self.parser.parse_args(self.custom_args)
+        if self.options.verbose:
+            self.runtime_args += ["--verbose"]
+        if self.options.execute:
+            self.options.execute = re.sub("-party.x$", "", self.options.execute)
+            for s, l in self.match.items():
+                if self.options.execute == l:
+                    self.options.execute = s
+                    break
         if self.execute:
             if not self.options.execute:
                 if len(self.args) > 1:
@@ -313,6 +339,8 @@ class Compiler:
                 self.prog.use_split(int(os.getenv("PLAYERS", 2)))
             if self.options.execute in ("rep4-ring",):
                 self.prog.use_split(4)
+            if self.options.execute.find("dealer") >= 0:
+                self.prog.use_edabit(True)
 
     def build_vars(self):
         from . import comparison, floatingpoint, instructions, library, types
@@ -368,7 +396,14 @@ class Compiler:
                 "cfloat",
                 "squant",
             ]:
-                del self.VARS[i]
+                class dummy:
+                    def __init__(self, *args):
+                        raise CompilerError(self.error)
+                dummy.error = i + " not availabe with binary circuits"
+                if i in ("cint", "cfix"):
+                    dummy.error += ". See https://mp-spdz.readthedocs.io/en/" \
+                        "latest/Compiler.html#Compiler.types." + i
+                self.VARS[i] = dummy
         else:
             self.sint = types.sint
             self.sfix = types.sfix
@@ -418,6 +453,8 @@ class Compiler:
                         continue
                     m = re.match(r"(\s*)if(\W.*):", line)
                     if m:
+                        while if_stack and if_stack[-1][0] == m.group(1):
+                            if_stack.pop()
                         if_stack.append((m.group(1), len(output)))
                         output.append("%s@if_(%s)\n" % (m.group(1), m.group(2)))
                         output.append("%sdef _():\n" % (m.group(1)))
@@ -503,13 +540,15 @@ class Compiler:
 
         return self.prog
 
-    @staticmethod
-    def executable_from_protocol(protocol):
-        match = {
-            "ring": "replicated-ring",
-            "rep-field": "replicated-field",
-            "replicated": "replicated-bin"
-        }
+    match = {
+        "ring": "replicated-ring",
+        "rep-field": "replicated-field",
+        "replicated": "replicated-bin"
+    }
+
+    @classmethod
+    def executable_from_protocol(cls, protocol):
+        match = cls.match
         if protocol in match:
             protocol = match[protocol]
         if protocol.find("bmr") == -1:
@@ -588,11 +627,25 @@ class Compiler:
             for filename in glob.glob("Player-Data/*.0"):
                 connection.put(filename, dest + "Player-Data")
 
+        def run_with_error(i):
+            try:
+                run(i)
+            except IOError:
+                print('IO error when copying files, does %s have enough space?' %
+                      hostnames[i])
+                raise
+
         import threading
         import random
+        import io
+
+        def run_and_capture_outputs(outputs, fn, i):
+            out = fn(i)
+            outputs[i] = out
+
         threads = []
         for i in range(len(hosts)):
-            threads.append(threading.Thread(target=run, args=(i,)))
+            threads.append(threading.Thread(target=run_with_error, args=(i,)))
         for thread in threads:
             thread.start()
         for thread in threads:
@@ -600,6 +653,14 @@ class Compiler:
 
         # execution
         threads = []
+
+        # tidy up output prints
+        hide_option = False
+        if self.options.tidy_output:
+            outputs = []
+            for i in range(len(connections)):
+                outputs += [""]
+            hide_option = True
         # random port numbers to avoid conflict
         port = 10000 + random.randrange(40000)
         if '@' in hostnames[0]:
@@ -614,9 +675,15 @@ class Compiler:
             run = lambda i: connections[i].run(
                 "cd %s; ./%s -p %d %s -h %s -pn %d %s" % \
                 (destinations[i], vm, i, self.prog.name, party0, port,
-                 ' '.join(args + N)))
-            threads.append(threading.Thread(target=run, args=(i,)))
+                 ' '.join(args + N)), hide=hide_option)
+            if self.options.tidy_output:
+                threads.append(threading.Thread(target=run_and_capture_outputs, args=(outputs, run, i,)))
+            else:
+                threads.append(threading.Thread(target=run, args=(i,)))
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
+        if self.options.tidy_output:
+            for out in outputs:
+                print(out)

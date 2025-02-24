@@ -107,7 +107,7 @@ class gfp_ : public ValueInterface
   static void write_setup(string dir)
     { write_online_setup(dir, pr()); }
   static void check_setup(string dir);
-  static string fake_opts() { return " -lgp " + to_string(length()); }
+  static string fake_opts() { return " -P " + to_string(pr()); }
 
   /**
    * Get the prime modulus
@@ -229,18 +229,25 @@ class gfp_ : public ValueInterface
   // faster randomization, see implementation for explanation
   void almost_randomize(PRNG& G);
 
-  void output(ostream& s,bool human) const
-    { a.output(s,ZpD,human); }
+  /**
+   * Output.
+   * @param s output stream
+   * @param human human-readable or binary
+   * @param signed_ signed representation (range `[-p/2,p/2]` instead of `[0,p]`)
+   */
+  void output(ostream& s, bool human, bool signed_ = false) const
+    { a.output(s,ZpD, human, signed_); }
   void input(istream& s,bool human)
     { a.input(s,ZpD,human); }
 
   /**
-   * Human-readable output in the range `[-p/2, p/2]`.
+   * Human-readable output in the range `[0, p]`.
    * @param s output stream
    * @param x value
    */
   friend ostream& operator<<(ostream& s,const gfp_& x)
-    { x.output(s,true);
+    {
+      x.output(s, true, false);
       return s;
     }
   /**
@@ -304,6 +311,11 @@ typedef gfp_<1, GFP_MOD_SZ> gfp1;
 
 template<int X, int L>
 Zp_Data gfp_<X, L>::ZpD;
+template<int X, int L>
+gfp_<X, L> gfp_<X, L>::two;
+
+template<int X, int L>
+const true_type gfp_<X, L>::prime_field;
 
 template<int X, int L>
 thread_local vector<gfp_<X, L>> gfp_<X, L>::powers;

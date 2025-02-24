@@ -36,11 +36,10 @@ void BufferBase::seekg(int pos)
 {
     assert(not is_pipe());
 
-#ifdef DEBUG_BUFFER
-    if (pos != 0)
+    if (pos != 0 and OnlineOptions::singleton.has_option("verbose_buffer"))
         printf("seek %d %s thread %d\n", pos, filename.c_str(),
                 BaseMachine::thread_num);
-#endif
+
     if (not file)
     {
         if (pos == 0)
@@ -65,6 +64,7 @@ void BufferBase::seekg(int pos)
 
 void BufferBase::try_rewind()
 {
+    assert(not OnlineOptions::singleton.has_option("no_rewind"));
     assert(not is_pipe());
 
 #ifndef INSECURE
@@ -135,14 +135,24 @@ void BufferBase::prune()
 
 void BufferBase::purge()
 {
-    if (file and not is_pipe())
+    bool verbose = OnlineOptions::singleton.has_option("verbose_purge");
+    if (not filename.empty() and not is_pipe())
     {
-#ifdef VERBOSE
-        cerr << "Removing " << filename << endl;
-#endif
+        if (verbose)
+            cerr << "Removing " << filename << endl;
         unlink(filename.c_str());
-        file->close();
-        file = 0;
+        if (file)
+        {
+            file->close();
+            file = 0;
+        }
+    }
+    else if (verbose)
+    {
+        cerr << "Not removing " << filename;
+        if (is_pipe())
+            cerr << "because it's a pipe";
+        cerr << endl;
     }
 }
 

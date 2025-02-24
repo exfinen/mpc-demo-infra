@@ -8,6 +8,7 @@
 #include "Tools/Exceptions.h"
 #include "Tools/time-func.h"
 #include "Tools/octetStream.h"
+#include "Processor/OnlineOptions.h"
 
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -60,10 +61,9 @@ ServerSocket::ServerSocket(int Portnum) : portnum(Portnum), thread(0)
               << "), trying again in a second ..." << endl;
           sleep(1);
         }
-#ifdef DEBUG_NETWORKING
       else
-        { cerr << "ServerSocket is bound on port " << Portnum << endl; }
-#endif
+        if (OnlineOptions::singleton.has_option("debug_networking"))
+           cerr << "ServerSocket is bound on port " << Portnum << endl;
     }
   if (fl<0) { error("set_up_socket:bind");  }
 
@@ -121,11 +121,12 @@ void ServerSocket::wait_for_client_id(int socket, struct sockaddr dest)
     }
   catch (closed_connection&)
     {
-#ifdef DEBUG_NETWORKING
-      auto& conn = *(sockaddr_in*) &dest;
-      fprintf(stderr, "client on %s:%d left without identification\n",
-          inet_ntoa(conn.sin_addr), ntohs(conn.sin_port));
-#endif
+      if (OnlineOptions::singleton.has_option("debug_networking"))
+        {
+          auto& conn = *(sockaddr_in*) &dest;
+          fprintf(stderr, "client on %s:%d left without identification\n",
+              inet_ntoa(conn.sin_addr), ntohs(conn.sin_port));
+        }
     }
 }
 
@@ -205,7 +206,7 @@ int ServerSocket::get_connection_socket(const string& id)
   while (clients.find(id) == clients.end())
   {
       if (data_signal.wait(CONNECTION_TIMEOUT) == ETIMEDOUT)
-          throw runtime_error("Timed out waiting for peer. See "
+          exit_error("Timed out waiting for peer. See "
                   "https://mp-spdz.readthedocs.io/en/latest/networking.html "
                   "for details on networking.");
   }
@@ -230,7 +231,7 @@ void AnonymousServerSocket::init()
 void AnonymousServerSocket::process_client(const string& client_id)
 {
   if (clients.find(client_id) != clients.end())
-    throw runtime_error("client " + client_id + " already connected");
+    exit_error("client " + client_id + " already connected");
   client_connection_queue.push(client_id);
 }
 
@@ -242,7 +243,7 @@ int AnonymousServerSocket::get_connection_socket(string& client_id)
   {
       int res = data_signal.wait(CONNECTION_TIMEOUT);
       if (res == ETIMEDOUT)
-          throw runtime_error("timed out while waiting for client");
+          exit_error("timed out while waiting for client");
       else if (res)
           throw runtime_error("waiting error");
   }

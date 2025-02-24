@@ -21,6 +21,8 @@ class NoShare : public ShareInterface
     typedef NoShare This;
 
 public:
+    typedef This share_type;
+
     // type for clear values in relevant domain
     typedef T clear;
     typedef clear open_type;

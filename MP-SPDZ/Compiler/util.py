@@ -28,11 +28,11 @@ def greater_than(a, b, bits):
     else:
         return a.greater_than(b, bits)
 
-def pow2_value(a, bit_length=None, security=None):
+def pow2_value(a, bit_length=None):
     if is_constant_float(a):
         return 2**a
     else:
-        return a.pow2(bit_length, security)
+        return a.pow2(bit_length)
 
 def mod2m(a, b, bits, signed):
     if isinstance(a, int):
@@ -291,6 +291,9 @@ class dict_by_id(object):
 
     def __iter__(self):
         return self.keys()
+
+    def pop(self, key):
+        return self.content.pop(id(key), None)
 
 class defaultdict_by_id(dict_by_id):
     def __init__(self, default):

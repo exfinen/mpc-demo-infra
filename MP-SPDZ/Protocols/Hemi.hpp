@@ -9,6 +9,9 @@
 #include "Hemi.h"
 #include "ShareMatrix.h"
 #include "HemiOptions.h"
+#include "MatrixFile.h"
+#include "DummyMatrixPrep.h"
+#include "Processor/Conv2dTuple.h"
 
 #include "HemiMatrixPrep.hpp"
 #include "HemiPrep.hpp"
@@ -18,30 +21,110 @@ Hemi<T>::~Hemi()
 {
     for (auto& x : matrix_preps)
         delete x.second;
+    if (mc)
+        delete mc;
 }
 
 template<class T>
-typename T::MatrixPrep& Hemi<T>::get_matrix_prep(const array<int, 3>& dims,
+Preprocessing<ShareMatrix<T>>& Hemi<T>::get_matrix_prep(const array<int, 3>& dims,
         SubProcessor<T>& processor)
 {
     if (matrix_preps.find(dims) == matrix_preps.end())
-        matrix_preps.insert(pair<array<int, 3>, typename T::MatrixPrep*>(dims,
-            new typename T::MatrixPrep(dims[0], dims[1], dims[2],
+    {
+        Preprocessing<ShareMatrix<T>>* prep;
+        if (OnlineOptions::singleton.live_prep)
+            prep = new typename T::MatrixPrep(dims[0], dims[1], dims[2],
                     dynamic_cast<typename T::LivePrep&>(processor.DataF),
-                    matrix_usage)));
+                    matrix_usage);
+        else
+            prep = new MatrixFile<T>(dims, matrix_usage, this->P);
+        matrix_preps.insert({dims, prep});
+    }
     return *matrix_preps.at(dims);
+}
+
+template<class T>
+bool Hemi<T>::use_plain_matmul(const array<int, 3> dim, SubProcessor<T>& processor)
+{
+    if (OnlineOptions::singleton.has_option("force_matrix_triples"))
+        return false;
+
+    if (OnlineOptions::singleton.live_prep)
+    {
+        try
+        {
+            get_matrix_prep(dim, processor);
+        }
+        catch (no_matrix_prep&)
+        {
+            return true;
+        }
+    }
+    else
+    {
+        int found = false;
+
+        try
+        {
+            get_matrix_prep(dim, processor);
+            found = true;
+        }
+        catch (signature_mismatch&)
+        {
+            if (not warned)
+            {
+                cerr << "Cannot find matrix triples on disk, "
+                        << "reverting to plain triples" << endl;
+                cerr << "Use './Fake-Offline.x -p <program-with-args> ...'"
+                        << " to generate matrix triples" << endl;
+                warned = true;
+            }
+        }
+
+        Bundle<octetStream> os(processor.P);
+        os.mine.store(found);
+        processor.P.Broadcast_Receive(os);
+        os.mine.reset_read_head();
+
+        for (auto& o : os)
+            if (not o.get_int(4))
+                return true;
+    }
+
+    auto& prep = get_matrix_prep(dim, processor);
+    int savings = (dim[0] * dim[2]) / (dim[0] + dim[2]) + 1;
+    int requirement = BaseMachine::matrix_requirement(dim[0], dim[1], dim[2]);
+
+    if (OnlineOptions::singleton.has_option("verbose_matrix"))
+        fprintf(stderr, "savings=%d minimum_batch=%d requirement=%d\n", savings,
+                prep.minimum_batch(), requirement);
+
+    return HemiOptions::singleton.plain_matmul
+            or prep.minimum_batch() / savings > requirement;
 }
 
 template<class T>
 void Hemi<T>::matmulsm(SubProcessor<T>& processor, MemoryPart<T>& source,
         const Instruction& instruction)
 {
-    if (HemiOptions::singleton.plain_matmul
-            or not OnlineOptions::singleton.live_prep)
+    auto& dim = instruction.get_start();
+
+    vector<int> plain_args, complex_args;
+
+    for (auto it = dim.begin(); it < dim.end(); it += 12)
     {
-        processor.matmulsm(source, instruction);
-        return;
+        array<int, 3> real_dims({it[3], it[4], it[5]});
+
+        if (use_plain_matmul(real_dims, processor))
+            plain_args.insert(plain_args.end(), it, it + 12);
+        else
+            complex_args.insert(complex_args.end(), it, it + 12);
     }
+
+    if (not plain_args.empty())
+        processor.matmulsm(source, plain_args);
+
+    auto& S = processor.get_S();
 
     // Perform the matrix multiplications in sequence.
     // They are not merged into one communication round since that would require multiple matrix_preps to
@@ -50,10 +133,10 @@ void Hemi<T>::matmulsm(SubProcessor<T>& processor, MemoryPart<T>& source,
     // which is not implemented yet.
     auto Proc = processor.Proc;
     assert(Proc);
-    auto& S = processor.get_S();
-    auto& start = instruction.get_start();
 
-    for (auto matmulArgs = start.begin(); matmulArgs < start.end(); matmulArgs += 12) {
+    for (auto matmulArgs = complex_args.begin();
+            matmulArgs < complex_args.end(); matmulArgs += 12)
+    {
         auto C = S.begin() + matmulArgs[0];
         size_t firstFactorBase  = Proc->get_Ci().at(matmulArgs[1]).get();
         size_t secondFactorBase = Proc->get_Ci().at(matmulArgs[2]).get();
@@ -104,12 +187,26 @@ template<class T>
 ShareMatrix<T> Hemi<T>::matrix_multiply(const ShareMatrix<T>& A,
         const ShareMatrix<T>& B, SubProcessor<T>& processor)
 {
+    if (mc == 0)
+    {
+        mc = new MatrixMC<T>(processor.MC);
+    }
+
     Beaver<ShareMatrix<T>> beaver(this->P);
     array<int, 3> dims = {{A.n_rows, A.n_cols, B.n_cols}};
     ShareMatrix<T> C(A.n_rows, B.n_cols);
 
+    bool verbose = OnlineOptions::singleton.has_option("verbose_matmul");
+
     int max_inner = OnlineOptions::singleton.batch_size;
     int max_cols = OnlineOptions::singleton.batch_size;
+
+    if (not OnlineOptions::singleton.live_prep)
+    {
+        max_inner = A.n_cols;
+        max_cols = B.n_cols;
+    }
+
     for (int i = 0; i < A.n_cols; i += max_inner)
     {
         for (int j = 0; j < B.n_cols; j += max_cols)
@@ -118,17 +215,35 @@ ShareMatrix<T> Hemi<T>::matrix_multiply(const ShareMatrix<T>& A,
             subdim[1] = min(max_inner, A.n_cols - i);
             subdim[2] = min(max_cols, B.n_cols - j);
             auto& prep = get_matrix_prep(subdim, processor);
-            beaver.init(prep, mc);
+            beaver.init(prep, *mc);
             beaver.init_mul();
             bool for_real = T::real_shares(processor.P);
-            beaver.prepare_mul(A.from(0, i, subdim.data(), for_real),
-                    B.from(i, j, subdim.data() + 1, for_real));
+            if (verbose)
+                fprintf(stderr, "matmul prepare\n");
+            auto AA = A.from(0, i, subdim.data(), for_real);
+            auto BB = B.from(i, j, subdim.data() + 1, for_real);
+            beaver.prepare_mul(AA, BB);
             if (for_real)
             {
+                if (verbose)
+                    fprintf(stderr, "matmul exchange\n");
+                for (size_t k = 0; k < AA.entries.size() + BB.entries.size();
+                        k++)
+                    mc->inner.set_random_element({});
                 beaver.exchange();
                 C.add_from_col(j, beaver.finalize_mul());
             }
         }
+    }
+
+    if (OnlineOptions::singleton.has_option("debug_matmul"))
+    {
+        mc->inner.Check(processor.P);
+        auto opened = mc->open(C, processor.P);
+        for (auto& x: opened.entries)
+            cout << x << " ";
+        cout << endl;
+        mc->inner.Check(processor.P);
     }
 
     return C;
@@ -141,26 +256,32 @@ template<class T>
 void Hemi<T>::conv2ds(SubProcessor<T>& processor,
         const Instruction& instruction)
 {
-    if (HemiOptions::singleton.plain_matmul
-            or not OnlineOptions::singleton.live_prep)
-    {
-        processor.conv2ds(instruction);
-        return;
-    }
-
     auto& args = instruction.get_start();
     vector<Conv2dTuple> tuples;
     for (size_t i = 0; i < args.size(); i += 15)
+    {
         tuples.push_back(Conv2dTuple(args, i));
+        if (use_plain_matmul(tuples.back().matrix_dimensions(), processor))
+        {
+            processor.conv2ds(instruction);
+            return;
+        }
+    }
     for (auto& tuple : tuples)
         tuple.run_matrix(processor);
+}
+
+inline
+array<int, 3> Conv2dTuple::matrix_dimensions()
+{
+    return {1, weights_h * weights_w * n_channels_in, batch_size * output_h * output_w};
 }
 
 template<class T>
 void Conv2dTuple::run_matrix(SubProcessor<T>& processor)
 {
     auto& S = processor.get_S();
-    array<int, 3> dim({{1, weights_h * weights_w * n_channels_in, batch_size * output_h * output_w}});
+    array<int, 3> dim = matrix_dimensions();
     ShareMatrix<T> A(dim[0], dim[1]), B(dim[1], dim[2]);
 
     if (not T::real_shares(processor.P))

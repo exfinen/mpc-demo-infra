@@ -30,7 +30,7 @@ BaseMachine& BaseMachine::s()
   if (singleton)
     return *singleton;
   else
-    throw runtime_error("no singleton");
+    throw runtime_error("no BaseMachine singleton");
 }
 
 bool BaseMachine::has_program()
@@ -70,7 +70,32 @@ int BaseMachine::bucket_size(size_t usage)
   return res;
 }
 
-BaseMachine::BaseMachine() : nthreads(0)
+int BaseMachine::matrix_batch_size(int n_rows, int n_inner, int n_cols)
+{
+  int limit = max(1., 1e6 / (max(n_rows * n_inner, n_inner * n_cols)));
+  unsigned res = min(limit, OnlineOptions::singleton.batch_size);
+  if (has_program())
+    res = min(res, (unsigned) matrix_requirement(n_rows, n_inner, n_cols));
+  return res;
+}
+
+int BaseMachine::matrix_requirement(int n_rows, int n_inner, int n_cols)
+{
+  if (has_program())
+    {
+      auto res = s().progs[0].get_offline_data_used().matmuls[
+          {n_rows, n_inner, n_cols}];
+      if (res)
+        return res;
+      else
+        return -1;
+    }
+  else
+    return -1;
+}
+
+BaseMachine::BaseMachine() :
+    nthreads(0), multithread(false)
 {
   if (sodium_init() == -1)
     throw runtime_error("couldn't initialize libsodium");
@@ -124,7 +149,12 @@ void BaseMachine::load_schedule(const string& progname, bool load_bytecode)
 #endif
           long size = load_program(threadname, filename);
           if (expected >= 0 and expected != size)
-            throw runtime_error("broken bytecode file");
+            {
+              stringstream os;
+              os << "broken bytecode file, found " << size
+                  << " instructions, expected " << expected;
+              throw runtime_error(os.str());
+            }
         }
 
     }
@@ -287,7 +317,7 @@ void BaseMachine::print_comm(Player& P, const NamedCommStats& comm_stats)
     rounds += x.second.rounds;
   cerr << "Data sent = " << comm_stats.sent / 1e6 << " MB in ~" << rounds
       << " rounds (party " << P.my_num() << " only";
-  if (nthreads > 1)
+  if (multithread)
     cerr << "; rounds counted double due to multi-threading";
   if (not OnlineOptions::singleton.verbose)
     cerr << "; use '-v' for more details";

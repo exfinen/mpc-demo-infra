@@ -203,6 +203,20 @@ def _no_mem_warnings(function):
     copy_doc(wrapper, function)
     return wrapper
 
+def _layer_method_call_tape(function):
+    function = method_call_tape(function)
+    def wrapper(self, *args, **kwargs):
+        self._Y.alloc()
+        if self.inputs and len(self.inputs) == 1:
+            backup = self.inputs
+            del self.inputs
+            res = function(self, *args, **kwargs)
+            self.inputs = backup
+            return res
+        else:
+            return function(self, *args, **kwargs)
+    return wrapper
+
 class Tensor(MultiArray):
     def __init__(self, *args, **kwargs):
         kwargs['alloc'] = False
@@ -259,6 +273,7 @@ class Layer:
     def Y(self, value):
         self._Y = value
 
+    @_layer_method_call_tape
     def forward(self, batch=None, training=None):
         if batch is None:
             batch = Array.create_from(regint(0))
@@ -834,7 +849,7 @@ class Dense(DenseBase):
             prod = MultiArray([N, self.d, self.d_out], sfix)
         else:
             prod = self.f_input
-        max_size = get_program().budget // self.d_out
+        max_size = get_program().budget
         @multithread(self.n_threads, N, max_size)
         def _(base, size):
             X_sub = sfix.Matrix(self.N, self.d_in, address=self.X.address)
@@ -1045,7 +1060,8 @@ class ElementWiseLayer(NoVariableLayer):
 
     def _forward(self, batch=[0]):
         n_per_item = reduce(operator.mul, self.X.sizes[1:])
-        @multithread(self.n_threads, len(batch) * n_per_item)
+        @multithread(self.n_threads, len(batch) * n_per_item,
+                     max_size=program.budget)
         def _(base, size):
             self.Y.assign_vector(self.f_part(base, size), base)
 
@@ -1195,6 +1211,7 @@ class MaxPool(PoolBase):
       list/tuple of integers
 
     """
+    @_layer_method_call_tape
     def forward(self, batch=None, training=False):
         if batch is None:
             batch = Array.create_from(regint(0))
@@ -1252,26 +1269,38 @@ class Concat(NoVariableLayer):
         self.dimension = dimension
         shapes = [inp.shape for inp in inputs]
         assert dimension == 3
-        assert len(shapes) == 2
-        assert len(shapes[0]) == len(shapes[1])
+        assert len(shapes[0]) == 4
+        for shape in shapes:
+            assert len(shape) == len(shapes[0])
         shape = []
         for i in range(len(shapes[0])):
             if i == dimension:
-                shape.append(shapes[0][i] + shapes[1][i])
+                shape.append(sum(x[i] for x in shapes))
             else:
-                assert shapes[0][i] == shapes[1][i]
                 shape.append(shapes[0][i])
         self.Y = Tensor(shape, sfix)
+        self.bases = [sum(x[dimension] for x in shapes[:k])
+                      for k in range(len(shapes))]
+        self.addresses = Array.create_from(regint(list(
+            x.Y.address for x in inputs)))
 
     def _forward(self, batch=[0]):
         assert len(batch) == 1
         @for_range_multithread(self.n_threads, 1, self.Y.sizes[1:3])
         def _(i, j):
-            X = [x.Y[batch[0]] for x in self.inputs]
-            self.Y[batch[0]][i][j].assign_vector(X[0][i][j].get_vector())
-            self.Y[batch[0]][i][j].assign_part_vector(
-                X[1][i][j].get_vector(),
-                len(X[0][i][j]))
+            if len(set(self.bases)) == 1:
+                @for_range(len(self.inputs))
+                def _(k):
+                    self.Y[batch[0]][i][j].assign_part_vector(
+                        MultiArray(
+                            self.inputs[0].shape,
+                            address=self.addresses[k])[i][j].get_vector(),
+                        k * self.bases[1])
+            else:
+                X = [x.Y[batch[0]] for x in self.inputs]
+                for k in range(len(self.inputs)):
+                    self.Y[batch[0]][i][j].assign_part_vector(
+                        X[k][i][j].get_vector(), self.bases[k])
 
 class Add(NoVariableLayer):
     """ Fixed-point addition layer.
@@ -1287,12 +1316,12 @@ class Add(NoVariableLayer):
         self.inputs = inputs
 
     def _forward(self, batch=[0]):
-        assert len(batch) == 1
         @multithread(self.n_threads, self.Y[0].total_size())
         def _(base, size):
-            tmp = sum(inp.Y[batch[0]].get_vector(base, size)
-                      for inp in self.inputs)
-            self.Y[batch[0]].assign_vector(tmp, base)
+            for bb in batch:
+                tmp = sum(inp.Y[bb].get_vector(base, size)
+                          for inp in self.inputs)
+                self.Y[bb].assign_vector(tmp, base)
 
 class FusedBatchNorm(Layer):
     """ Fixed-point fused batch normalization layer (inference only).
@@ -1334,12 +1363,14 @@ class BatchNorm(Layer):
 
     def __init__(self, shape, approx=True, args=None):
         assert len(shape) in (2, 3, 4)
+        self.Y = sfix.Tensor(shape)
         if len(shape) == 4:
             shape = [shape[0], shape[1] * shape[2], shape[3]]
         elif len(shape) == 2:
             shape = [shape[0], 1, shape[1]]
-        tensors = (Tensor(shape, sfix) for i in range(4))
-        self.X, self.Y, self.nabla_X, self.nabla_Y = tensors
+        self.my_Y = sfix.Tensor(shape, address=self.Y.address)
+        tensors = (Tensor(shape, sfix) for i in range(3))
+        self.X, self.nabla_X, self.nabla_Y = tensors
         arrays = (sfix.Array(shape[2]) for i in range(4))
         self.var, self.mu, self.weights, self.bias = arrays
         arrays = (sfix.Array(shape[2]) for i in range(4))
@@ -1369,16 +1400,16 @@ class BatchNorm(Layer):
 
     def _output(self, batch, mu, var):
         factor = sfix.Array(len(mu))
-        factor[:] = self.InvertSqrt(var[:] + self.epsilon)
+        factor[:] = self.InvertSqrt(var[:] + self.epsilon) * self.weights[:]
         @for_range_opt_multithread(self.n_threads,
                                    [len(batch), self.X.sizes[1]])
         def _(i, j):
-            tmp = self.weights[:] * (self.X[i][j][:] - mu[:]) * factor[:]
-            self.Y[i][j][:] = self.bias[:] + tmp
+            tmp = (self.X[i][j][:] - mu[:]) * factor[:]
+            self.my_Y[i][j][:] = self.bias[:] + tmp
 
+    @_layer_method_call_tape
     def forward(self, batch, training=False):
         if training or not self.is_trained:
-            self.is_trained = True
             d = self.X.sizes[1]
             d_in = self.X.sizes[2]
             s = sfix.Array(d_in)
@@ -1411,7 +1442,7 @@ class BatchNorm(Layer):
                     print_ln('%s at %s: %s', str(x), k, x[k].reveal())
                 print_ln('%s at (%s, %s, %s): in=%s out=%s',
                          str(self.Y), i, j, k, self.X[i][j][k].reveal(),
-                         self.Y[i][j][k].reveal())
+                         self.my_Y[i][j][k].reveal())
         else:
             self._output(batch, self.mu_hat, self.var_hat)
 
@@ -1471,6 +1502,10 @@ class BatchNorm(Layer):
                      self.nabla_Y[i][j][k].reveal(),
                      self.nabla_X[i][j][k].reveal())
 
+    def reveal_parameters_to_binary(self):
+        for param in self.thetas() + (self.mu_hat, self.var_hat):
+            param.reveal().binary_output()
+
 class QuantBase(object):
     bias_before_reduction = True
 
@@ -1498,11 +1533,12 @@ class QuantBase(object):
 class FixBase:
     bias_before_reduction = False
 
-    @staticmethod
-    def new_squant():
-        class _(sfix):
-            params = None
-        return _
+    class my_squant(sfix):
+        params = None
+
+    @classmethod
+    def new_squant(cls):
+        return cls.my_squant
 
     def input_params_from(self, player):
         pass
@@ -1553,7 +1589,8 @@ class ConvBase(BaseLayer):
         cls.temp_inputs = sfix.Array(size)
 
     def __init__(self, input_shape, weight_shape, bias_shape, output_shape, stride,
-                 padding='SAME', tf_weight_format=False, inputs=None):
+                 padding='SAME', tf_weight_format=False, inputs=None,
+                 weight_type=None):
         super(ConvBase, self).__init__(input_shape, output_shape, inputs=inputs)
 
         self.weight_shape = weight_shape
@@ -1582,7 +1619,11 @@ class ConvBase(BaseLayer):
         else:
             self.padding = padding
 
-        self.weight_squant = self.new_squant()
+        if weight_type:
+            self.weight_squant = weight_type
+        else:
+            self.weight_squant = self.new_squant()
+
         self.bias_squant = self.new_squant()
 
         self.weights = Tensor(weight_shape, self.weight_squant)
@@ -1645,8 +1686,7 @@ class ConvBase(BaseLayer):
         n_summands = self.n_summands()
         #start_timer(2)
         n_outputs = batch_length * reduce(operator.mul, self.output_shape[1:])
-        @multithread(self.n_threads, n_outputs,
-                     1000 if sfix.round_nearest else 10 ** 6)
+        @multithread(self.n_threads, n_outputs, max_size=program.budget)
         def _(base, n_per_thread):
             res = self.input_squant().unreduced(
                 sint.load_mem(unreduced.address + base,
@@ -1709,7 +1749,7 @@ class Conv2d(ConvBase):
                     res += self.bias.expand_to_vector(j, res.size).v
                 else:
                     res += self.bias.expand_to_vector(j, res.size).v << \
-                        self.input_squant.f
+                        self.weight_squant.f
                 addresses = regint.inc(res.size,
                                        self.unreduced[i * part_size].address + j,
                                        n_channels_out)
@@ -2029,7 +2069,7 @@ class AveragePool2d(BaseLayer):
             self.Y[0][out_y][out_x][c] = self.output_squant._new(acc)
 
 def easyConv2d(input_shape, batch_size, out_channels, kernel_size, stride=1,
-               padding=0):
+               padding=0, **kwargs):
     """ More convenient interface to :py:class:`FixConv2d`.
 
     :param input_shape: input shape (tuple/list of four int)
@@ -2050,7 +2090,7 @@ def easyConv2d(input_shape, batch_size, out_channels, kernel_size, stride=1,
     padding = padding.upper() if isinstance(padding, str) \
         else padding
     return FixConv2d(input_shape, weight_shape, (out_channels,), output_shape,
-                     stride, padding)
+                     stride, padding, **kwargs)
 
 def easyMaxPool(input_shape, kernel_size, stride=None, padding=0):
     """ More convenient interface to :py:class:`MaxPool`.
@@ -2102,6 +2142,7 @@ class FixAveragePool2d(PoolBase, FixBase):
         PoolBase.__init__(self, input_shape, [1] + list(strides) + [1],
                           [1] + list(filter_size) + [1], padding)
         self.pool_size = reduce(operator.mul, filter_size)
+        self.d_out = self.Y.shape[-1]
         if output_shape:
             assert self.Y.shape == list(output_shape)
 
@@ -2192,7 +2233,7 @@ class Optimizer:
         res.output_stats = 'output_stats' in program.args
         return res
 
-    def __init__(self, layers=[], report_loss=None):
+    def __init__(self, layers=[], report_loss=None, time_layers=False):
         if get_program().options.binary:
             raise CompilerError(
                 'machine learning code not compatible with binary circuits')
@@ -2207,6 +2248,10 @@ class Optimizer:
         self.stopped_on_loss = MemValue(0)
         self.stopped_on_low_loss = MemValue(0)
         self.layers = layers
+        self.time_layers = time_layers
+        if time_layers:
+            for i, layer in enumerate(layers):
+                print('Timer %d: %s' % (100 + i, repr(layer)))
 
     @property
     def layers(self):
@@ -2275,6 +2320,8 @@ class Optimizer:
             if self.time_layers:
                 start_timer(100 + i)
             if i != len(self.layers) - 1 or run_last:
+                for theta in layer.thetas():
+                    theta.alloc()
                 layer.forward(batch=self.batch_for(layer, batch),
                               training=training)
                 if self.print_random_update:
@@ -2322,6 +2369,10 @@ class Optimizer:
             self.forward(batch=batch, run_last=False)
             part = self.layers[-1].eval(batch_size, top=top)
             res.assign_part_vector(part.get_vector(), start)
+            if self.output_stats:
+                for layer in self.layers[:-1]:
+                    print_ln(layer)
+                    self.stat(' Y', layer.Y)
         self.run_in_batches(f, data, batch_size or len(self.layers[1].X))
         return res
 
@@ -2567,9 +2618,9 @@ class Optimizer:
 
     def run_in_batches(self, f, data, batch_size, truth=None):
         batch_size = min(batch_size, data.sizes[0])
-        training_data = self.layers[0].X.address
+        training_data = self.layers[0]._X.array._address
         training_truth = self.layers[-1].Y.address
-        self.layers[0].X.address = data.address
+        self.layers[0]._X.address = data.address
         if truth:
             self.layers[-1].Y.address = truth.address
         N = data.sizes[0]
@@ -2620,8 +2671,12 @@ class Optimizer:
         if model_input:
             for layer in self.layers:
                 layer.input_from(0)
-        elif reset:
+        elif reset and not 'no_reset' in program.args:
             self.reset()
+        else:
+            for layer in self.layers:
+                for theta in layer.thetas():
+                    theta.alloc()
         if 'one_iter' in program.args:
             print_float_prec(16)
             self.output_weights()
@@ -2642,6 +2697,8 @@ class Optimizer:
         if 'bench10' in program.args or 'bench1' in program.args:
             n = 1 if 'bench1' in program.args else 10
             print('benchmarking %s iterations' % n)
+            # force allocatoin
+            self.layers[0].X, self.layers[-1].Y
             @for_range(n)
             def _(i):
                 batch = Array.create_from(regint.inc(batch_size))
@@ -2748,13 +2805,15 @@ class Optimizer:
         return list(self.thetas)
 
     def reveal_model_to_binary(self):
-        input_shape = self.layers[0].X.shape
+        """ Reveal model and store it in the binary output file, see
+        :ref:`reveal-model` for details. """
+        input_shape = self.layers[0]._X.shape
         for layer in self.layers:
             if len(input_shape) == 4 and isinstance(layer, DenseBase):
                 layer.reveal_parameters_to_binary(reshape=input_shape[1:])
             else:
                 layer.reveal_parameters_to_binary()
-            input_shape = layer.Y.shape
+            input_shape = layer._Y.shape
 
 class Adam(Optimizer):
     """ Adam/AMSgrad optimizer.
@@ -2866,10 +2925,12 @@ class SGD(Optimizer):
         self.layers = layers
         self.n_epochs = n_epochs
         self.nablas = []
+        self.momentum_values = []
         self.delta_thetas = []
         for layer in layers:
             self.nablas.extend(layer.nablas())
             for theta in layer.thetas():
+                self.momentum_values.append(theta.same_shape())
                 self.delta_thetas.append(theta.same_shape())
         self.set_learning_rate(0.01)
         self.debug = debug
@@ -2889,23 +2950,27 @@ class SGD(Optimizer):
                     j = i + label * len(X_by_label[0])
                     self.layers[0].X[j] = X[i]
                     self.layers[-1].Y[j] = label
+        for y in self.momentum_values:
+            y.assign_all(0)
         for y in self.delta_thetas:
             y.assign_all(0)
         super(SGD, self).reset()
 
     def _update(self, i_epoch, i_batch, batch):
-        for nabla, theta, delta_theta in zip(self.nablas, self.thetas,
-                                             self.delta_thetas):
+        for nabla, theta, momentum_value, delta_theta in zip(self.nablas, self.thetas,
+                                             self.momentum_values, self.delta_thetas):
             @multithread(self.n_threads, nabla.total_size())
             def _(base, size):
-                old = delta_theta.get_vector(base, size)
+                old = momentum_value.get_vector(base, size)
                 red_old = self.momentum * old
                 rate = self.gamma.expand_to_vector(size)
                 nabla_vector = nabla.get_vector(base, size)
                 log_batch_size = math.log(len(batch), 2)
                 # divide by len(batch) by truncation
                 # increased rate if len(batch) is not a power of two
-                pre_trunc = nabla_vector.v * rate.v
+                diff = red_old - nabla_vector
+                pre_trunc = diff.v * rate.v
+                momentum_value.assign_vector(diff, base)
                 k = max(nabla_vector.k, rate.k) + rate.f
                 m = rate.f + int(log_batch_size)
                 if self.early_division:
@@ -2914,8 +2979,7 @@ class SGD(Optimizer):
                     v = pre_trunc.round(k, m, signed=True,
                                         nearest=sfix.round_nearest)
                 new = nabla_vector._new(v)
-                diff = red_old - new
-                delta_theta.assign_vector(diff, base)
+                delta_theta.assign_vector(new, base)
                 theta.assign_vector(theta.get_vector(base, size) +
                                     delta_theta.get_vector(base, size), base)
             if self.print_update_average:
@@ -3046,7 +3110,7 @@ class keras:
             def summary(self):
                 self.opt.summary()
 
-            def build(self, input_shape, batch_size=128):
+            def build(self, input_shape, batch_size=128, program=None):
                 data_input_shape = input_shape
                 if self.opt != None and \
                    input_shape == self.opt.layers[0]._X.sizes and \
@@ -3120,8 +3184,11 @@ class keras:
                 if layers[-1].d_out == 1:
                     layers.append(Output(data_input_shape[0]))
                 else:
-                    layers.append(
-                        MultiOutput(data_input_shape[0], layers[-1].d_out))
+                    shape = data_input_shape[0], layers[-1].d_out
+                    if program:
+                        layers.append(MultiOutput.from_args(program, *shape))
+                    else:
+                        layers.append(MultiOutput(*shape))
                 if self.optimizer[1]:
                     raise Exception('use keyword arguments for optimizer')
                 opt = self.optimizer[0]
@@ -3186,11 +3253,11 @@ class keras:
                     batch_size = min(batch_size, self.batch_size)
                 return self.opt.eval(x, batch_size=batch_size)
 
-def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
-                      regression=False):
-    """ Convert a PyTorch Sequential object to MP-SPDZ layers.
+def layers_from_torch(model, data_input_shape, batch_size, input_via=None,
+                      regression=False, layer_args={}, program=None):
+    """ Convert a PyTorch Module object to MP-SPDZ layers.
 
-    :param sequence: PyTorch Sequential object
+    :param model: PyTorch Module object
     :param data_input_shape: input shape (list of four int)
     :param batch_size: batch size (int)
     :param input_via: player to input model data via (default: don't)
@@ -3198,17 +3265,39 @@ def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
 
     """
     layers = []
+    named_layers = {}
 
     def mul(x):
         return reduce(operator.mul, x)
 
-    def process(item):
-        nonlocal input_shape
+    import torch
+
+    def process(item, inputs, input_shape, args, kwargs={}):
+        if item == torch.cat:
+            if len(inputs) > 1:
+                layers.append(
+                    Concat(inputs, dimension=len(inputs[0].shape) - 1))
+            return
+        elif item == operator.add:
+            layers.append(Add(inputs))
+            return
+        elif item in (torch.flatten, 'flatten', 'size'):
+            return
+        elif item == 'view':
+            assert -1 in args or \
+                reduce(operator.mul, args) == reduce(operator.mul, input_shape)
+            return
+        elif item == torch.nn.functional.avg_pool2d:
+            layers.append(FixAveragePool2d(input_shape, None, args[1],
+                                           kwargs.get('stride', args[1]),
+                                           kwargs.get('padding', 0)))
+            input_shape = layers[-1].Y.shape
+            return
+        # single-input layers from here
+        if inputs and len(inputs) > 1:
+            raise CompilerError('multi-input layer %s not supported' % item)
         name = type(item).__name__
-        if name == 'Sequential':
-            for x in item:
-                process(x)
-        elif name == 'Linear':
+        if name == 'Linear':
             assert mul(input_shape[1:]) == item.in_features
             assert item.bias is not None
             layers.append(Dense(input_shape[0], item.in_features,
@@ -3239,7 +3328,7 @@ def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
         elif name == 'Conv2d':
             layers.append(easyConv2d(input_shape, batch_size, item.out_channels,
                                      item.kernel_size, item.stride,
-                                     item.padding))
+                                     item.padding, **layer_args.get(item, {})))
             input_shape = layers[-1].Y.shape
             if input_via is not None:
                 shapes = [x.shape for x in
@@ -3247,11 +3336,14 @@ def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
                 import numpy
                 swapped = numpy.moveaxis(
                     numpy.array(item.weight.detach()), 1, -1)
-                layers[-1].weights = sfix.input_tensor_via(input_via, swapped)
-                layers[-1].bias = sfix.input_tensor_via(
-                    input_via, item.bias.detach())
+                layers[-1].weights = \
+                    layers[-1].weights.value_type.input_tensor_via(
+                        input_via, swapped)
                 assert layers[-1].weights.shape == shapes[0]
-                assert layers[-1].bias.shape == shapes[1]
+                if isinstance(item.bias, torch.Tensor):
+                    layers[-1].bias = sfix.input_tensor_via(
+                        input_via, item.bias.detach())
+                    assert layers[-1].bias.shape == shapes[1]
         elif name == 'MaxPool2d':
             layers.append(easyMaxPool(input_shape, item.kernel_size,
                                       item.stride, item.padding))
@@ -3260,10 +3352,24 @@ def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
             layers.append(FixAveragePool2d(input_shape, None, item.kernel_size,
                                            item.stride, item.padding))
             input_shape = layers[-1].Y.shape
-        elif name == 'ReLU':
+        elif name == 'AdaptiveAvgPool2d' or \
+             item == torch.nn.functional.adaptive_avg_pool2d:
+            if name == 'AdaptiveAvgPool2d':
+                output = item.output_size
+            else:
+                output = args[1]
+            for i in (0, 1):
+                assert input_shape[1 + i] % output[i] == 0
+            stride = [input_shape[1 + i] // output[i] for i in (0, 1)]
+            kernel_size = [input_shape[1 + i] - (output[i] - 1) * stride[i]
+                           for i in (0, 1)]
+            layers.append(FixAveragePool2d(input_shape, None, kernel_size,
+                                           stride, padding=0))
+            input_shape = layers[-1].Y.shape
+        elif name == 'ReLU' or item == torch.nn.functional.relu:
             layers.append(Relu(input_shape))
         elif name == 'Flatten':
-            pass
+            return
         elif name == 'BatchNorm2d':
             layers.append(BatchNorm(layers[-1].Y.sizes))
             if input_via is not None:
@@ -3277,16 +3383,57 @@ def layers_from_torch(sequence, data_input_shape, batch_size, input_via=None,
                                   alpha=item.p))
             input_shape = layers[-1].Y.sizes
         else:
-            raise CompilerError('unknown PyTorch module: ' + name)
+            raise CompilerError('unknown PyTorch module: %s' % item)
+        layers[-1].inputs = inputs
 
     input_shape = data_input_shape + [1] * (4 - len(data_input_shape))
-    process(sequence)
+
+    torch_layers = list(torch.fx.symbolic_trace(model).graph.nodes)
+    for i, layer in enumerate(torch_layers[1:-1]):
+        if layer.op == 'call_module':
+            target = model
+            for attr in layer.target.split('.'):
+                target = getattr(target, attr)
+        else:
+            target = layer.target
+        if not layers:
+            assert layer.args == (torch_layers[i],)
+            inputs = None
+        else:
+            if len(layer.args) < 2 or (layer.args[1] != 1 and
+                                       layer.args[1] != (1, 1)):
+                args = layer.args
+            elif isinstance(layer.args[0], list):
+                args = layer.args[0]
+            else:
+                args = layer.args[0],
+            inputs = []
+            try:
+                for x in args:
+                    inputs.append(named_layers[x])
+            except KeyError:
+                pass
+            if len(inputs) == 1:
+                if isinstance(inputs[0], (Dropout, BatchNorm)):
+                    input_shape = inputs[0].inputs[0].Y.shape
+                else:
+                    input_shape = inputs[0]._Y.shape
+            else:
+                input_shape = None
+        process(target, inputs, input_shape, layer.args, layer.kwargs)
+        if layers:
+            named_layers[layer] = layers[-1]
+
     if regression:
         layers.append(LinearOutput(data_input_shape[0], layers[-1].d_out))
     elif layers[-1].d_out == 1:
         layers.append(Output(data_input_shape[0]))
     else:
-        layers.append(MultiOutput(data_input_shape[0], layers[-1].d_out))
+        shape = data_input_shape[0], layers[-1].d_out
+        if program:
+            layers.append(MultiOutput.from_args(program, *shape))
+        else:
+            layers.append(MultiOutput(*shape))
     return layers
 
 class OneLayerSGD:
@@ -3335,6 +3482,9 @@ class OneLayerSGD:
 
 class SGDLogistic(OneLayerSGD):
     """ Logistic regression using SGD.
+    The member :py:obj:`opt` refers to the internal instance of
+    :py:class:`Optimizer`, which allows to use the funcionality
+    therein.
 
     :param n_epochs: number of epochs
     :param batch_size: batch size
@@ -3460,6 +3610,8 @@ def solve_linear_diag_precond(A, b, x, r, n_iterations, progress=False,
 
 def mr(A, n_iterations, stop=False):
     """ Iterative matrix inverse approximation.
+    This is based on the conjugate gradients algorithm in Section
+    10.2.4 of `these lecture notes <https://graphics.stanford.edu/courses/cs205a-13-fall/assets/notes/cs205a_notes.pdf>`_.
 
     :param A: matrix to invert
     :param n_iterations: maximum number of iterations

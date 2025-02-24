@@ -7,6 +7,7 @@
 #define PROTOCOLS_SEMIINPUT_H_
 
 #include "ReplicatedInput.h"
+#include "Hemi.h"
 
 template<class T> class SemiMC;
 
@@ -19,6 +20,8 @@ protected:
 
 public:
     PairwiseKeyInput(SubProcessor<T>* proc, PlayerBase& P);
+
+    void maybe_init(PlayerBase& P);
 };
 
 /**

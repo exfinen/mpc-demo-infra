@@ -27,13 +27,7 @@ jobs:
 
     - name: Setup dependencies
       run: |
-        ./setup_env.sh --setup-mpspdz
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry install
+        ./setup_env.sh
 
     - name: Run tests
       run: |

@@ -2,6 +2,8 @@
 
 set -e 
 
+./shutdown-all-servers.sh
+
 if [ -d "venv" ]; then
   source venv/bin/activate
 fi

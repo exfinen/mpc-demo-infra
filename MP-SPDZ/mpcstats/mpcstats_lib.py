@@ -39,8 +39,9 @@ def print_data(data: Matrix):
             print_ln("data[{}][{}]: %s".format(i, j), data[i][j].reveal())
 
 
-def _mean(data: list[sfix]) -> (sfix, sfix):
-    data = Array.create_from(data)
+def _mean(data: Array | list[sfix]) -> tuple[sfix, sfix]:
+    if isinstance(data, list):
+        data = Array.create_from(data)
 
     total = sfix(0)
     @for_range(len(data))
@@ -57,7 +58,9 @@ def _mean(data: list[sfix]) -> (sfix, sfix):
     return total / count, count
 
 
-def _variance(data: list[sfix], use_bessels: bool) -> sfix:
+def _variance(data: Array | list[sfix], use_bessels: bool) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     # calculate mean of the data excluding magic numbers
     mean, eff_size = _mean(data)
 
@@ -76,17 +79,26 @@ def _variance(data: list[sfix], use_bessels: bool) -> sfix:
 
 # Top 5 functions to implement
 
-def mean(data: list[sfix]) -> sfix:
+def mean(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     return _mean(data)[0]
 
 
 def mean_incl_magic_num(data: list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     return sum(data) / len(data)
 
 
-def median(data: list[sfix]):
+def median(data: Array | list[sfix]):
     # TODO: Check if Array.create_from is properly constrained // if I dont put reference, it's just from the mp-spdz doc itself
-    data = Array.create_from(data)
+    if isinstance(data, list):
+        data = Array.create_from(data)
+    if len(data) == 0:
+        raise ValueError("Data is empty")
+    if len(data) == 1:
+        return data[0]
     # TODO: Check if there's a need to use sfix(0), can we just use 0? would that violate constraint?
     median_odd = sfix(0)
     median_even = sfix(0)
@@ -163,7 +175,11 @@ def join(data1: Matrix, data2: Matrix, data1_column_index: int, data2_column_ind
     return new_data
 
 
-def covariance(data1: list[sfix], data2: list[sfix]):
+def covariance(data1: Array | list[sfix], data2: Array | list[sfix]) -> sfix:
+    if isinstance(data1, list):
+        data1 = Array.create_from(data1)
+    if isinstance(data2, list):
+        data2 = Array.create_from(data2)
     n = len(data1)
     mean1, count = _mean(data1)
     mean2, _ = _mean(data2)
@@ -177,7 +193,11 @@ def covariance(data1: list[sfix], data2: list[sfix]):
     return x/(count-1)
 
 
-def correlation(data1: list[sfix], data2: list[sfix]):
+def correlation(data1: Array | list[sfix], data2: Array | list[sfix]) -> sfix:
+    if isinstance(data1, list):
+        data1 = Array.create_from(data1)
+    if isinstance(data2, list):
+        data2 = Array.create_from(data2)
     n = len(data1)
     mean1, count = _mean(data1)
     mean2, _ = _mean(data2)
@@ -195,10 +215,12 @@ def correlation(data1: list[sfix], data2: list[sfix]):
     return numerator/(sqrt(sfix(denominator1))*sqrt(sfix(denominator2)))
 
 
-def where(_filter: list[sfix], data: list[sfix]):
+def where(_filter: Array | list[sfix], data: Array | list[sfix]) -> Array:
     n = len(data)
-    data = Array.create_from(data)
-    _filter = Array.create_from(_filter)
+    if isinstance(data, list):
+        data = Array.create_from(data)
+    if isinstance(_filter, list):
+        _filter = Array.create_from(_filter)
     res = sfix.Array(n)
     @for_range(n)
     def _(i):
@@ -206,7 +228,9 @@ def where(_filter: list[sfix], data: list[sfix]):
     return res
 
 
-def geometric_mean(data: list[sfix]):
+def geometric_mean(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     log_sum = sfix(sum(if_else(i != MAGIC_NUMBER, log2_fx(i), 0) for i in data))
     num_log_sums = sfix(sum(if_else(i != MAGIC_NUMBER, 1, 0) for i in data))
     exponent = log_sum / num_log_sums
@@ -214,9 +238,10 @@ def geometric_mean(data: list[sfix]):
     return exp2_fx(exponent)
 
 
-def mode(data: list[sfix]):
+def mode(data: Array | list[sfix]) -> sfix:
     n = len(data)
-    data = Array.create_from(data)
+    if isinstance(data, list):
+        data = Array.create_from(data)
     freqs = sint.Array(n) # sfix doesn't support greater_than
 
     # find frequency of each element in data
@@ -246,13 +271,15 @@ def mode(data: list[sfix]):
     return highest
 
 
-def variance(data: list[sfix]):
+def variance(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     return _variance(data, True)
 
 
 # using the formula described in:
 # https://en.wikipedia.org/wiki/Simple_linear_regression
-def linear_regression(xs: list[sfix], ys: list[sfix]):
+def linear_regression(xs: Array | list[sfix], ys: Array | list[sfix]) -> Array:
     # zip(xs, ys) is a list of data points
 
     xs = Array.create_from(xs)
@@ -273,7 +300,9 @@ def linear_regression(xs: list[sfix], ys: list[sfix]):
     return res
 
 
-def harmonic_mean(data: list[sfix]):
+def harmonic_mean(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     eff_size = sfix(sum(if_else(n != MAGIC_NUMBER, 1, 0) for n in data))
     eff_inv_total = sfix(sum(if_else(n != MAGIC_NUMBER, 1/n, 0) for n in data))
     result = eff_size / eff_inv_total
@@ -289,16 +318,22 @@ def harmonic_mean(data: list[sfix]):
     return result
 
 
-def pvariance(data: list[sfix]):
+def pvariance(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     return _variance(data, False)
 
 
-def pstdev(data: list[sfix]):
+def pstdev(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     pvar = _variance(data, False)
     return sqrt(pvar)
 
 
-def stdev(data: list[sfix]):
+def stdev(data: Array | list[sfix]) -> sfix:
+    if isinstance(data, list):
+        data = Array.create_from(data)
     var = _variance(data, True)
     return sqrt(var)
 

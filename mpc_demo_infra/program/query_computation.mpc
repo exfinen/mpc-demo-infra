@@ -10,6 +10,8 @@ from Compiler.instructions import closeclientconnection
 from Compiler.util import if_else
 from Compiler.circuit import sha3_256
 
+from mpcstats import mpcstats_lib
+
 PORTNUM = {client_port_base}
 MAX_DATA_PROVIDERS = {max_data_providers}
 NUM_DATA_PROVIDERS = {num_data_providers}
@@ -20,10 +22,22 @@ def accept_client():
     placeholder = regint.read_from_socket(client_socket_id)
     return client_socket_id
 
+
 def computation(client_values: sint.Array):
+    """
+    Computation queried by client.
+    `client_values` is all values from data providers.
+    We assume we have 5 values to return to client
+    - num_data_providers
+    - max
+    - sum
+    - median
+    - area
+    """
     result = sint.Array(5)
     # num_data_providers should be public
     num_data_providers = NUM_DATA_PROVIDERS
+    # copy from client_values to data, so we don't affect original data
     data = sint.Array(num_data_providers)
     @for_range(num_data_providers)
     def _(i):
@@ -38,20 +52,17 @@ def computation(client_values: sint.Array):
     result[1] = data[num_data_providers-1]
     # Sum
     result[2] = sum(data)
-    median_odd = sint(0)
-    median_even = sint(0)
-    area = sint(0)
-    @for_range(num_data_providers)
-    def _(i):
-        median_odd.update(median_odd+(num_data_providers==2*sint(i)+sint(1))*data[i])
-        median_even.update(median_even+(num_data_providers==2*sint(i))*data[i]/2+(num_data_providers-2==2*sint(i))*data[i]/2)
-        area.update(area+(2*i+1)*data[i])
     # Median
-    result[3] = (num_data_providers%2)*median_odd + (1-num_data_providers%2)*median_even
+    result[3] = mpcstats_lib.median(data)
 
     # Note that Gini coefficient = (area/(num_data_providers*result[1])) - 1
     # But we leave that to client side handling to optimize calculation in mpc
+    area = sint(0)
+    @for_range(num_data_providers)
+    def _(i):
+        area.update(area+(2*i+1)*data[i])
     result[4] = area
+
     return result
 
 def main():
@@ -70,15 +81,13 @@ def main():
     commitment_values.read_from_file(1 + MAX_DATA_PROVIDERS)
 
     result = computation(client_values)
-
+    # FIXME: refactor...
     return_array = sint.Array(5 + MAX_DATA_PROVIDERS)
     return_array[0] = result[0]
     return_array[1] = result[1]
     return_array[2] = result[2]
     return_array[3] = result[3]
     return_array[4] = result[4]
-
-
 
     # Return the commitment values to the client
     @for_range(MAX_DATA_PROVIDERS)

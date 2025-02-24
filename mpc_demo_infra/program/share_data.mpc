@@ -26,14 +26,15 @@ def accept_client():
     return client_socket_id
 
 
-def client_input(t: Type[sint], client_socket_id: regint):
+def receive_input_from_client(t: Type[sint], client_socket_id: regint):
     """
-    Send share of random value, receive input and deduce share.
+    Receive input from client
     """
+    # Receive two `sint` from client
     received = t.receive_from_client(2, client_socket_id)
     return received[0], sbitvec(received[1], 256)
 
-def calculate_data_commitment(num_bytes_followers: int, followers: sint, delta: sbitvec, encoding: list[sbitvec], nonce: sbitvec):
+def calculate_tlsn_data_commitment(num_bytes_followers: int, followers: sint, delta: sbitvec, encoding: list[sbitvec], nonce: sbitvec):
     # Adjust based on data_type
     ASCII_BASE = 48
     DOT_ASCII = 46
@@ -81,17 +82,23 @@ def main():
     client_socket_id = accept_client()
     print_ln('Accepted client connection. client_socket_id: %s', client_socket_id)
 
-    input_value, input_nonce = client_input(sint, client_socket_id)
+    input_value, input_nonce = receive_input_from_client(sint, client_socket_id)
+
+    # Store the input from data provider
     client_values[SECRET_INDEX] = input_value
+    # Legacy: we used the first element to store the number of data providers.
+    # Now the number of data providers is public.
     client_values[0] = client_values[0] + 1
+
+    # Write the client values to files as secret shares (not plaintext)
     client_values.write_to_file(0)
 
     # these are shared directly to each computation party so can just hardcode
     input_delta = sbitvec.from_hex(DELTA)
     input_zero_encodings = [sbitvec.from_hex(e) for e in ZERO_ENCODINGS]
 
-    # nonce must be secret_shared
-    input_commitment = calculate_data_commitment(INPUT_BYTES-1, input_value, input_delta, input_zero_encodings, input_nonce)
+    # Calculate the tlsnotary data commitment of the input
+    input_commitment = calculate_tlsn_data_commitment(INPUT_BYTES-1, input_value, input_delta, input_zero_encodings, input_nonce)
     input_commitment.reveal_print_hex()
 
     # commitment of input i is stored in commitment_values[i-1]
@@ -100,7 +107,6 @@ def main():
     print_ln('commitment_values: after update: %s', [commitment_values[i].reveal() for i in range(MAX_DATA_PROVIDERS)])
     sint.reveal_to_clients([client_socket_id],[commitment_values[SECRET_INDEX-1]])
     print_ln('Now closing this connection')
-    #print_ln('Num data providers: %s', client_values[0].reveal())
 
     closeclientconnection(client_socket_id)
 

@@ -9,12 +9,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def get_database_url():
-  return f"sqlite:///./party_{settings.party_id}.db" if settings.database_url is None else settings.database_url
+database_url = f"sqlite:///./party_{settings.party_id}.db" if settings.database_url is None else settings.database_url
 
 engine = create_engine(
-    get_database_url(),
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
+    database_url,
+    connect_args={"check_same_thread": False} if "sqlite" in database_url else {},
     future=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=True, bind=engine)

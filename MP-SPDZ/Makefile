@@ -304,6 +304,7 @@ Programs/Circuits:
 
 deps/libOTe/libOTe:
 	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
+	git checkout 28dab85 && git submodule update --init --recursive
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local

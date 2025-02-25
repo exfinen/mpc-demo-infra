@@ -40,34 +40,44 @@ class Client:
     :param my_client_id: number to identify client
 
     """
-    def __init__(self, hostnames, port_base, my_client_id):
+    def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout, max_client_wait):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-        name = 'C%d' % my_client_id
-        prefix = 'Player-Data/%s' % name
-        ctx.load_cert_chain(certfile=prefix + '.pem', keyfile=prefix + '.key')
-        ctx.load_verify_locations(capath='Player-Data')
+        ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
+        ctx.load_verify_locations(capath=certs_path)
+        ctx.verify_mode = ssl.CERT_OPTIONAL
+        ctx.check_hostname = False
 
         self.sockets = []
-        for i, hostname in enumerate(hostnames):
-            for j in range(10000):
+        wait_count = 0
+        for i, hostname in enumerate(hosts):
+            logging.info(f"Establishing socket connection to %s:%d...", hostname, port_base + i)
+            while True:
+                plain_socket = None
                 try:
                     plain_socket = socket.create_connection(
-                        (hostname, port_base + i))
-                    break
-                except ConnectionRefusedError:
-                    if j < 60:
-                        time.sleep(1)
-                    else:
-                        raise
-                    
-            if platform.system() == "Linux":
-                set_keepalive_linux(plain_socket)
-            elif platform.system() == "Darwin":
-                set_keepalive_osx(plain_socket)
+                            (hostname, port_base + i), timeout=timeout)
 
-            octetStream(b'%d' % my_client_id).Send(plain_socket)
-            self.sockets.append(ctx.wrap_socket(plain_socket,
-                                                server_hostname='P%d' % i))
+                    if platform.system() == "Linux":
+                        set_keepalive_linux(plain_socket)
+                    elif platform.system() == "Darwin":
+                        set_keepalive_osx(plain_socket)
+
+                    octetStream(b'%d' % client_id).Send(plain_socket)
+                    ssl_socket = ctx.wrap_socket(plain_socket, server_hostname='P%d' % i)
+                    self.sockets.append(ssl_socket)
+                    print("Established")
+                    break
+                except KeyboardInterrupt:
+                    raise
+                except Exception as e:
+                    print(".", end="", flush=True)
+                    if plain_socket is not None:
+                        plain_socket.close()
+                    if wait_count == max_client_wait:
+                        logging.error("Party servers are not responding")
+                        raise
+                    wait_count += 1
+                    time.sleep(1)
 
         self.specification = octetStream()
         self.specification.Receive(self.sockets[0])
@@ -77,6 +87,7 @@ class Client:
             if specification.buf != self.specification.buf:
                 raise Exception('inconsistent specification')
         type = self.specification.get_int(4)
+
         if type == ord('R'):
             self.domain = Z2(self.specification.get_int(4))
             self.clear_domain = Z2(self.specification.get_int(4))

@@ -2,7 +2,10 @@ import platform
 import socket, ssl
 import struct
 import time
+import logging
 from .domains import *
+
+logger = logging.getLogger(__name__)
 
 # The following function is either taken directly or derived from:
 # https://stackoverflow.com/questions/12248132/how-to-change-tcp-keepalive-timer-using-python-script

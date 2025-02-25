@@ -2,19 +2,23 @@
 #include "sockets.h"
 #include "Tools/Exceptions.h"
 #include "Tools/time-func.h"
+#include "Processor/OnlineOptions.h"
 
 #include <iostream>
 #include <fcntl.h>
 using namespace std;
 
-void error(const char *str)
+void error(const char *str, bool interrupted)
 {
   int old_errno = errno;
   char err[1000];
-  gethostname(err,1000);
-  strcat(err," : ");
-  strcat(err,str);
-  throw runtime_error(string() + err + " : " + strerror(old_errno));
+  gethostname(err, 1000);
+  err[999] = 0;
+  string message = string() + "Fatal communication error on " + err + ": "
+      + str + " (" + strerror(old_errno) + ")";
+  if (interrupted)
+    message += "\nThis is probably because another party encountered a problem.";
+  exit_error(message);
 }
 
 void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
@@ -62,7 +66,7 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
      {
        for (rp = ai; rp != NULL; rp = rp->ai_next)
          cerr << "Family on offer: " << ai->ai_family << endl;
-       runtime_error(string("No AF_INET for ") + (char*)hostname + " on " + (char*)my_name);
+       exit_error(string("No AF_INET for ") + (char*)hostname + " on " + (char*)my_name);
      }
 
 
@@ -91,12 +95,13 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
          {
            close(mysocket);
            usleep(wait < 1000 ? wait *= 2 : wait);
-#ifdef DEBUG_NETWORKING
-           string msg = "Connecting to " + string(hostname) + ":" +
-               to_string(Portnum) + " failed";
-           errno = connect_errno;
-           perror(msg.c_str());
-#endif
+           if (OnlineOptions::singleton.has_option("debug_networking"))
+            {
+              string msg = "Connecting to " + string(hostname) + ":"
+                  + to_string(Portnum) + " failed";
+              errno = connect_errno;
+              perror(msg.c_str());
+            }
          }
        errno = connect_errno;
    }
@@ -106,10 +111,11 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
 
    if (fl < 0)
      {
-       throw runtime_error(
+       exit_error(
            string() + "cannot connect from " + my_name + " to " + hostname + ":"
                + to_string(Portnum) + " after " + to_string(attempts)
-               + " attempts in one minute because " + strerror(connect_errno) + ". "
+               + " attempts in " + to_string(CONNECTION_TIMEOUT)
+               + " seconds because " + strerror(connect_errno) + ". "
                "https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#"
                "connection-failures has more information on port requirements.");
      }

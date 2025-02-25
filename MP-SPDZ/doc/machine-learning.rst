@@ -378,7 +378,7 @@ library::
   from Compiler import decision_tree
 
   data = pandas.read_csv(
-    'https://datahub.io/machine-learning/adult/r/adult.csv')
+    'https://raw.githubusercontent.com/jbrownlee/Datasets/master/adult-all.csv', header=None)
 
   data, attr_types = decision_tree.preprocess_pandas(data)
 
@@ -446,6 +446,12 @@ This outputs the accuracy of the network. You can use
 probability distributions or top guesses (the latter with ``top=True``)
 for any sample data.
 
+You can also use some networks provided within PyTorch as demonstrated
+by :download:`../Programs/Source/torch_squeeze.py`::
+
+  model = torchvision.models.get_model('SqueezeNet1_1', weights='DEFAULT')
+  layers = ml.layers_from_torch(model, ...)
+
 
 Storing and loading models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -477,6 +483,8 @@ Then it runs the accuracy test::
 Using ``var.input_from(player)`` instead the model would be input
 privately by a party.
 
+
+.. _reveal-model:
 
 Exporting models
 ~~~~~~~~~~~~~~~~

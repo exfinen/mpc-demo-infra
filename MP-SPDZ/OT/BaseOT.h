@@ -39,6 +39,8 @@ class BaseOT
     static void hash_with_id(BitVector& bits, long id);
 
 public:
+    static int avx;
+
     /// Receiver choice bits
 	BitVector receiver_inputs;
 	/// Sender inputs
@@ -47,35 +49,26 @@ public:
 	vector<BitVector> receiver_outputs;
 	TwoPartyPlayer* P;
 	/// Number of OTs
-	int nOT, ot_length;
+	int nOT;
 	/// Which role(s) on this side
 	OT_ROLE ot_role;
 
-	BaseOT(int nOT, int ot_length, TwoPartyPlayer* player, OT_ROLE role=BOTH)
-		: P(player), nOT(nOT), ot_length(ot_length), ot_role(role)
+	BaseOT(int nOT, TwoPartyPlayer* player, OT_ROLE role=BOTH)
+		: P(player), nOT(nOT), ot_role(role)
 	{
 		receiver_inputs.resize(nOT);
 		sender_inputs.resize(nOT);
 		receiver_outputs.resize(nOT);
 		G_sender.resize(nOT);
 		G_receiver.resize(nOT);
-
-		for (int i = 0; i < nOT; i++)
-		{
-			sender_inputs[i][0] = BitVector(8 * AES_BLK_SIZE);
-			sender_inputs[i][1] = BitVector(8 * AES_BLK_SIZE);
-			receiver_outputs[i] = BitVector(8 * AES_BLK_SIZE);
-		}
 	}
 
 	BaseOT(TwoPartyPlayer* player, OT_ROLE role) :
-			BaseOT(128, 128, player, role)
+			BaseOT(128, player, role)
 	{
 	}
 
 	virtual ~BaseOT() {}
-
-	int length() { return ot_length; }
 
 	/// Set choice bits
 	void set_receiver_inputs(const BitVector& new_inputs)
@@ -118,6 +111,10 @@ protected:
 	bool is_sender() { return (bool) (ot_role & SENDER); }
 	bool is_receiver() { return (bool) (ot_role & RECEIVER); }
 
+	void allocate();
+
+	bool use_avx();
+
 	/// CPU-specific instantiation of Simplest OT using Curve25519
 	template<class T, class U>
 	void exec_base(bool new_receiver_inputs=true);
@@ -126,8 +123,8 @@ protected:
 class FakeOT : public BaseOT
 {
 public:
-   FakeOT(int nOT, int ot_length, TwoPartyPlayer* player, OT_ROLE role=BOTH) :
-       BaseOT(nOT, ot_length, player, role) {}
+   FakeOT(int nOT, TwoPartyPlayer* player, OT_ROLE role=BOTH) :
+       BaseOT(nOT, player, role) {}
    void exec_base(bool new_receiver_inputs=true);
 };
 

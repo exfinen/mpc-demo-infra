@@ -141,16 +141,27 @@ struct CommStats
     }
   Timer& add_length_only(size_t length)
     {
-#ifdef VERBOSE_COMM
-      cout << "add " << length << endl;
-#endif
       data += length;
       return timer;
     }
   Timer& add(const octetStream& os) { return add(os.get_length()); }
-  void add(const octetStream& os, const TimeScope& scope) { add(os) += scope; }
   CommStats& operator+=(const CommStats& other);
   CommStats& operator-=(const CommStats& other);
+};
+
+class CommStatsWithName
+{
+  const string& name;
+  CommStats& stats;
+
+public:
+  CommStatsWithName(const string& name, CommStats& stats) :
+      name(name), stats(stats) {}
+
+  Timer& add_length_only(size_t length);
+  Timer& add(const octetStream& os);
+  Timer& add(size_t length);
+  void add(const octetStream& os, const TimeScope& scope) { add(os) += scope; }
 };
 
 class NamedCommStats : public map<string, CommStats>
@@ -167,14 +178,8 @@ public:
   void print(bool newline = false);
   void reset();
   Timer& add_to_last_round(const string& name, size_t length);
-#ifdef VERBOSE_COMM
-  CommStats& operator[](const string& name)
-  {
-    auto& res = map<string, CommStats>::operator[](name);
-    cout << name << " after " << res.data << endl;
-    return res;
-  }
-#endif
+  CommStatsWithName operator[](const string& name)
+  { return {name, map<string, CommStats>::operator[](name)}; }
 };
 
 /**
@@ -209,8 +214,6 @@ public:
   virtual void send_receive_all(const vector<octetStream>&,
       vector<octetStream>&) const
   { throw not_implemented(); }
-
-  void reset_stats();
 };
 
 /**
@@ -394,6 +397,7 @@ public:
   { receive_player(i, o); }
 
   NamedCommStats total_comm() const;
+  void reset_stats();
 };
 
 /**

@@ -15,6 +15,7 @@ template<class sint, class sgf2n> class Machine;
 template<class sint, class sgf2n> class Processor;
 template<class T> class SubProcessor;
 template<class T> class MemoryPart;
+template<class T> class StackedVector;
 class ArithmeticProcessor;
 class SwitchableOutput;
 
@@ -73,6 +74,8 @@ enum
     USE_MATMUL = 0x1F,
     ACTIVE = 0xE9,
     CMDLINEARG = 0xEB,
+    CALL_TAPE = 0xEC,
+    CALL_ARG = 0xED,
     // Addition
     ADDC = 0x20,
     ADDS = 0x21,
@@ -90,6 +93,7 @@ enum
     PREFIXSUMS = 0x2D,
     PICKS = 0x2E,
     CONCATS = 0x2F,
+    ZIPS = 0x3F,
     // Multiplication/division/other arithmetic
     MULC = 0x30,
     MULM = 0x31,
@@ -307,6 +311,8 @@ enum
     GRAWOUTPUT = 0x1B7,
     GSTARTPRIVATEOUTPUT = 0x1B8,
     GSTOPPRIVATEOUTPUT = 0x1B9,
+    GWRITEFILESHARE = 0x1BD,
+    GREADFILESHARE = 0x1BE,
     // Commsec ops
     INITSECURESOCKET = 0x1BA,
     RESPSECURESOCKET = 0x1BB
@@ -351,6 +357,7 @@ protected:
   string str;
 
 public:
+  BaseInstruction() : opcode(0), size(0), n(0) {}
   virtual ~BaseInstruction() {};
 
   int get_r(int i) const { return r[i]; }
@@ -373,6 +380,8 @@ public:
 
   // Returns the maximal register used
   unsigned get_max_reg(int reg_type) const;
+
+  string get_name() const;
 };
 
 class DataPositions;
@@ -391,13 +400,13 @@ public:
   void execute(Processor<sint, sgf2n>& Proc) const;
 
   template<class cgf2n>
-  void execute_clear_gf2n(vector<cgf2n>& registers, MemoryPart<cgf2n>& memory,
+  void execute_clear_gf2n(StackedVector<cgf2n>& registers, MemoryPart<cgf2n>& memory,
       ArithmeticProcessor& Proc) const;
 
   template<class cgf2n>
-  void gbitdec(vector<cgf2n>& registers) const;
+  void gbitdec(StackedVector<cgf2n>& registers) const;
   template<class cgf2n>
-  void gbitcom(vector<cgf2n>& registers) const;
+  void gbitcom(StackedVector<cgf2n>& registers) const;
 
   void execute_regint(ArithmeticProcessor& Proc, MemoryPart<Integer>& Mi) const;
 

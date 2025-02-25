@@ -92,6 +92,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case DIVINT:
       case CONDPRINTPLAIN:
       case INPUTMASKREG:
+      case ZIPS:
         get_ints(r, s, 3);
         break;
       // instructions with 2 register operands
@@ -245,6 +246,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case CONDPRINTSTRB:
       case RANDOMS:
       case GENSECSHUFFLE:
+      case CALL_ARG:
         r[0]=get_int(s);
         n = get_int(s);
         break;
@@ -284,7 +286,6 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       // instructions with 5 register operands
       case PRINTFLOATPLAIN:
       case PRINTFLOATPLAINB:
-      case APPLYSHUFFLE:
         get_vector(5, start, s);
         break;
       case INCINT:
@@ -319,17 +320,16 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case RUN_TAPE:
       case CONV2DS:
       case MATMULS:
-        num_var_args = get_int(s);
-        get_vector(num_var_args, start, s);
-        break;
+      case APPLYSHUFFLE:
       case MATMULSM:
         num_var_args = get_int(s);
         get_vector(num_var_args, start, s);
         break;
-
       // read from file, input is opcode num_args, 
       //   start_file_posn (read), end_file_posn(write) var1, var2, ...
       case READFILESHARE:
+      case GREADFILESHARE:
+      case CALL_TAPE:
         num_var_args = get_int(s) - 2;
         r[0] = get_int(s);
         r[1] = get_int(s);
@@ -398,6 +398,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       case EDABIT:
       case SEDABIT:
       case WRITEFILESHARE:
+      case GWRITEFILESHARE:
       case CONCATS:
           num_var_args = get_int(s) - 1;
           r[0] = get_int(s);
@@ -504,7 +505,7 @@ void BaseInstruction::parse_operands(istream& s, int pos, int file_pos)
       default:
         ostringstream os;
         os << "Invalid instruction " << showbase << hex << opcode << " at " << dec
-            << pos << "/" << hex << file_pos << dec << endl;
+            << pos << "/" << hex << file_pos << dec;
         throw Invalid_Instruction(os.str());
   }
 }
@@ -588,6 +589,7 @@ int BaseInstruction::get_reg_type() const
     case ACCEPTCLIENTCONNECTION:
     case GENSECSHUFFLE:
     case CMDLINEARG:
+    case CALL_TAPE:
       return INT;
     case PREP:
     case GPREP:
@@ -596,7 +598,6 @@ int BaseInstruction::get_reg_type() const
     case USE_EDABIT:
     case USE_MATMUL:
     case RUN_TAPE:
-    case CISC:
       // those use r[] not for registers
       return NONE;
     case LDI:
@@ -639,6 +640,8 @@ int BaseInstruction::get_reg_type() const
     case PRIVATEOUTPUT:
     case FIXINPUT:
       return CINT;
+    case CALL_ARG:
+      return n;
     default:
       if (is_gf2n_instruction())
         {
@@ -706,6 +709,14 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       }
       else
           return 0;
+  case CALL_TAPE:
+  {
+      int res = 0;
+      for (auto it = start.begin(); it < start.end(); it += 5)
+          if (it[1] == reg_type)
+              res = max(res, (*it ? it[3] : it[4]) + it[2]);
+      return res;
+  }
   default:
       if (get_reg_type() != reg_type)
           return 0;
@@ -713,6 +724,22 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
 
   switch (opcode)
   {
+  case CISC:
+  {
+      int res = 0;
+      for (auto it = start.begin(); it < start.end(); it += *it)
+      {
+          assert(it + *it <= start.end());
+          res = max(res, it[1] + it[2]);
+      }
+      return res;
+  }
+  case MULS:
+  case MULRS:
+      skip = 4;
+      offset = 1;
+      size_offset = -1;
+      break;
   case DOTPRODS:
   {
       int res = 0;
@@ -721,7 +748,7 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       {
           assert(it < start.end());
           int n = *it;
-          res = max(res, *it++);
+          res = max(res, *++it + size);
           it += n - 1;
       }
       return res;
@@ -737,7 +764,14 @@ unsigned BaseInstruction::get_max_reg(int reg_type) const
       return res;
   }
   case MATMULSM:
-      return r[0] + start[0] * start[2];
+  {
+      int res = 0;
+      for (auto it = start.begin(); it < start.end(); it += 12)
+      {
+          res = max(res, *it + *(it + 3) * *(it + 5));
+      }
+      return res;
+  }
   case CONV2DS:
   {
       unsigned res = 0;
@@ -909,20 +943,24 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
   switch (opcode)
   {
     case CONVMODP:
-      if (n == 0)
-        {
-          for (int i = 0; i < size; i++)
-            Proc.write_Ci(r[0] + i,
-                Proc.sync(
-                    Integer::convert_unsigned(Proc.read_Cp(r[1] + i)).get()));
-        }
-      else if (n <= 64)
-        for (int i = 0; i < size; i++)
-          Proc.write_Ci(r[0] + i,
-              Proc.sync(Integer(Proc.read_Cp(r[1] + i), n).get()));
-      else
-        throw Processor_Error(to_string(n) + "-bit conversion impossible; "
-            "integer registers only have 64 bits");
+      vector<Integer> values;
+      values.reserve(size);
+      for (int i = 0; i < size; i++)
+      {
+          auto source = Proc.read_Cp(r[1] + i);
+          Integer tmp;
+          if (n == 0)
+              tmp = Integer::convert_unsigned(source);
+          else if (n <= 64)
+              tmp = Integer(source, n);
+          else
+            throw Processor_Error(to_string(n) + "-bit conversion impossible; "
+                "integer registers only have 64 bits");
+          values.push_back(tmp);
+      }
+      sync<sint>(values, Proc.P);
+      for (int i = 0; i < size; i++)
+          Proc.write_Ci(r[0] + i, values[i].get());
       return;
   }
 
@@ -953,6 +991,17 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
               assert(source + *j <= S.end());
               for (int k = 0; k < *j; k++)
                 *dest++ = *source++;
+            }
+          return;
+        }
+      case ZIPS:
+        {
+          auto& S = Proc.Procp.get_S();
+          auto dest = S.begin() + r[0];
+          for (int i = 0; i < get_size(); i++)
+            {
+              *dest++ = S[r[1] + i];
+              *dest++ = S[r[2] + i];
             }
           return;
         }
@@ -1136,8 +1185,7 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
             Proc.machine.shuffle_store));
         return;
       case APPLYSHUFFLE:
-        Proc.Procp.apply_shuffle(*this, Proc.read_Ci(start.at(3)),
-            Proc.machine.shuffle_store);
+        Proc.Procp.apply_shuffle(*this, Proc.machine.shuffle_store);
         return;
       case DELSHUFFLE:
         Proc.machine.shuffle_store.del(Proc.read_Ci(r[0]));
@@ -1232,6 +1280,9 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
       case JOIN_TAPE:
         Proc.machine.join_tape(r[0]);
         break;
+      case CALL_TAPE:
+        Proc.call_tape(r[0], Proc.read_Ci(r[1]), start);
+        break;
       case CRASH:
         if (Proc.read_Ci(r[0]))
           throw crash_requested();
@@ -1277,7 +1328,6 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         // get client connection at port number n + my_num())
         int client_handle = Proc.external_clients.get_client_connection(
             Proc.read_Ci(r[1]));
-        if (Proc.P.my_num() == 0)
         {
           octetStream os;
           os.store(int(sint::open_type::type_char()));
@@ -1323,12 +1373,22 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
         break;
       case WRITEFILESHARE:
         // Write shares to file system
-        Proc.write_shares_to_file(Proc.read_Ci(r[0]), start);
-        break;
+        Procp.write_shares_to_file(Proc.read_Ci(r[0]), start, size);
+        return;
       case READFILESHARE:
         // Read shares from file system
-        Proc.read_shares_from_file(Proc.read_Ci(r[0]), r[1], start);
-        break;        
+        Procp.read_shares_from_file(Proc.read_Ci(r[0]), r[1], start, size,
+            Proc);
+        return;
+      case GWRITEFILESHARE:
+        // Write shares to file system
+        Proc2.write_shares_to_file(Proc.read_Ci(r[0]), start, size);
+        return;
+      case GREADFILESHARE:
+        // Read shares from file system
+        Proc2.read_shares_from_file(Proc.read_Ci(r[0]), r[1], start, size,
+            Proc);
+        return;
       case PUBINPUT:
         Proc.get_Cp_ref(r[0]) = Proc.template
             get_input<IntInput<typename sint::clear>>(
@@ -1391,6 +1451,26 @@ inline void Instruction::execute(Processor<sint, sgf2n>& Proc) const
 template<class sint, class sgf2n>
 void Program::execute(Processor<sint, sgf2n>& Proc) const
 {
+  if (OnlineOptions::singleton.has_option("throw_exceptions"))
+    execute_with_errors(Proc);
+  else
+    {
+      try
+      {
+          execute_with_errors(Proc);
+      }
+      catch (exception& e)
+      {
+          cerr << "Fatal error at " << name << ":" << Proc.last_PC << " ("
+              << p[Proc.last_PC].get_name() << "): " << e.what() << endl;
+          exit(1);
+      }
+    }
+}
+
+template<class sint, class sgf2n>
+void Program::execute_with_errors(Processor<sint, sgf2n>& Proc) const
+{
   unsigned int size = p.size();
   Proc.PC=0;
 
@@ -1404,6 +1484,7 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 
   while (Proc.PC<size)
     {
+      Proc.last_PC = Proc.PC;
       auto& instruction = p[Proc.PC];
       auto& r = instruction.r;
       auto& n = instruction.n;
@@ -1421,7 +1502,8 @@ void Program::execute(Processor<sint, sgf2n>& Proc) const
 #endif
 
 #ifdef OUTPUT_INSTRUCTIONS
-      cerr << instruction << endl;
+      if (OnlineOptions::singleton.has_option("output_instructions"))
+          cerr << instruction << endl;
 #endif
 
       Proc.PC++;
@@ -1461,7 +1543,7 @@ void Instruction::print(SwitchableOutput& out, T* v, T* p, T* s, T* z, T* nan) c
   for (int i = 0; i < size; i++)
     {
       if (p == 0 or (*p == 0 and s == 0))
-        out << v[i];
+        out.signed_output(v[i]);
       else if (s == 0)
         out << bigint::get_float(v[i], p[i], {}, {});
       else

@@ -165,17 +165,8 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
     {
       if (prog.writes_persistence)
         {
-          string filename = Binary_File_IO::filename(my_number);
-          ifstream pers(filename);
-          try
-          {
-              check_file_signature<sint>(pers, filename);
-          }
-          catch (signature_mismatch&)
-          {
-              ofstream pers(filename, ios::binary);
-              file_signature<sint>().output(pers);
-          }
+          Binary_File_IO<sint>::reset(my_number);
+          Binary_File_IO<sgf2n>::reset(my_number);
           break;
         }
     }
@@ -213,6 +204,8 @@ void Machine<sint, sgf2n>::prepare(const string& progname_str)
 template<class sint, class sgf2n>
 Machine<sint, sgf2n>::~Machine()
 {
+  stop_threads();
+
   sint::LivePrep::teardown();
   sgf2n::LivePrep::teardown();
 
@@ -221,8 +214,6 @@ Machine<sint, sgf2n>::~Machine()
   sgf2n::MAC_Check::teardown();
 
   delete P;
-  for (auto& queue : queues)
-    delete queue;
 }
 
 template<class sint, class sgf2n>
@@ -235,6 +226,7 @@ size_t Machine<sint, sgf2n>::load_program(const string& threadname,
   M2.minimum_size(SGF2N, CGF2N, progs[i], threadname);
   Mp.minimum_size(SINT, CINT, progs[i], threadname);
   Mi.minimum_size(NONE, INT, progs[i], threadname);
+  bit_memories.reset(progs[i]);
   return progs.back().size();
 }
 
@@ -340,14 +332,16 @@ void Machine<sint, sgf2n>::fill_matmul(int thread_number, int tape_number,
                   auto subdim = it->first;
                   subdim[1] = min(subdim[1] - j, max_inner);
                   subdim[2] = min(subdim[2] - k, max_cols);
-                  auto& source =
-                      dynamic_cast<Hemi<sint>&>(source_proc.protocol).get_matrix_prep(
+                  auto& source_proto = dynamic_cast<Hemi<sint>&>(source_proc.protocol);
+                  auto& source = source_proto.get_matrix_prep(
                           subdim, source_proc);
                   auto& dest =
                       dynamic_cast<Hemi<sint>&>(tinfo[thread_number].processor->Procp.protocol).get_matrix_prep(
                           subdim, tinfo[thread_number].processor->Procp);
-                  for (int i = 0; i < it->second; i++)
-                    dest.push_triple(source.get_triple_no_count(-1));
+                  if (not source_proto.use_plain_matmul(subdim, source_proc))
+                    for (int i = 0; i < it->second; i++)
+                      dynamic_cast<BufferPrep<ShareMatrix<sint>>&>(dest).push_triple(
+                          source.get_triple_no_count(-1));
                 }
             }
       }
@@ -408,6 +402,78 @@ void Machine<sint, sgf2n>::run_step(const string& progname)
 }
 
 template<class sint, class sgf2n>
+void Machine<sint, sgf2n>::run_function(const string& name,
+        FunctionArgument& result, vector<FunctionArgument>& arguments)
+{
+  ifstream file;
+  FunctionArgument::open(file, name, arguments);
+
+  string progname, return_type;
+  int tape_number, return_reg;
+  file >> progname >> tape_number >> return_type >> return_reg;
+
+  result.check_type(return_type);
+
+  vector<int> arg_regs(arguments.size());
+  for (auto& arg_reg : arg_regs)
+    file >> arg_reg;
+
+  prepare(progname);
+  auto& processor = *tinfo.at(0).processor;
+  processor.reset(progs.at(tape_number), 0);
+
+  for (size_t i = 0; i < arguments.size(); i++)
+    for (size_t j = 0; j < arguments[i].get_size(); j++)
+      {
+        if (arguments[i].get_n_bits())
+          {
+            size_t n_limbs = DIV_CEIL(arguments[i].get_n_bits(),
+                sint::bit_type::default_length);
+            for (size_t k = 0; k < n_limbs; k++)
+              bit_memories.MS[arg_regs.at(i) + j * n_limbs + k] =
+                  arguments[i].get_value<vector<typename sint::bit_type>>(j).at(
+                      k);
+          }
+        else if (arguments[i].has_reg_type("s"))
+          {
+            auto& value = arguments[i].get_value<sint>(j);
+            if (arguments[i].get_memory())
+              Mp.MS[arg_regs.at(i) + j] = value;
+            else
+              processor.Procp.get_S()[arg_regs.at(i) + j] = value;
+          }
+        else
+          {
+            assert(arguments[i].has_reg_type("ci"));
+            processor.write_Ci(arg_regs.at(i) + j, arguments[i].get_value<long>(j));
+          }
+      }
+
+  run_tape(0, tape_number, 0, N.num_players());
+  join_tape(0);
+
+  assert(result.has_reg_type("s"));
+  for (size_t j = 0; j < result.get_size(); j++)
+    result.get_value<sint>(j) = processor.Procp.get_S()[return_reg + j];
+
+  for (size_t i = 0; i < arguments.size(); i++)
+    if (arguments[i].get_memory())
+      for (size_t j = 0; j < arguments[i].get_size(); j++)
+        {
+          if (arguments[i].get_n_bits())
+            {
+              size_t n_limbs = DIV_CEIL(arguments[i].get_n_bits(),
+                  sint::bit_type::default_length);
+              for (size_t k = 0; k < n_limbs; k++)
+                arguments[i].get_value<vector<typename sint::bit_type>>(j).at(k) =
+                    bit_memories.MS[arg_regs.at(i) + j * n_limbs + k];
+            }
+          else
+            arguments[i].get_value<sint>(j) = Mp.MS[arg_regs.at(i) + j];
+        }
+}
+
+template<class sint, class sgf2n>
 pair<DataPositions, NamedCommStats> Machine<sint, sgf2n>::stop_threads()
 {
   // Tell all C-threads to stop
@@ -434,7 +500,13 @@ pair<DataPositions, NamedCommStats> Machine<sint, sgf2n>::stop_threads()
   auto comm_stats = total_comm();
 
   if (OnlineOptions::singleton.verbose)
-    queues.print_breakdown();
+    {
+      NamedStats total;
+      for (auto queue : queues)
+        total += queue->stats;
+      total.print();
+      queues.print_breakdown();
+    }
 
   for (auto& queue : queues)
     delete queue;
@@ -464,7 +536,7 @@ void Machine<sint, sgf2n>::run(const string& progname)
   finish_timer.start();
 
   // actual usage
-  bool multithread = nthreads > 1;
+  multithread = nthreads > 1;
   auto res = stop_threads();
   DataPositions& pos = res.first;
 
@@ -518,14 +590,15 @@ void Machine<sint, sgf2n>::run(const string& progname)
     cerr << "Full broadcast" << endl;
 #endif
 
-#ifdef CHOP_MEMORY
-  // Reduce memory size to speed up
-  unsigned max_size = 1 << 20;
-  if (M2.size_s() > max_size)
-    M2.resize_s(max_size);
-  if (Mp.size_s() > max_size)
-    Mp.resize_s(max_size);
-#endif
+  if (not OnlineOptions::singleton.has_option("output_full_memory"))
+    {
+      // Reduce memory size to speed up
+      unsigned max_size = 1 << 20;
+      if (M2.size_s() > max_size)
+        M2.resize_s(max_size);
+      if (Mp.size_s() > max_size)
+        Mp.resize_s(max_size);
+    }
 
   // Write out the memory to use next time
   ofstream outf(memory_filename(), ios::out | ios::binary);

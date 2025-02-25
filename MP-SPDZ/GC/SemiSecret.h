@@ -38,11 +38,23 @@ public:
 
     static const int default_length = sizeof(BitVec) * 8;
 
+    static const bool symmetric = V::symmetric;
+
+    static bool real_shares(const Player& P)
+    {
+        return V::real_shares(P);
+    }
+
     static string type_string() { return "binary secret"; }
     static string phase_name() { return "Binary computation"; }
 
     static void trans(Processor<T>& processor, int n_outputs,
             const vector<int>& args);
+
+    static size_t maximum_size()
+    {
+        return default_length;
+    }
 
     SemiSecretBase()
     {
@@ -64,8 +76,8 @@ public:
 
     void load_clear(int n, const Integer& x);
 
-    void bitcom(Memory<T>& S, const vector<int>& regs);
-    void bitdec(Memory<T>& S, const vector<int>& regs) const;
+    void bitcom(StackedVector<T>& S, const vector<int>& regs);
+    void bitdec(StackedVector<T>& S, const vector<int>& regs) const;
 
     void xor_(int n, const T& x, const T& y)
     { *this = BitVec(x ^ y).mask(n); }

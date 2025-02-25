@@ -20,11 +20,13 @@ class FakeShuffle
 public:
     typedef ShuffleStore<int> store_type;
 
+    map<long, long> stats;
+
     FakeShuffle(SubProcessor<T>&)
     {
     }
 
-    FakeShuffle(vector<T>& a, size_t n, int unit_size, size_t output_base,
+    FakeShuffle(StackedVector<T>& a, size_t n, int unit_size, size_t output_base,
             size_t input_base, SubProcessor<T>&)
     {
         apply(a, n, unit_size, output_base, input_base, 0, 0);
@@ -35,8 +37,8 @@ public:
         return store.add();
     }
 
-    void apply(vector<T>& a, size_t n, int unit_size, size_t output_base,
-            size_t input_base, int, bool)
+    void apply(StackedVector<T>& a, size_t n, size_t unit_size, size_t output_base,
+            size_t input_base, size_t, bool)
     {
         auto source = a.begin() + input_base;
         auto dest = a.begin() + output_base;
@@ -47,13 +49,29 @@ public:
         if (n > 1)
         {
             // swap first two to pass check
-            for (int i = 0; i < unit_size; i++)
+            for (size_t i = 0; i < unit_size; i++)
                 swap(a[output_base + i], a[output_base + i + unit_size]);
         }
     }
 
-    void inverse_permutation(vector<T>&, size_t, size_t, size_t)
-    {
+    void inverse_permutation(StackedVector<T> &, size_t, size_t, size_t) {
+        throw runtime_error("inverse permutation not implemented");
+    };
+
+    void apply_multiple(StackedVector<T> &a, vector<size_t> &sizes, vector<size_t> &destinations,
+                                    vector<size_t> &sources,
+                                    vector<size_t> &unit_sizes, vector<size_t> &handles, vector<bool> &reverses,
+                                    store_type&) {
+        const auto n_shuffles = sizes.size();
+        assert(sources.size() == n_shuffles);
+        assert(destinations.size() == n_shuffles);
+        assert(unit_sizes.size() == n_shuffles);
+        assert(handles.size() == n_shuffles);
+        assert(reverses.size() == n_shuffles);
+
+        for (size_t i = 0; i < n_shuffles; i++) {
+            this->apply(a, sizes[i], unit_sizes[i], destinations[i], sources[i], handles[i], reverses[i]);
+        }
     }
 };
 
@@ -270,7 +288,7 @@ public:
             {
                 ltz_stats[args[i + 4]] += args[i + 1];
                 assert(i + args[i] <= args.size());
-                assert(args[i] == 6);
+                assert(args[i] >= 5);
                 for (int j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
@@ -284,7 +302,7 @@ public:
             for (size_t i = 0; i < args.size(); i += args[i])
             {
                 assert(i + args[i] <= args.size());
-                assert(args[i] == 6);
+                assert(args[i] >= 5);
                 for (int j = 0; j < args[i + 1]; j++)
                 {
                     auto& res = processor.get_S()[args[i + 2] + j];
@@ -297,10 +315,10 @@ public:
             for (size_t i = 0; i < args.size(); i += args[i])
             {
                 assert(i + args[i] <= args.size());
-                assert(args[i] == 8);
+                assert(args[i] == 7);
                 int k = args[i + 4];
                 int m = args[i + 5];
-                int s = args[i + 7];
+                int s = args[i + 6];
                 assert((s == 0) or (s == 1));
                 for (int j = 0; j < args[i + 1]; j++)
                 {

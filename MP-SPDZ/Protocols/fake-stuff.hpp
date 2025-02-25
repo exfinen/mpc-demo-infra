@@ -33,51 +33,10 @@ template<class T> class MaliciousCcdSecret;
 template<class T, class U, class V, class W>
 void make_share(Share_<T, W>* Sa,const U& a,int N,const V& key,PRNG& G)
 {
-  T x;
-  W mac, y;
-  mac = a * key;
-  Share_<T, W> S;
-  S.set_share(a);
-  S.set_mac(mac);
-
-  for (int i=0; i<N-1; i++)
-    { x.randomize(G);
-      y.randomize(G);
-      Sa[i].set_share(x);
-      Sa[i].set_mac(y);
-      S.sub(S,Sa[i]);
-    }
-  Sa[N-1]=S;
-}
-
-template<class T, class U, class V>
-void make_share(SpdzWiseShare<MaliciousRep3Share<T>>* Sa,const U& a,int N,const V& key,PRNG& G)
-{
-  assert (key[0] == key[1]);
-  auto mac = a * key[0];
-  FixedVec<typename V::value_type, 3> shares, macs;
-  shares.randomize_to_sum(a, G);
-  macs.randomize_to_sum(mac, G);
-
-  for (int i = 0; i < N; i++)
-    {
-      MaliciousRep3Share<T> share, mac;
-      share[0] = shares[i];
-      share[1] = shares[positive_modulo(i - 1, 3)];
-      mac[0] = macs[i];
-      mac[1] = macs[positive_modulo(i - 1, 3)];
-      Sa[i].set_share(share);
-      Sa[i].set_mac(mac);
-    }
-}
-
-template<class T, class U, class V>
-void make_share(SpdzWiseShare<MaliciousShamirShare<T>>* Sa, const U& a, int N,
-    const V& key, PRNG& G)
-{
-  vector<MaliciousShamirShare<T>> shares(N), macs(N);
-  make_share(shares.data(), a, N, {}, G);
-  make_share(macs.data(), a * key, N, {}, G);
+  vector<T> shares(N);
+  vector<W> macs(N);
+  make_share(shares.data(), a, N, GC::NoValue(), G);
+  make_share(macs.data(), a * key, N, GC::NoValue(), G);
   for (int i = 0; i < N; i++)
     {
       Sa[i].set_share(shares[i]);
@@ -112,8 +71,8 @@ void make_share(GC::TinierSecret<T>* Sa, const U& a, int N, const V& key, PRNG& 
   make_vector_share(Sa, a, N, key, G);
 }
 
-template<class T, class U>
-void make_share(SemiShare<T>* Sa,const T& a,int N,const U&,PRNG& G)
+template<class T, class U, class V>
+void make_share(SemiShare<T>* Sa,const V& a,int N,const U&,PRNG& G)
 {
   T x, S = a;
   for (int i=0; i<N-1; i++)
@@ -202,7 +161,7 @@ vector<vector<T>> VanderStore<T>::vandermonde;
 
 template<class T, class V>
 void make_share(ShamirShare<T>* Sa, const V& a, int N,
-    const typename ShamirShare<T>::mac_type&, PRNG& G)
+    const GC::NoValue&, PRNG& G)
 {
   auto& vandermonde = VanderStore<T>::vandermonde;
   if (vandermonde.empty())
@@ -316,6 +275,7 @@ template <class T>
 void read_mac_key(const Names& N, typename T::mac_key_type& key)
 {
   read_mac_key(get_prep_sub_dir<T>(N.num_players()), N, key);
+  T::set_mac_key(key);
 }
 
 template <class T>
@@ -402,20 +362,36 @@ inline GC::NoValue read_generate_write_mac_key<GC::NoShare>(Player&,
 }
 
 template <class U>
-void read_global_mac_key(const string& directory, int nparties, U& key)
+KeySetup<U> read_global_mac_key(const string& directory, int nparties)
 {
-  U pp;
+  if (is_same<typename U::mac_share_type::open_type, GC::NoValue>())
+    return {};
+
+  KeySetup<U> res;
+  res.key_shares.resize(nparties);
+
+  auto& key = res.key;
   key.assign_zero();
 
   for (int i= 0; i < nparties; i++)
     {
+      typename U::mac_key_type pp;
       read_mac_key(directory, i, nparties, pp);
       cout << " Key " << i << ": " << pp << endl;
       key += pp;
+      res.key_shares.at(i) = pp;
     }
 
   cout << "--------------\n";
   cout << "Final Keys : " << key << endl;
+
+  return res;
+}
+
+template <class U>
+void read_global_mac_key(const string& directory, int nparties, U& key)
+{
+  key = read_global_mac_key<Share<U>>(directory, nparties).key;
 }
 
 template <>
@@ -448,18 +424,18 @@ T reconstruct(vector<MaliciousShamirShare<T>>& shares)
 }
 
 template<class T>
-void make_mac_key_share(typename T::mac_share_type::open_type& key,
-    vector<typename T::mac_share_type>& key_shares, int nplayers, T, PRNG& G)
+void make_mac_key_share(KeySetup<T>& setup, int nplayers, T, PRNG& G)
 {
-  key.randomize(G);
-  make_share(key_shares.data(), key, nplayers, GC::NoShare(), G);
-  assert(not key_shares[0].is_zero());
+  setup.key.randomize(G);
+  make_share(setup.key_shares.data(), setup.key, nplayers, GC::NoValue(), G);
+  assert(not setup.key_shares[0].is_zero());
 }
 
 template<int K, int S>
-void make_mac_key_share(Z2<K + S>& key,
-    vector<SemiShare<Z2<K + S>>>& key_shares, int nplayers, Spdz2kShare<K, S>, PRNG& G)
+void make_mac_key_share(KeySetup<Spdz2kShare<K, S>>& setup, int nplayers, Spdz2kShare<K, S>, PRNG& G)
 {
+  auto& key = setup.key;
+  auto& key_shares = setup.key_shares;
   key = {};
   key_shares.resize(nplayers);
   for (int i = 0; i < nplayers; i++)
@@ -471,15 +447,17 @@ void make_mac_key_share(Z2<K + S>& key,
 }
 
 template<class T>
-void generate_mac_keys(typename T::mac_share_type::open_type& key,
+void generate_mac_keys(KeySetup<T>& key_setup,
     int nplayers, string prep_data_prefix, PRNG& G)
 {
+  auto& key = key_setup.key;
+  auto& key_shares = key_setup.key_shares;
   key.assign_zero();
   int tmpN = 0;
   ifstream inpf;
   prep_data_prefix = get_prep_sub_dir<T>(prep_data_prefix, nplayers, true);
   bool generate = false;
-  vector<typename T::mac_share_type> key_shares(nplayers);
+  key_shares.resize(nplayers);
 
   for (int i = 0; i < nplayers; i++)
     {
@@ -512,7 +490,7 @@ void generate_mac_keys(typename T::mac_share_type::open_type& key,
 
   if (generate)
     {
-      make_mac_key_share(key, key_shares, nplayers, T(), G);
+      make_mac_key_share(key_setup, nplayers, T(), G);
 
       for (int i = 0; i < nplayers; i++)
         {
@@ -545,7 +523,7 @@ inline void check_files(ofstream* outf, int N)
  * ntrip  = Number triples needed
  */
 template<class T>
-void make_mult_triples(const typename T::mac_type& key, int N, int ntrip,
+void make_mult_triples(const KeySetup<T>& key, int N, int ntrip,
     bool zero, string prep_data_prefix, PRNG& G, int thread_num = -1)
 {
   T::clear::write_setup(get_prep_sub_dir<T>(prep_data_prefix, N));
@@ -571,7 +549,7 @@ void make_mult_triples(const typename T::mac_type& key, int N, int ntrip,
  * ntrip  = Number inverses needed
  */
 template<class T>
-void make_inverse(const typename T::mac_type& key, int N, int ntrip, bool zero,
+void make_inverse(const KeySetup<T>& key, int N, int ntrip, bool zero,
     string prep_data_prefix, PRNG& G)
 {
 
@@ -592,16 +570,15 @@ void make_inverse(const typename T::mac_type& key, int N, int ntrip, bool zero,
   check_files(files.outf, N);
 }
 
-template<class T>
-void plain_edabits(vector<typename T::clear>& as,
-    vector<typename T::bit_type::part_type::clear>& bs, int length, PRNG& G,
+template<class T, class U>
+void plain_edabits(vector<T>& as,
+    vector<U>& bs, int length, PRNG& G, int max_size,
     bool zero = false)
 {
-  int max_size = edabitvec<T>::MAX_SIZE;
   as.resize(max_size);
   bs.clear();
   bs.resize(length);
-  Z2<T::clear::MAX_EDABITS> value;
+  Z2<T::MAX_EDABITS> value;
   for (int j = 0; j < max_size; j++)
     {
       if (not zero)

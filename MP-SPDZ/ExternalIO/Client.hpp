@@ -20,10 +20,17 @@ Client::Client(const vector<string>& hostnames, int port_base,
     {
         set_up_client_socket(plain_sockets[i], hostnames[i].c_str(), port_base + i);
         octetStream(to_string(my_client_id)).Send(plain_sockets[i]);
-        sockets[i] = new client_socket(io_context, ctx, plain_sockets[i],
+        sockets[i] = new client_socket(io_service, ctx, plain_sockets[i],
                 "P" + to_string(i), "C" + to_string(my_client_id), true);
         if (i == 0)
             specification.Receive(sockets[0]);
+        else
+        {
+            octetStream spec;
+            spec.Receive(sockets[i]);
+            if (spec != specification)
+                throw runtime_error("inconsistent specification");
+        }
     }
 }
 

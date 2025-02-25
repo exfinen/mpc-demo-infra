@@ -15,7 +15,7 @@ int AndJob::run()
 #endif
 	__m128i* prf_output = new __m128i[PAD_TO_8(ProgramParty::s().get_n_parties())];
 	auto gate = gates.begin();
-	vector< GC::Secret<EvalRegister> >& S = *this->S;
+	auto& S = *this->S;
 	const vector<int>& args = *this->args;
 	int i_gate = 0;
 	for (size_t i = start; i < end; i += 4)

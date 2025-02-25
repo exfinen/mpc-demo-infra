@@ -10,12 +10,12 @@
 void check_ssl_file(string filename)
 {
     if (not ifstream(filename))
-        throw runtime_error("Cannot access " + filename
+        exit_error("Cannot access " + filename
                         + ". Have you set up SSL?\n"
                         "You can use `Scripts/setup-ssl.sh <nparties>`.");
 }
 
-void ssl_error(string side, string other, string me)
+void ssl_error(string side, string other, string me, exception& e)
 {
     cerr << side << "-side handshake with " << other
             << " failed. Make sure both sides "
@@ -48,6 +48,8 @@ void ssl_error(string side, string other, string me)
             cerr << "/";
     }
     cerr << endl;
+    cerr << "SSL error: " << e.what() << endl;
+    exit(1);
 }
 
 CryptoPlayer::CryptoPlayer(const Names& Nms, const string& id_base) :
@@ -93,8 +95,10 @@ CryptoPlayer::CryptoPlayer(const Names& Nms, const string& id_base) :
             continue;
         }
 
-        senders[i] = new Sender<ssl_socket*>(i < my_num() ? sockets[i] : other_sockets[i]);
-        receivers[i] = new Receiver<ssl_socket*>(i < my_num() ? other_sockets[i] : sockets[i]);
+        senders[i] = new Sender<ssl_socket*>(
+                i < my_num() ? sockets[i] : other_sockets[i], i);
+        receivers[i] = new Receiver<ssl_socket*>(
+                i < my_num() ? other_sockets[i] : sockets[i], i);
     }
 }
 

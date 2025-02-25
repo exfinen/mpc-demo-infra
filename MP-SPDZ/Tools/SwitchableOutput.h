@@ -65,6 +65,13 @@ public:
         if (out)
             out->width(w);
     }
+
+    template<class T>
+    void signed_output(const T& x)
+    {
+        if (out)
+            x.output(*out, true, true);
+    }
 };
 
 #endif /* TOOLS_SWITCHABLEOUTPUT_H_ */

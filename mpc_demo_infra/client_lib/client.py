@@ -1,10 +1,8 @@
-# Copied and modified from https://github.com/ZKStats/MP-SPDZ/tree/demo_client/DevConDemo
 import platform
 import socket, ssl
 import struct
 import time
 import logging
-
 from .domains import *
 
 logger = logging.getLogger(__name__)
@@ -36,6 +34,15 @@ def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
     sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
 
 class Client:
+    """Client to servers running secure computation. Works both as a client
+    to all parties or a trusted client to a single party.
+
+    :param hostnames: hostnames or IP addresses to connect to
+    :param port_base: port number for first hostname,
+      increases by one for every additional hostname
+    :param my_client_id: number to identify client
+
+    """
     def __init__(self, hosts, port_base, client_id, certs_path, cert_file, key_file, timeout, max_client_wait):
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
         ctx.load_cert_chain(certfile=cert_file, keyfile=key_file)
@@ -77,7 +84,13 @@ class Client:
 
         self.specification = octetStream()
         self.specification.Receive(self.sockets[0])
+        for sock in self.sockets[1:]:
+            specification = octetStream()
+            specification.Receive(sock)
+            if specification.buf != self.specification.buf:
+                raise Exception('inconsistent specification')
         type = self.specification.get_int(4)
+
         if type == ord('R'):
             self.domain = Z2(self.specification.get_int(4))
             self.clear_domain = Z2(self.specification.get_int(4))
@@ -97,14 +110,7 @@ class Client:
             n_expected = 3 if active else 1
             if os.get_length() != n_expected * T.size() * n:
                 import sys
-                logger.error(
-                    "length=%s n_expected=%s T.size=%s n=%s active=%s",
-                    os.get_length(),
-                    n_expected,
-                    T.size(),
-                    n,
-                    active,
-                )
+                print (os.get_length(), n_expected, T.size(), n, active, file=sys.stderr)
                 raise Exception('unexpected data length')
             for triple in triples:
                 for i in range(n_expected):
@@ -121,6 +127,12 @@ class Client:
         return triples
 
     def send_private_inputs(self, values):
+        """ Send inputs privately to the computation servers.
+        This assumes that the client is connected to all servers.
+
+        :param values: list of input values
+
+        """
         T = self.domain
         triples = self.receive_triples(T, len(values))
         os = octetStream()
@@ -131,9 +143,45 @@ class Client:
             os.Send(socket)
 
     def receive_outputs(self, n):
+        """ Receive outputs privately from the computation servers.
+        This assumes that the client is connected to all servers.
+
+        :param n: number of outputs
+
+        """
         T = self.domain
         triples = self.receive_triples(T, n)
         return [int(self.clear_domain(triple[0].v)) for triple in triples]
+
+    def send_public_inputs(self, values):
+        """ Send values in the clear. This works for public inputs
+        to all servers or to send shares to a single server.
+
+        :param values: list of values
+
+        """
+        os = octetStream()
+        for value in values:
+            self.domain(value).pack(os)
+        for socket in self.sockets:
+            os.Send(socket)
+
+    def receive_plain_values(self, socket=None):
+        """ Receive values in the clear. This works for public inputs
+        to all servers or to send shares to a single server.
+
+        :param socket: socket to use (need to specify it there is more than one)
+
+        """
+        if socket is None:
+            if len(self.sockets) != 1:
+                raise Exception('need to specify socket')
+            socket = self.sockets[0]
+        os = octetStream()
+        os.Receive(socket)
+        assert len(os) % self.domain.size() == 0
+        return [int(os.get(self.domain))
+                for i in range(len(os) // self.domain.size())]
 
 class octetStream:
     def __init__(self, value=None):
@@ -144,6 +192,8 @@ class octetStream:
 
     def get_length(self):
         return len(self.buf)
+
+    __len__ = get_length
 
     def reset_write_head(self):
         self.buf = b''
@@ -185,6 +235,11 @@ class octetStream:
             return res
         else:
             return 0
+
+    def get(self, type):
+        res = type()
+        res.unpack(self)
+        return res
 
     def consume(self, length):
         self.ptr += length

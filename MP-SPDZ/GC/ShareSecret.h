@@ -46,6 +46,9 @@ public:
 
     static const bool is_real = true;
     static const bool actual_inputs = true;
+    static const bool symmetric = true;
+
+    static bool real_shares(const Player&) { return true; }
 
     static ShareThread<U>& get_party()
     {
@@ -118,8 +121,11 @@ public:
     typedef BitVec open_type;
     typedef NoShare mac_type;
     typedef NoValue mac_key_type;
+    typedef NoShare mac_share_type;
 
     typedef NoShare bit_type;
+
+    typedef void DefaultMC;
 
     static const int N_BITS = clear::N_BITS;
 
@@ -151,10 +157,20 @@ public:
     {
     }
 
+    static GC::NoValue get_mac_key()
+    {
+        throw runtime_error("no MAC");
+    }
+
     template<class T>
     static string proto_fake_opts()
     {
         return T::fake_opts();
+    }
+
+    static size_t maximum_size()
+    {
+        return default_length;
     }
 
     RepSecretBase()
@@ -166,8 +182,8 @@ public:
     {
     }
 
-    void bitcom(Memory<U>& S, const vector<int>& regs);
-    void bitdec(Memory<U>& S, const vector<int>& regs) const;
+    void bitcom(StackedVector<U>& S, const vector<int>& regs);
+    void bitdec(StackedVector<U>& S, const vector<int>& regs) const;
 
     void xor_(int n, const This& x, const This& y)
     { *this = (x ^ y).mask(n); }
@@ -194,7 +210,7 @@ public:
     typedef ReplicatedBase Protocol;
 
     static ReplicatedSecret constant(const typename super::clear& value,
-        int my_num, typename super::mac_key_type, int = -1)
+        int my_num, typename super::mac_key_type = {}, int = -1)
     {
       ReplicatedSecret res;
       if (my_num < 2)

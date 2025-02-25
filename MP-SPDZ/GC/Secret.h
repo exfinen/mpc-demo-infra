@@ -65,6 +65,8 @@ public:
 
     typedef typename T::out_type out_type;
 
+    typedef void DefaultMC;
+
     static string type_string() { return "evaluation secret"; }
     static string phase_name() { return T::name(); }
 
@@ -75,6 +77,10 @@ public:
     static const bool is_real = true;
 
     static const bool actual_inputs = T::actual_inputs;
+
+    static const bool symmetric = true;
+
+    static bool real_shares(const Player&) { return true; }
 
     static int threshold(int nplayers) { return T::threshold(nplayers); }
 
@@ -148,9 +154,9 @@ public:
     Secret<T> operator>>(int i) const;
 
     template<class U>
-    void bitcom(Memory<U>& S, const vector<int>& regs);
+    void bitcom(StackedVector<U>& S, const vector<int>& regs);
     template<class U>
-    void bitdec(Memory<U>& S, const vector<int>& regs) const;
+    void bitdec(StackedVector<U>& S, const vector<int>& regs) const;
 
     Secret<T> operator+(const Secret<T>& x) const;
     Secret<T>& operator+=(const Secret<T>& x) { *this = *this + x; return *this; }
@@ -175,6 +181,7 @@ public:
     void finalize_input(U& inputter, int from, int n_bits);
 
     int size() const { return registers.size(); }
+    size_t maximum_size() const { return registers.size(); }
     RegVector& get_regs() { return registers; }
     const RegVector& get_regs() const { return registers; }
 

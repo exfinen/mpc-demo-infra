@@ -271,23 +271,15 @@ if [ "$install_rust" = true ]; then
     if [ "$install_prover" = true ]; then
         print "Building Binance Prover..."
         spushd tlsn
-        echo "---> 1" 
         eval "cargo build --release --example binance_prover $OUT_REDIR"
-        echo "---> 2" 
 
         spushd target/release/examples
-        echo "---> 3" 
         if ls binance_prover-* > /dev/null 2>&1 && [ ! -e binance_prover ]; then
-        echo "---> 4" 
             rm -rf *.d
-        echo "---> 5" 
             mv -f binance_prover-* binance_prover
-        echo "---> 6" 
         fi
         spopd # pushd target/release/example
-        echo "---> 7" 
         spopd # pushd tlsn
-        echo "---> 8" 
     fi
 
     # Install Binance Verifier if so specified
@@ -310,15 +302,19 @@ fi
 
 # Create server confguration files
 if [ "$install_target" = "$all_servers" ]; then
+    echo "---> 1" 
     print "Creating server configuration files..."
     for server in coord party consumer_api client_cli; do
         eval "mv -f .env.${server}.example .env.${server} $OUT_REDIR"
     done
 else
+    echo "---> 2" 
     if [ "$install_client_cfg" = true ]; then
+    echo "---> 3" 
         eval "mv -f .env.client_cli.example .env.client_cli $OUT_REDIR"
         print "Created .env.client_cli"
     fi
+    echo "---> 4" 
 fi
 
 echo -e "\nEnvironment setup is complete."

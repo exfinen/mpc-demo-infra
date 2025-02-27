@@ -300,22 +300,5 @@ if [ "$install_rust" = true ]; then
     spopd # pushd ../tlsn
 fi
 
-# Create server confguration files
-if [ "$install_target" = "$all_servers" ]; then
-    echo "---> 1" 
-    print "Creating server configuration files..."
-    for server in coord party consumer_api client_cli; do
-        eval "mv -f .env.${server}.example .env.${server} $OUT_REDIR"
-    done
-else
-    echo "---> 2" 
-    if [ "$install_client_cfg" = true ]; then
-    echo "---> 3" 
-        eval "mv -f .env.client_cli.example .env.client_cli $OUT_REDIR"
-        print "Created .env.client_cli"
-    fi
-    echo "---> 4" 
-fi
-
 echo -e "\nEnvironment setup is complete."
 

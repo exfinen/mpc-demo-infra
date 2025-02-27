@@ -271,15 +271,23 @@ if [ "$install_rust" = true ]; then
     if [ "$install_prover" = true ]; then
         print "Building Binance Prover..."
         spushd tlsn
+        echo "---> 1" 
         eval "cargo build --release --example binance_prover $OUT_REDIR"
+        echo "---> 2" 
 
         spushd target/release/examples
+        echo "---> 3" 
         if ls binance_prover-* > /dev/null 2>&1 && [ ! -e binance_prover ]; then
+        echo "---> 4" 
             rm -rf *.d
+        echo "---> 5" 
             mv -f binance_prover-* binance_prover
+        echo "---> 6" 
         fi
         spopd # pushd target/release/example
+        echo "---> 7" 
         spopd # pushd tlsn
+        echo "---> 8" 
     fi
 
     # Install Binance Verifier if so specified

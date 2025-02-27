@@ -214,30 +214,6 @@ if [ "$install_rust" = true ]; then
     fi
 fi
 
-# Create tlsn symbolic link if required and not present
-if [ "$install_rust" = true ]; then
-    if [ ! -L "../tlsn" ]; then
-        if [ -e "../tlsn" ]; then
-            echo "Unable to create a symbolic link ../tlsn because ../tlsn directory or file already exists"
-            exit 1
-        fi
-        print "Creating symbolic link: ../tlsn -> ./tlsn"
-        ln -s $(pwd)/tlsn ..
-    fi
-fi
-
-# Create MP-SPDZ symbolic link if required and not present
-if [ "$install_mpspdz" = true ]; then
-    if [ ! -L "../MP-SPDZ" ]; then
-        if [ -e "../MP-SPDZ" ]; then
-            echo "Unable to create a symbolic link ../MP-SPDZ because ../MP-SPDZ directory or file already exists"
-            exit 1
-        fi
-        print "Creating symbolic link: ../MP-SPDZ -> ./MP-SPDZ"
-        ln -s $(pwd)/MP-SPDZ ..
-    fi
-fi
-
 # Setup MP-SPDZ if so specified
 if [ "$install_mpspdz" = true ]; then
     # Install dependencies
@@ -248,7 +224,7 @@ if [ "$install_mpspdz" = true ]; then
     fi
 
     # Setup MP-SPDZ
-    spushd ../MP-SPDZ
+    spushd MP-SPDZ
     git submodule update --init --recursive
 
     # Add CONFIG.mine with MOD if not already present
@@ -271,7 +247,7 @@ fi
 
 if [ "$install_rust" = true ]; then
     MPC_DEMO_INFRA_ROOT=$(pwd)
-    spushd ../tlsn
+    spushd tlsn
 
     if [ "$install_prover" = true ] || [ "$install_verifier" = true ]; then
         spushd tlsn

@@ -11,8 +11,8 @@ class Settings(BaseSettings):
 
     # mpc-demo-infra/certs
     certs_path: str = str(this_file_path.parent.parent / "certs")
-    # ../../../tlsn
-    tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
+    # project-root/tlsn
+    tlsn_project_root: str = str(this_file_path.parent.parent / "tlsn")
     print(f"tlsn_project_root: {tlsn_project_root}")
 
     party_web_protocol: str = "http"

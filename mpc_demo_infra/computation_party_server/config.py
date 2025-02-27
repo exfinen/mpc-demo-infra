@@ -19,14 +19,14 @@ class Settings(BaseSettings):
     # In production, we need https to protect the API key from being exposed.
     party_api_key: str = "1234567890"
 
-    # ../../../tlsn
-    tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
+    # project-root/tlsn
+    tlsn_project_root: str = str(this_file_path.parent.parent / "tlsn")
 
     port: int = 8006
     party_web_protocol: str = "http"
     party_hosts: list[str] = ["127.0.0.1", "127.0.0.1", "127.0.0.1"]
     party_ports: list[int] = [8006, 8007, 8008]
-    mpspdz_project_root: str = str(this_file_path.parent.parent.parent / "MP-SPDZ")
+    mpspdz_project_root: str = str(this_file_path.parent.parent / "MP-SPDZ")
 
     fullchain_pem_path: str = "ssl_certs/fullchain.pem"
     privkey_pem_path: str = "ssl_certs/privkey.pem"

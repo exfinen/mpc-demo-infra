@@ -46,7 +46,7 @@ poetry run consumer-api-run &
 pids+=($!)
 
 echo "Starting Notary Server..."
-pushd ../tlsn/notary/target/release
+pushd ./tlsn/notary/target/release
 ./notary-server &
 notary_pid=$!
 popd

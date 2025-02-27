@@ -58,8 +58,8 @@ FREE_PORTS_START = 8010
 FREE_PORTS_END = 8100
 COMPUTATION_HOSTS = ["127.0.0.1"] * NUM_PARTIES
 COMPUTATION_PARTY_PORTS = [COORDINATION_PORT + 1 + party_id for party_id in range(NUM_PARTIES)]
-MPSPDZ_PROJECT_ROOT = Path(__file__).parent.parent.parent / "MP-SPDZ"
-TLSN_PROJECT_ROOT = Path(__file__).parent.parent.parent / "tlsn"
+MPSPDZ_PROJECT_ROOT = Path(__file__).parent.parent / "MP-SPDZ"
+TLSN_PROJECT_ROOT = Path(__file__).parent.parent / "tlsn"
 CERTS_PATH = MPSPDZ_PROJECT_ROOT / "Player-Data"
 
 TIMEOUT_MPC = 60

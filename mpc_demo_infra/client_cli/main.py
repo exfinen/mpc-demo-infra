@@ -157,11 +157,13 @@ async def query_computation_and_verify():
 
 
 def notarize_and_share_data_cli():
+    project_root = Path(__file__).parent.parent.parent.resolve()
     parser = argparse.ArgumentParser(description="Notarize and share data")
     parser.add_argument("eth_address", type=str, help="The voucher code")
     parser.add_argument("api_key", type=str, help="The API key")
     parser.add_argument("api_secret", type=str, help="The API secret")
-    parser.add_argument("--notary-crt-path", type=str, default=None, help="Path to notary.crt file")
+    parser.add_argument("--notary-crt-path", type=str, default=str(project_root / "notary.crt"),
+                        help="Path to notary.crt file (default: ./notary.crt)")
     args = parser.parse_args()
     try:
         logger.info(f"Started with settings: {settings}")

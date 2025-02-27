@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Database settings
     database_url: str = "sqlite:///./coordination.db"
 
-    tlsn_project_root: str = str(this_file_path.parent.parent.parent / "tlsn")
+    tlsn_project_root: str = str(this_file_path.parent.parent / "tlsn")
 
     # mpc-demo-infra/tlsn_proofs
     tlsn_proofs_dir: str = str(this_file_path.parent.parent / "tlsn_proofs")

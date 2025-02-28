@@ -115,13 +115,13 @@ async def notarize_and_share_data(eth_address: str, api_key: str, api_secret: st
             timestamp,
             settings.max_client_wait,
         )
-        logger.info("Sharing data fisnihed")
-
     except Exception as e:
         logger.error(f"Failed to share data: {e}")
-    finally:
-        # Call the server to mark the computation as finished whether it succeeds or not.
         await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
+        raise e
+    logger.info("Sharing data finished")
+    # Call the server to mark the computation as finished whether it succeeds or not.
+    await mark_queue_computation_to_be_finished(settings.coordination_server_url, access_key, computation_key)
     logger.info(f"Binance ETH balance data has been shared secretly to MPC parties.")
 
 

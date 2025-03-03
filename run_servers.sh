@@ -67,10 +67,6 @@ if [ "$start_notary_only" = false ]; then
   echo "Starting Data Consumer API Server..."
   poetry run consumer-api-run &
   pids+=($!)
-
-
-  echo "All servers started. Press Ctrl+C to stop all servers."
-  echo "Running PIDs: ${pids[@]}"
 fi
 
 echo "Starting Notary Server..."
@@ -79,6 +75,9 @@ pushd ./tlsn/notary/target/release
 notary_pid=$!
 popd
 pids+=($notary_pid)
+
+echo "All requested servers have started. Press Ctrl+C to stop the servers."
+echo "Running PIDs: ${pids[@]}"
 
 # Wait indefinitely until Ctrl+C is pressed
 wait

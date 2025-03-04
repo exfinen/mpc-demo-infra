@@ -1,0 +1,6 @@
+[submodule "tlsn"]
+	path = tlsn
+	url = https://github.com/MPCStats/tlsn.git
+[submodule "MP-SPDZ"]
+	path = MP-SPDZ
+	url = https://github.com/MPCStats/MP-SPDZ.git

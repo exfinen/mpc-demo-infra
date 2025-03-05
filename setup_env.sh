@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e 
+#set -e 
 
 MPC_PROTOCOL="malicious-rep-ring"
 NUM_PARTIES=3
